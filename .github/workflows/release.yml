@@ -60,7 +60,7 @@ jobs:
         run: uv run twine check dist/*
 
       - name: Generate build provenance attestations
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         if: github.event_name == 'release'
         with:
           subject-path: 'dist/*'
