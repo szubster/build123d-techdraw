@@ -1,0 +1,35 @@
+name: Bug Report
+description: Create a report to help us improve build123d-techdraw
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the sections below.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal Reproducible Example
+      description: Please provide a self-contained Python script using build123d-techdraw reproducing the issue.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Info
+      description: |
+        - Python version (`python --version`)
+        - build123d version (`pip show build123d`)
+        - build123d-techdraw version (`pip show build123d-techdraw`)
+        - OS (Ubuntu, Windows WSL, macOS, etc.)
+    validations:
+      required: true

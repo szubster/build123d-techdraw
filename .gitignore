@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+src/build123d_techdraw/_version.py
 build/
 develop-eggs/
 dist/
