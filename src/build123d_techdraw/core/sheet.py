@@ -5,6 +5,31 @@ from typing import Any
 
 import build123d as bd
 
+from build123d_techdraw.annotations.callouts import (
+    BOMBalloon,
+    LeaderNote,
+    SectionCuttingLine,
+)
+from build123d_techdraw.annotations.centerlines import (
+    BoltCircle,
+    Centerline,
+    CenterMark,
+)
+from build123d_techdraw.annotations.dimensions import (
+    DiameterDimension,
+    DimensionType,
+    LinearDimension,
+    RadialDimension,
+)
+from build123d_techdraw.annotations.gdt import (
+    DatumFeatureSymbol,
+    FeatureControlFrame,
+    GDTCharacteristic,
+)
+from build123d_techdraw.annotations.surface import (
+    MaterialRemoval,
+    SurfaceFinishSymbol,
+)
 from build123d_techdraw.core.title_block import (
     BOMItem,
     RevisionEntry,
@@ -150,6 +175,7 @@ class DrawingSheet:
                 view_label_y=view_label_y,
                 model_origin=model_origin,
             )
+        view.sheet = self
         self.views.append(view)
         return view
 
@@ -174,8 +200,219 @@ class DrawingSheet:
             view_label_y=view_label_y,
             model_origin=model_origin,
         )
+        view.sheet = self
         self.views.append(view)
         return view
+
+    def add_dimension(
+        self,
+        start: tuple[float, float],
+        end: tuple[float, float],
+        offset: float = 8.0,
+        dim_type: DimensionType = DimensionType.ALIGNED,
+        text: str | None = None,
+        tolerance: str | None = None,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> LinearDimension:
+        """Add a linear dimension directly in sheet paper coordinates."""
+        dim = LinearDimension(
+            start=start,
+            end=end,
+            offset=offset,
+            dim_type=dim_type,
+            text=text,
+            tolerance=tolerance,
+            prefix=prefix,
+            suffix=suffix,
+        )
+        self.annotations.append(dim)
+        return dim
+
+    def add_radial_dimension(
+        self,
+        center: tuple[float, float],
+        radius: float,
+        angle_deg: float = 45.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+    ) -> RadialDimension:
+        """Add a radial dimension in sheet paper coordinates."""
+        dim = RadialDimension(
+            center=center,
+            radius=radius,
+            angle_deg=angle_deg,
+            text=text,
+            tolerance=tolerance,
+        )
+        self.annotations.append(dim)
+        return dim
+
+    def add_diameter_dimension(
+        self,
+        center: tuple[float, float],
+        diameter: float,
+        angle_deg: float = 45.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+    ) -> DiameterDimension:
+        """Add a diameter dimension in sheet paper coordinates."""
+        dim = DiameterDimension(
+            center=center,
+            diameter=diameter,
+            angle_deg=angle_deg,
+            text=text,
+            tolerance=tolerance,
+        )
+        self.annotations.append(dim)
+        return dim
+
+    def add_gdt_frame(
+        self,
+        position: tuple[float, float],
+        characteristic: GDTCharacteristic,
+        tolerance_value: str,
+        datum_a: str | None = None,
+        datum_b: str | None = None,
+        datum_c: str | None = None,
+    ) -> FeatureControlFrame:
+        """Add a GD&T Feature Control Frame in sheet paper coordinates."""
+        fcf = FeatureControlFrame(
+            position=position,
+            characteristic=characteristic,
+            tolerance_value=tolerance_value,
+            datum_a=datum_a,
+            datum_b=datum_b,
+            datum_c=datum_c,
+        )
+        self.annotations.append(fcf)
+        return fcf
+
+    def add_datum_symbol(
+        self,
+        target: tuple[float, float],
+        label: str = "A",
+        direction: str = "up",
+    ) -> DatumFeatureSymbol:
+        """Add an ISO datum feature identifier symbol."""
+        sym = DatumFeatureSymbol(target=target, label=label, direction=direction)
+        self.annotations.append(sym)
+        return sym
+
+    def add_surface_finish(
+        self,
+        position: tuple[float, float],
+        ra_value: str = "Ra 3.2",
+        material_removal: MaterialRemoval = MaterialRemoval.REQUIRED,
+        process: str | None = None,
+    ) -> SurfaceFinishSymbol:
+        """Add an ISO 1302 surface roughness / finish symbol."""
+        sym = SurfaceFinishSymbol(
+            position=position,
+            ra_value=ra_value,
+            material_removal=material_removal,
+            process=process,
+        )
+        self.annotations.append(sym)
+        return sym
+
+    def add_centerline(
+        self,
+        start: tuple[float, float],
+        end: tuple[float, float],
+        stroke_width: float = 0.25,
+    ) -> Centerline:
+        """Add an ISO dash-dot centerline between two sheet points."""
+        cl = Centerline(start=start, end=end, stroke_width=stroke_width)
+        self.annotations.append(cl)
+        return cl
+
+    def add_centermark(
+        self,
+        center: tuple[float, float],
+        size: float = 6.0,
+    ) -> CenterMark:
+        """Add an ISO center crosshair."""
+        cm = CenterMark(center=center, size=size)
+        self.annotations.append(cm)
+        return cm
+
+    def add_bolt_circle(
+        self,
+        center: tuple[float, float],
+        diameter: float,
+        num_holes: int = 4,
+        start_angle_deg: float = 0.0,
+    ) -> BoltCircle:
+        """Add a bolt pitch circle diameter (PCD) annotation."""
+        bc = BoltCircle(
+            center=center,
+            diameter=diameter,
+            num_holes=num_holes,
+            start_angle_deg=start_angle_deg,
+        )
+        self.annotations.append(bc)
+        return bc
+
+    def add_leader_note(
+        self,
+        target: tuple[float, float],
+        lines: list[str] | str,
+        elbow_offset: tuple[float, float] = (15.0, -12.0),
+        shelf_length: float = 20.0,
+        align_right: bool | None = None,
+        terminator: str = "dot",
+    ) -> LeaderNote:
+        """Add a leader note with pointer dot/arrow, elbow, and horizontal text shelf."""
+        line_list = [lines] if isinstance(lines, str) else list(lines)
+        note = LeaderNote(
+            target=target,
+            lines=line_list,
+            elbow_offset=elbow_offset,
+            shelf_length=shelf_length,
+            align_right=align_right,
+            terminator=terminator,
+        )
+        self.annotations.append(note)
+        return note
+
+    add_leader = add_leader_note
+
+    def add_balloon(
+        self,
+        item_no: int,
+        target: tuple[float, float],
+        balloon_center: tuple[float, float],
+        radius: float = 4.5,
+    ) -> BOMBalloon:
+        """Add an ISO BOM balloon callout circle connected to component via leader."""
+        balloon = BOMBalloon(
+            item_no=item_no,
+            target=target,
+            balloon_center=balloon_center,
+            radius=radius,
+        )
+        self.annotations.append(balloon)
+        return balloon
+
+    def add_section_cutting_line(
+        self,
+        start: tuple[float, float],
+        end: tuple[float, float],
+        label: str = "A",
+        arrow_dir: str = "up",
+    ) -> SectionCuttingLine:
+        """Add an ISO section cutting plane line."""
+        cut = SectionCuttingLine(
+            start=start,
+            end=end,
+            label=label,
+            arrow_dir=arrow_dir,
+        )
+        self.annotations.append(cut)
+        return cut
+
+    add_section_cut = add_section_cutting_line
 
     def render_border_and_grid(self) -> str:
         """Render ISO 5457 borders, centering marks, and alphanumeric grid zones."""

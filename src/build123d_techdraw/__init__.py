@@ -1,5 +1,32 @@
 """build123d-techdraw: 2D technical drawing and blueprint engine for build123d."""
 
+from build123d_techdraw.annotations.callouts import (
+    BOMBalloon,
+    LeaderNote,
+    SectionCuttingLine,
+)
+from build123d_techdraw.annotations.centerlines import (
+    BoltCircle,
+    Centerline,
+    CenterMark,
+)
+from build123d_techdraw.annotations.dimensions import (
+    DiameterDimension,
+    DimensionType,
+    LinearDimension,
+    RadialDimension,
+    format_dimension_value,
+)
+from build123d_techdraw.annotations.gdt import (
+    DatumFeatureSymbol,
+    FeatureControlFrame,
+    GDTCharacteristic,
+)
+from build123d_techdraw.annotations.surface import (
+    MaterialRemoval,
+    SurfaceFinishSymbol,
+)
+from build123d_techdraw.annotations.symbols import render_projection_cone_svg
 from build123d_techdraw.core.booklet import DrawingBooklet
 from build123d_techdraw.core.scale import (
     calculate_auto_scale,
@@ -20,16 +47,30 @@ except ImportError:  # pragma: no cover
     __version__ = "0.1.0.dev0"
 
 __all__ = [
-    "__version__",
+    "BOMBalloon",
     "BOMItem",
+    "BoltCircle",
+    "CenterMark",
+    "Centerline",
     "DXFRenderer",
+    "DatumFeatureSymbol",
+    "DiameterDimension",
+    "DimensionType",
     "DrawingBooklet",
     "DrawingSheet",
+    "FeatureControlFrame",
+    "GDTCharacteristic",
+    "LeaderNote",
+    "LinearDimension",
+    "MaterialRemoval",
     "PDFRenderer",
+    "RadialDimension",
     "RevisionEntry",
     "SVGRenderer",
+    "SectionCuttingLine",
     "SheetSize",
     "SheetView",
+    "SurfaceFinishSymbol",
     "THEME_COLORS",
     "Theme",
     "ThemeColors",
@@ -37,5 +78,8 @@ __all__ = [
     "ViewType",
     "calculate_auto_scale",
     "find_closest_iso_scale",
+    "format_dimension_value",
     "format_iso_scale",
+    "render_projection_cone_svg",
+    "__version__",
 ]
