@@ -4,11 +4,28 @@ import os
 import re
 import tempfile
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any, Optional
 
 import build123d as bd
 
+from build123d_techdraw.annotations.callouts import BOMBalloon, LeaderNote
+from build123d_techdraw.annotations.centerlines import BoltCircle, Centerline, CenterMark
+from build123d_techdraw.annotations.dimensions import (
+    DiameterDimension,
+    DimensionType,
+    LinearDimension,
+    RadialDimension,
+)
+from build123d_techdraw.annotations.gdt import (
+    DatumFeatureSymbol,
+    FeatureControlFrame,
+    GDTCharacteristic,
+)
+from build123d_techdraw.annotations.surface import MaterialRemoval, SurfaceFinishSymbol
 from build123d_techdraw.core.scale import format_iso_scale
+
+if TYPE_CHECKING:
+    from build123d_techdraw.core.sheet import DrawingSheet
 
 
 class ViewType(Enum):
@@ -65,7 +82,9 @@ class SheetView:
         view_label: str | None = None,
         view_label_pos: tuple[float, float] | None = None,
         scale_label: str | None = None,
+        sheet: Optional["DrawingSheet"] = None,
     ):
+        self.sheet = sheet
         self.view_type = view_type
         self.center_x = center_x
         self.center_y = center_y
@@ -136,6 +155,383 @@ class SheetView:
         sx = self.center_x + (svg_x - self.orig_cx) * self.scale
         sy = self.center_y + (svg_y - self.orig_cy) * self.scale
         return (sx, sy)
+
+    def dim_horizontal(
+        self,
+        model_x1: float,
+        model_x2: float,
+        model_y: float,
+        offset_y: float = -8.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> LinearDimension:
+        """Add a horizontal dimension between model_x1 and model_x2 at model_y."""
+        sx1 = self.to_sheet_x(model_x1)
+        sx2 = self.to_sheet_x(model_x2)
+        sy = self.to_sheet_y(model_y)
+        dim = LinearDimension(
+            start=(sx1, sy),
+            end=(sx2, sy),
+            offset=offset_y,
+            dim_type=DimensionType.HORIZONTAL,
+            text=text,
+            tolerance=tolerance,
+            prefix=prefix,
+            suffix=suffix,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(dim)
+        return dim
+
+    def dim_vertical(
+        self,
+        model_y1: float,
+        model_y2: float,
+        model_x: float,
+        offset_x: float = -10.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> LinearDimension:
+        """Add a vertical dimension between model_y1 and model_y2 at model_x."""
+        sy1 = self.to_sheet_y(model_y1)
+        sy2 = self.to_sheet_y(model_y2)
+        sx = self.to_sheet_x(model_x)
+        dim = LinearDimension(
+            start=(sx, sy1),
+            end=(sx, sy2),
+            offset=offset_x,
+            dim_type=DimensionType.VERTICAL,
+            text=text,
+            tolerance=tolerance,
+            prefix=prefix,
+            suffix=suffix,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(dim)
+        return dim
+
+    def dim_aligned(
+        self,
+        p1_model: tuple[float, float],
+        p2_model: tuple[float, float],
+        offset: float = 8.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> LinearDimension:
+        """Add an aligned dimension between two model points."""
+        s1 = self.to_sheet_coords(p1_model[0], p1_model[1])
+        s2 = self.to_sheet_coords(p2_model[0], p2_model[1])
+        dim = LinearDimension(
+            start=s1,
+            end=s2,
+            offset=offset,
+            dim_type=DimensionType.ALIGNED,
+            text=text,
+            tolerance=tolerance,
+            prefix=prefix,
+            suffix=suffix,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(dim)
+        return dim
+
+    def add_overall_horizontal(
+        self,
+        offset_y: float = -8.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> LinearDimension:
+        """Add an overall horizontal dimension spanning view's bounding box."""
+        y_ref = self.min_y if offset_y < 0 else self.max_y
+        dim = LinearDimension(
+            start=(self.min_x, y_ref),
+            end=(self.max_x, y_ref),
+            offset=offset_y,
+            dim_type=DimensionType.HORIZONTAL,
+            text=text,
+            tolerance=tolerance,
+            prefix=prefix,
+            suffix=suffix,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(dim)
+        return dim
+
+    def add_overall_vertical(
+        self,
+        offset_x: float = -10.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> LinearDimension:
+        """Add an overall vertical dimension spanning view's bounding box."""
+        x_ref = self.min_x if offset_x < 0 else self.max_x
+        dim = LinearDimension(
+            start=(x_ref, self.min_y),
+            end=(x_ref, self.max_y),
+            offset=offset_x,
+            dim_type=DimensionType.VERTICAL,
+            text=text,
+            tolerance=tolerance,
+            prefix=prefix,
+            suffix=suffix,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(dim)
+        return dim
+
+    def dim_radial(
+        self,
+        center_model: tuple[float, float],
+        radius_model: float,
+        angle_deg: float = 45.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+    ) -> RadialDimension:
+        """Add a radial dimension pointing to an arc defined in model space."""
+        cx, cy = self.to_sheet_coords(center_model[0], center_model[1])
+        dim = RadialDimension(
+            center=(cx, cy),
+            radius=radius_model * self.scale,
+            angle_deg=angle_deg,
+            text=text,
+            tolerance=tolerance,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(dim)
+        return dim
+
+    def dim_diameter(
+        self,
+        center_model: tuple[float, float],
+        diameter_model: float,
+        angle_deg: float = 45.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+    ) -> DiameterDimension:
+        """Add a diameter dimension across a hole/cylinder defined in model space."""
+        cx, cy = self.to_sheet_coords(center_model[0], center_model[1])
+        dim = DiameterDimension(
+            center=(cx, cy),
+            diameter=diameter_model * self.scale,
+            angle_deg=angle_deg,
+            text=text,
+            tolerance=tolerance,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(dim)
+        return dim
+
+    def centermark(
+        self,
+        model_x: float,
+        model_y: float,
+        size: float = 6.0,
+    ) -> CenterMark:
+        """Add a centermark crosshair at (model_x, model_y)."""
+        sc = self.to_sheet_coords(model_x, model_y)
+        cm = CenterMark(center=sc, size=size)
+        if self.sheet is not None:
+            self.sheet.annotations.append(cm)
+        return cm
+
+    def centerline_horizontal(
+        self,
+        model_y: float = 0.0,
+        model_x1: float | None = None,
+        model_x2: float | None = None,
+        overhang: float = 4.0,
+    ) -> Centerline:
+        """Draw an ISO centerline across the horizontal axis at model_y."""
+        sy = self.to_sheet_y(model_y)
+        sx1 = (
+            self.to_sheet_x(model_x1) - overhang if model_x1 is not None else self.min_x - overhang
+        )
+        sx2 = (
+            self.to_sheet_x(model_x2) + overhang if model_x2 is not None else self.max_x + overhang
+        )
+        cl = Centerline(start=(sx1, sy), end=(sx2, sy))
+        if self.sheet is not None:
+            self.sheet.annotations.append(cl)
+        return cl
+
+    def centerline_vertical(
+        self,
+        model_x: float = 0.0,
+        model_y1: float | None = None,
+        model_y2: float | None = None,
+        overhang: float = 4.0,
+    ) -> Centerline:
+        """Draw an ISO centerline across the vertical axis at model_x."""
+        sx = self.to_sheet_x(model_x)
+        sy1 = (
+            self.to_sheet_y(model_y1) + overhang if model_y1 is not None else self.max_y + overhang
+        )
+        sy2 = (
+            self.to_sheet_y(model_y2) - overhang if model_y2 is not None else self.min_y - overhang
+        )
+        cl = Centerline(start=(sx, min(sy1, sy2)), end=(sx, max(sy1, sy2)))
+        if self.sheet is not None:
+            self.sheet.annotations.append(cl)
+        return cl
+
+    def bolt_circle(
+        self,
+        center_model: tuple[float, float] = (0.0, 0.0),
+        diameter_model: float = 50.0,
+        num_holes: int = 4,
+        start_angle_deg: float = 0.0,
+    ) -> BoltCircle:
+        """Add a bolt pitch circle diameter (PCD) annotation in model space."""
+        sc = self.to_sheet_coords(center_model[0], center_model[1])
+        bc = BoltCircle(
+            center=sc,
+            diameter=diameter_model * self.scale,
+            num_holes=num_holes,
+            start_angle_deg=start_angle_deg,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(bc)
+        return bc
+
+    def leader(
+        self,
+        model_x: float,
+        model_y: float,
+        lines: list[str] | str,
+        elbow_dx: float = 15.0,
+        elbow_dy: float = -12.0,
+        shelf_length: float = 20.0,
+        align_right: bool | None = None,
+        terminator: str = "dot",
+    ) -> LeaderNote:
+        """Add a leader note pointing to (model_x, model_y) on the part."""
+        target = self.to_sheet_coords(model_x, model_y)
+        line_list = [lines] if isinstance(lines, str) else list(lines)
+        note = LeaderNote(
+            target=target,
+            lines=line_list,
+            elbow_offset=(elbow_dx, elbow_dy),
+            shelf_length=shelf_length,
+            align_right=align_right,
+            terminator=terminator,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(note)
+        return note
+
+    def leader_3d(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        lines: list[str] | str,
+        elbow_dx: float = 15.0,
+        elbow_dy: float = -12.0,
+        shelf_length: float = 20.0,
+        align_right: bool | None = None,
+        terminator: str = "dot",
+    ) -> LeaderNote:
+        """Add a leader note pointing to a 3D part point (x, y, z)."""
+        target = self.to_sheet_3d(x, y, z)
+        line_list = [lines] if isinstance(lines, str) else list(lines)
+        note = LeaderNote(
+            target=target,
+            lines=line_list,
+            elbow_offset=(elbow_dx, elbow_dy),
+            shelf_length=shelf_length,
+            align_right=align_right,
+            terminator=terminator,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(note)
+        return note
+
+    def balloon(
+        self,
+        item_no: int,
+        model_x: float,
+        model_y: float,
+        balloon_x: float,
+        balloon_y: float,
+    ) -> BOMBalloon:
+        """Add a BOM balloon callout pointing to (model_x, model_y)."""
+        target = self.to_sheet_coords(model_x, model_y)
+        balloon = BOMBalloon(
+            item_no=item_no,
+            target=target,
+            balloon_center=(balloon_x, balloon_y),
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(balloon)
+        return balloon
+
+    def add_gdt_frame(
+        self,
+        model_x: float,
+        model_y: float,
+        characteristic: GDTCharacteristic,
+        tolerance_value: str,
+        datum_a: str | None = None,
+        datum_b: str | None = None,
+        datum_c: str | None = None,
+    ) -> FeatureControlFrame:
+        """Add a GD&T Feature Control Frame near (model_x, model_y)."""
+        pos = self.to_sheet_coords(model_x, model_y)
+        fcf = FeatureControlFrame(
+            position=pos,
+            characteristic=characteristic,
+            tolerance_value=tolerance_value,
+            datum_a=datum_a,
+            datum_b=datum_b,
+            datum_c=datum_c,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(fcf)
+        return fcf
+
+    def add_datum_symbol(
+        self,
+        model_x: float,
+        model_y: float,
+        label: str = "A",
+        direction: str = "up",
+    ) -> DatumFeatureSymbol:
+        """Add an ISO datum feature identifier symbol at (model_x, model_y)."""
+        target = self.to_sheet_coords(model_x, model_y)
+        sym = DatumFeatureSymbol(target=target, label=label, direction=direction)
+        if self.sheet is not None:
+            self.sheet.annotations.append(sym)
+        return sym
+
+    def add_surface_finish(
+        self,
+        model_x: float,
+        model_y: float,
+        ra_value: str = "Ra 3.2",
+        material_removal: MaterialRemoval = MaterialRemoval.REQUIRED,
+        process: str | None = None,
+    ) -> SurfaceFinishSymbol:
+        """Add an ISO 1302 surface roughness symbol at (model_x, model_y)."""
+        pos = self.to_sheet_coords(model_x, model_y)
+        sym = SurfaceFinishSymbol(
+            position=pos,
+            ra_value=ra_value,
+            material_removal=material_removal,
+            process=process,
+        )
+        if self.sheet is not None:
+            self.sheet.annotations.append(sym)
+        return sym
 
 
 def project_shape_to_view(
