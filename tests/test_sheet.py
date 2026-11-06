@@ -1,5 +1,7 @@
 """Unit tests for DrawingSheet, SheetSize, ISO 5457 borders, and title blocks."""
 
+from pathlib import Path
+
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.title_block import TitleBlockInfo
 
@@ -61,3 +63,42 @@ def test_custom_size_and_first_angle() -> None:
     assert sheet.height_mm == 350.0
     svg = sheet.to_svg()
     assert "DWG-099" in svg
+
+
+def test_set_title_block_and_exports(tmp_path: Path) -> None:
+    import build123d as bd
+
+    sheet = DrawingSheet(sheet_size=SheetSize.A4_LANDSCAPE)
+    sheet.set_title_block(
+        title="WIDGET BRACKET",
+        drawing_number="WB-001",
+        sheet_num=1,
+        num_sheets=3,
+        scale="1:2",
+        rev="REV C",
+        date="2026-11-06",
+        material="AL 6061",
+        finish="ANODIZED",
+        author="DEV",
+        project="PROJECT X",
+        status="RELEASED",
+        units="INCHES",
+        third_angle=True,
+    )
+    assert sheet.title_info.drawing_title == "WIDGET BRACKET"
+    assert sheet.title_info.drawing_no == "WB-001"
+    assert sheet.title_info.sheet_no == "1 OF 3"
+    assert sheet.title_info.scale == "1:2"
+    assert sheet.title_info.rev == "REV C"
+
+    # Test export_dxf without views
+    dxf_empty = str(tmp_path / "empty.dxf")
+    sheet.export_dxf(dxf_empty)
+    assert (tmp_path / "empty.dxf").exists()
+
+    # Add a view with shape and test export_dxf
+    box = bd.Box(20.0, 10.0, 5.0)
+    sheet.add_view(box, center=(100.0, 100.0))
+    dxf_with_view = str(tmp_path / "part.dxf")
+    sheet.export_dxf(dxf_with_view)
+    assert (tmp_path / "part.dxf").exists()

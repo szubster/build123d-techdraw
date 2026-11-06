@@ -128,3 +128,18 @@ sheet.export_pdf("bracket.pdf")
 # 3. 1:1 DXF for CNC machining / waterjet / laser cutting
 sheet.export_dxf("bracket.dxf")
 ```
+
+---
+
+## 🖼️ Generated Output Preview
+
+Here is the rendered SVG output produced by the script above:
+
+![Stepped Bracket Blueprint](assets/examples/stepped_bracket.svg)
+
+!!! tip "Try It Yourself"
+    You can run this complete script directly from the repository:
+    ```bash
+    uv run python examples/stepped_bracket.py
+    ```
+    Outputs will be saved in `examples/output/` (SVG, PDF, and DXF).

@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 420.0 297.0"
+     width="420.0mm"
+     height="297.0mm"
+     class="theme-dark-blueprint"
+     id="sheet_BRK-100-A">
+  <defs>
+    <style type="text/css">
+      
+    :root {
+        --bg-color: #0B192C;
+        --grid-color: #38BDF812;
+        --border-main: #38BDF8;
+        --border-sub: #1E3A5F;
+        --title-bg: #0F172AE6;
+        --title-border: #38BDF8;
+        --text-main: #F8FAFC;
+        --text-muted: #94A3B8;
+        --text-accent: #38BDF8;
+        --line-visible: #FFFFFF;
+        --line-hidden: #475569;
+        --line-center: #38BDF8;
+        --line-section: #F43F5E;
+        --hatch-color: #0284C7;
+        --dim-color: #38BDF8;
+        --dim-text: #38BDF8;
+        --balloon-bg: #0F172A;
+        --balloon-border: #F43F5E;
+        --balloon-text: #FFFFFF;
+        --table-header-bg: #1E293B;
+        --table-row-alt: #1E293B99;
+    }
+    .theme-iso-white {
+        --bg-color: #FFFFFF;
+        --grid-color: #00000008;
+        --border-main: #0F172A;
+        --border-sub: #CBD5E1;
+        --title-bg: #F8FAFC;
+        --title-border: #0F172A;
+        --text-main: #0F172A;
+        --text-muted: #475569;
+        --text-accent: #0284C7;
+        --line-visible: #000000;
+        --line-hidden: #94A3B8;
+        --line-center: #2563EB;
+        --line-section: #DC2626;
+        --hatch-color: #64748B;
+        --dim-color: #DC2626;
+        --dim-text: #DC2626;
+        --balloon-bg: #FFFFFF;
+        --balloon-border: #DC2626;
+        --balloon-text: #0F172A;
+        --table-header-bg: #E2E8F0;
+        --table-row-alt: #F1F5F9;
+    }
+    svg {
+        font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Liberation Sans', sans-serif;
+        background-color: var(--bg-color);
+    }
+    .sheet-bg { fill: var(--bg-color); }
+    .border-main { stroke: var(--border-main); fill: none; }
+    .border-sub { stroke: var(--border-sub); fill: none; }
+    .title-bg { fill: var(--title-bg); stroke: var(--border-main); }
+    .table-header-bg { fill: var(--table-header-bg); }
+    .table-row-alt { fill: var(--table-row-alt); }
+    .zone-text { fill: var(--text-muted); font-size: 2.8px; font-weight: bold; text-anchor: middle; }
+    .tb-field-label { fill: var(--text-muted); font-size: 2.1px; font-weight: 600; letter-spacing: 0.2px; }
+    .tb-field-val-sm { fill: var(--text-main); font-size: 2.6px; font-weight: 500; }
+    .tb-field-val-bold { fill: var(--text-main); font-size: 3.4px; font-weight: 700; }
+    .tb-title { fill: var(--text-accent); font-size: 3.0px; font-weight: 700; letter-spacing: 0.2px; }
+    .notes-text { fill: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 2.4px; }
+    .view-title { fill: var(--text-main); letter-spacing: 0.5px; }
+    .view-scale { fill: var(--text-muted); }
+    .line-visible, #layer_visible, #layer_visible * { stroke: var(--line-visible); fill: none; }
+    .line-hidden, #layer_hidden, #layer_hidden * { stroke: var(--line-hidden); stroke-dasharray: 2.0, 1.2; fill: none; }
+    .line-center { stroke: var(--line-center); fill: none; }
+    .line-section-thick { stroke: var(--line-section); fill: none; }
+    .section-arrow-head { fill: var(--line-section); }
+    .section-label-text { fill: var(--line-section); }
+    .dim-line { stroke: var(--dim-color); fill: none; }
+    .dim-arrow { fill: var(--dim-color); }
+    .dim-text { fill: var(--dim-text); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .leader-dot { fill: var(--dim-color); }
+    .leader-text { fill: var(--text-main); font-family: 'JetBrains Mono', monospace; font-size: 2.7px; font-weight: 500; }
+    .balloon-dot { fill: var(--balloon-border); }
+    .balloon-leader { stroke: var(--balloon-border); fill: none; }
+    .balloon-circle { fill: var(--balloon-bg); stroke: var(--balloon-border); }
+    .balloon-text { fill: var(--balloon-text); }
+    
+    </style>
+    <pattern id="techGrid" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M 10 0 L 0 0 0 10" fill="none" stroke="var(--grid-color)" stroke-width="0.15"/>
+      <circle cx="0" cy="0" r="0.3" fill="var(--grid-color)"/>
+    </pattern>
+    <pattern id="sectionHatch" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+  </defs>
+
+  
+        <rect x="0" y="0" width="420.0" height="297.0" class="sheet-bg"/>
+        <rect x="0" y="0" width="420.0" height="297.0" class="blueprint-grid" fill="url(#techGrid)"/>
+        <rect x="2" y="2" width="416.0" height="293.0" class="border-sub" stroke-width="0.25" fill="none"/>
+        <rect x="15.00" y="8.00" width="397.00" height="281.00" class="border-main" stroke-width="0.7" fill="none"/>
+        
+        <line x1="213.50" y1="0" x2="213.50" y2="5.0" class="border-main" stroke-width="0.7"/>
+        <line x1="213.50" y1="292.00" x2="213.50" y2="297.00" class="border-main" stroke-width="0.7"/>
+        <line x1="0" y1="148.50" x2="5.0" y2="148.50" class="border-main" stroke-width="0.7"/>
+        <line x1="415.00" y1="148.50" x2="420.00" y2="148.50" class="border-main" stroke-width="0.7"/>
+        
+        <g class="grid-ticks"><line x1="15.00" y1="5.00" x2="15.00" y2="8.00" class="border-sub"/><line x1="15.00" y1="289.00" x2="15.00" y2="292.00" class="border-sub"/><line x1="64.62" y1="5.00" x2="64.62" y2="8.00" class="border-sub"/><line x1="64.62" y1="289.00" x2="64.62" y2="292.00" class="border-sub"/><line x1="114.25" y1="5.00" x2="114.25" y2="8.00" class="border-sub"/><line x1="114.25" y1="289.00" x2="114.25" y2="292.00" class="border-sub"/><line x1="163.88" y1="5.00" x2="163.88" y2="8.00" class="border-sub"/><line x1="163.88" y1="289.00" x2="163.88" y2="292.00" class="border-sub"/><line x1="213.50" y1="5.00" x2="213.50" y2="8.00" class="border-sub"/><line x1="213.50" y1="289.00" x2="213.50" y2="292.00" class="border-sub"/><line x1="263.12" y1="5.00" x2="263.12" y2="8.00" class="border-sub"/><line x1="263.12" y1="289.00" x2="263.12" y2="292.00" class="border-sub"/><line x1="312.75" y1="5.00" x2="312.75" y2="8.00" class="border-sub"/><line x1="312.75" y1="289.00" x2="312.75" y2="292.00" class="border-sub"/><line x1="362.38" y1="5.00" x2="362.38" y2="8.00" class="border-sub"/><line x1="362.38" y1="289.00" x2="362.38" y2="292.00" class="border-sub"/><line x1="412.00" y1="5.00" x2="412.00" y2="8.00" class="border-sub"/><line x1="412.00" y1="289.00" x2="412.00" y2="292.00" class="border-sub"/><line x1="12.00" y1="8.00" x2="15.00" y2="8.00" class="border-sub"/><line x1="412.00" y1="8.00" x2="415.00" y2="8.00" class="border-sub"/><line x1="12.00" y1="54.83" x2="15.00" y2="54.83" class="border-sub"/><line x1="412.00" y1="54.83" x2="415.00" y2="54.83" class="border-sub"/><line x1="12.00" y1="101.67" x2="15.00" y2="101.67" class="border-sub"/><line x1="412.00" y1="101.67" x2="415.00" y2="101.67" class="border-sub"/><line x1="12.00" y1="148.50" x2="15.00" y2="148.50" class="border-sub"/><line x1="412.00" y1="148.50" x2="415.00" y2="148.50" class="border-sub"/><line x1="12.00" y1="195.33" x2="15.00" y2="195.33" class="border-sub"/><line x1="412.00" y1="195.33" x2="415.00" y2="195.33" class="border-sub"/><line x1="12.00" y1="242.17" x2="15.00" y2="242.17" class="border-sub"/><line x1="412.00" y1="242.17" x2="415.00" y2="242.17" class="border-sub"/><line x1="12.00" y1="289.00" x2="15.00" y2="289.00" class="border-sub"/><line x1="412.00" y1="289.00" x2="415.00" y2="289.00" class="border-sub"/></g>
+        <g class="zone-labels"><text x="39.81" y="7.00" class="zone-text">8</text><text x="39.81" y="293.50" class="zone-text">8</text><text x="89.44" y="7.00" class="zone-text">7</text><text x="89.44" y="293.50" class="zone-text">7</text><text x="139.06" y="7.00" class="zone-text">6</text><text x="139.06" y="293.50" class="zone-text">6</text><text x="188.69" y="7.00" class="zone-text">5</text><text x="188.69" y="293.50" class="zone-text">5</text><text x="238.31" y="7.00" class="zone-text">4</text><text x="238.31" y="293.50" class="zone-text">4</text><text x="287.94" y="7.00" class="zone-text">3</text><text x="287.94" y="293.50" class="zone-text">3</text><text x="337.56" y="7.00" class="zone-text">2</text><text x="337.56" y="293.50" class="zone-text">2</text><text x="387.19" y="7.00" class="zone-text">1</text><text x="387.19" y="293.50" class="zone-text">1</text><text x="13.20" y="32.62" class="zone-text">A</text><text x="413.80" y="32.62" class="zone-text">A</text><text x="13.20" y="79.45" class="zone-text">B</text><text x="413.80" y="79.45" class="zone-text">B</text><text x="13.20" y="126.28" class="zone-text">C</text><text x="413.80" y="126.28" class="zone-text">C</text><text x="13.20" y="173.12" class="zone-text">D</text><text x="413.80" y="173.12" class="zone-text">D</text><text x="13.20" y="219.95" class="zone-text">E</text><text x="413.80" y="219.95" class="zone-text">E</text><text x="13.20" y="266.78" class="zone-text">F</text><text x="413.80" y="266.78" class="zone-text">F</text></g>
+        
+  
+    <g class="title-block" transform="translate(267.00, 253.00)">
+        <rect x="0" y="0" width="145.00" height="36.00" class="title-bg" stroke-width="0.6"/>
+        <line x1="0" y1="8" x2="145.0" y2="8" class="border-sub" stroke-width="0.3"/>
+        <line x1="0" y1="22" x2="145.0" y2="22" class="border-sub" stroke-width="0.3"/>
+        <line x1="0" y1="29" x2="145.0" y2="29" class="border-sub" stroke-width="0.25"/>
+
+        <line x1="88" y1="0" x2="88" y2="22" class="border-sub" stroke-width="0.3"/>
+        <line x1="116" y1="0" x2="116" y2="8" class="border-sub" stroke-width="0.3"/>
+        <line x1="38" y1="22" x2="38" y2="36" class="border-sub" stroke-width="0.3"/>
+        <line x1="76" y1="22" x2="76" y2="36" class="border-sub" stroke-width="0.3"/>
+        <line x1="110" y1="22" x2="110" y2="36" class="border-sub" stroke-width="0.3"/>
+
+        <text x="3" y="3.2" class="tb-field-label">PROJECT</text>
+        <text x="3" y="6.8" class="tb-field-val-sm">MECHANICAL PROJECT</text>
+
+        <text x="91" y="3.2" class="tb-field-label">DRAWING NO.</text>
+        <text x="91" y="7.0" class="tb-field-val-bold">BRK-100-A</text>
+
+        <text x="119" y="3.2" class="tb-field-label">REV</text>
+        <text x="127" y="7.0" class="tb-field-val-bold" text-anchor="middle">REV A</text>
+
+        <text x="3" y="11.5" class="tb-field-label">TITLE</text>
+        <text x="3" y="18.0" class="tb-title" font-size="3.2">STEPPED BRACKET</text>
+
+        <text x="91" y="11.5" class="tb-field-label">PROJECTION</text>
+        <g transform="translate(102, 17) scale(0.65)">
+            <polygon points="-8,-4 0,-7 0,7 -8,4" fill="none" class="line-visible" stroke-width="0.35"/>
+            <circle cx="8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>
+            <line x1="-12" y1="0" x2="18" y2="0" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/><line x1="8" y1="-9" x2="8" y2="9" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>
+        </g>
+
+        <text x="3" y="25.2" class="tb-field-label">MATERIAL</text>
+        <text x="3" y="28.2" class="tb-field-val-sm" font-size="2.5">AL 6061-T6</text>
+        <text x="3" y="32.0" class="tb-field-label">FINISH</text>
+        <text x="3" y="35.0" class="tb-field-val-sm" font-size="2.1">ANODIZED CLEAR</text>
+
+        <text x="41" y="25.2" class="tb-field-label">SCALE</text>
+        <text x="41" y="28.2" class="tb-field-val-sm">1:1</text>
+        <text x="41" y="32.0" class="tb-field-label">SHEET</text>
+        <text x="41" y="35.0" class="tb-field-val-sm">1 OF 1</text>
+
+        <text x="79" y="25.2" class="tb-field-label">DATE</text>
+        <text x="79" y="28.2" class="tb-field-val-sm">2026-11-06</text>
+        <text x="79" y="32.0" class="tb-field-label">DRAWN BY</text>
+        <text x="79" y="35.0" class="tb-field-val-sm">SZUBA</text>
+
+        <text x="113" y="25.2" class="tb-field-label">STATUS</text>
+        <text x="113" y="28.2" class="tb-field-val-sm" fill="#10B981" font-weight="bold">APPROVED</text>
+        <text x="113" y="32.0" class="tb-field-label">UNITS</text>
+        <text x="113" y="35.0" class="tb-field-val-sm">METRIC (mm)</text>
+    </g>
+    
+  
+    <g class="rev-table" transform="translate(302.00, 8.00)">
+        <rect x="0" y="0" width="110.00" height="10.00" class="title-bg" stroke-width="0.5"/>
+        <line x1="0" y1="5.0" x2="110.0" y2="5.0" class="border-sub" stroke-width="0.3"/>
+        <line x1="8" y1="0" x2="8" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="72" y1="0" x2="72" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="92" y1="0" x2="92" y2="10.0" class="border-sub" stroke-width="0.25"/>
+
+        <text x="4" y="3.6" class="tb-field-label" text-anchor="middle">REV</text>
+        <text x="12" y="3.6" class="tb-field-label">DESCRIPTION</text>
+        <text x="82" y="3.6" class="tb-field-label" text-anchor="middle">DATE</text>
+        <text x="100" y="3.6" class="tb-field-label" text-anchor="middle">APPR</text>
+        
+        <line x1="0" y1="10.0" x2="110.0" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <text x="4" y="8.80" class="tb-field-val-sm" text-anchor="middle">A</text>
+        <text x="12" y="8.80" class="tb-field-val-sm">INITIAL ENGINEERING RELEASE</text>
+        <text x="82" y="8.80" class="tb-field-val-sm" text-anchor="middle">2026-11-06</text>
+        <text x="100" y="8.80" class="tb-field-val-sm" text-anchor="middle">APPROVED</text>
+        
+    </g>
+    
+  
+  
+        <g class="sheet-notes" transform="translate(20.00, 259.00)">
+            <text x="0" y="0" class="tb-field-label" font-weight="bold">GENERAL NOTES:</text><text x="0" y="4.50" class="notes-text">1. ALL DIMENSIONS IN MILLIMETERS (mm) UNLESS NOTED.</text><text x="0" y="8.70" class="notes-text">2. GENERAL TOLERANCES ACCORDING TO ISO 2768-mK.</text><text x="0" y="12.90" class="notes-text">3. DEBURR AND BREAK ALL SHARP EDGES 0.2mm x 45°.</text><text x="0" y="17.10" class="notes-text">4. 100% CAD MODEL CONFORMANCE; DO NOT SCALE DRAWING.</text>
+        </g>
+        
+
+  <g class="drawing-views">
+    
+    <!-- View: FRONT at (145.51131842322948, 189.36868157677054) scale=1.0 -->
+    <g id="view_front_145_189" class="sheet-view" transform="translate(145.51, 189.37) scale(1.0000, 1.0000) translate(-10.61, 5.85)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="-29.390432" y1="-17.903887" x2="-29.390432" y2="29.596113" />
+      <line x1="50.609568" y1="-17.903887" x2="50.609568" y2="-2.903887" />
+      <line x1="-29.390432" y1="-17.903887" x2="50.609568" y2="-17.903887" />
+      <line x1="-29.390432" y1="29.596113" x2="0.609568" y2="29.596113" />
+      <line x1="0.609568" y1="-2.903887" x2="0.609568" y2="29.596113" />
+      <line x1="0.609568" y1="-2.903887" x2="50.609568" y2="-2.903887" />
+    </g>
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <line x1="-29.390432" y1="29.596113" x2="-29.390432" y2="-17.903887" />
+      <line x1="-29.390432" y1="-17.903887" x2="50.609568" y2="-17.903887" />
+      <path d="M -8.890432,-17.903887 L -9.028329,-17.903887 L -9.435103,-17.903887 L -10.090359,-17.903887 L -10.961238,-17.903887 L -12.004072,-17.903887 L -13.166567,-17.903887 L -14.390432,-17.903887 L -15.614297,-17.903887 L -16.776793,-17.903887 L -17.819626,-17.903887 L -18.690505,-17.903887 L -19.345761,-17.903887 L -19.752536,-17.903887 L -19.890432,-17.903887" />
+      <path d="M -19.890432,-17.903887 L -19.752536,-17.903887 L -19.345761,-17.903887 L -18.690505,-17.903887 L -17.819626,-17.903887 L -16.776793,-17.903887 L -15.614297,-17.903887 L -14.390432,-17.903887 L -13.166567,-17.903887 L -12.004072,-17.903887 L -10.961238,-17.903887 L -10.090359,-17.903887 L -9.435103,-17.903887 L -9.028329,-17.903887 L -8.890432,-17.903887" />
+      <line x1="50.609568" y1="-17.903887" x2="50.609568" y2="-2.903887" />
+      <line x1="-29.390432" y1="29.596113" x2="0.609568" y2="29.596113" />
+      <line x1="0.609568" y1="-2.903887" x2="0.609568" y2="29.596113" />
+      <line x1="0.609568" y1="-2.903887" x2="50.609568" y2="-2.903887" />
+      <path d="M -8.890432,29.596113 L -9.028329,29.596113 L -9.435103,29.596113 L -10.090359,29.596113 L -10.961238,29.596113 L -12.004072,29.596113 L -13.166567,29.596113 L -14.390432,29.596113 L -15.614297,29.596113 L -16.776793,29.596113 L -17.819626,29.596113 L -18.690505,29.596113 L -19.345761,29.596113 L -19.752536,29.596113 L -19.890432,29.596113" />
+      <path d="M -19.890432,29.596113 L -19.752536,29.596113 L -19.345761,29.596113 L -18.690505,29.596113 L -17.819626,29.596113 L -16.776793,29.596113 L -15.614297,29.596113 L -14.390432,29.596113 L -13.166567,29.596113 L -12.004072,29.596113 L -10.961238,29.596113 L -10.090359,29.596113 L -9.435103,29.596113 L -9.028329,29.596113 L -8.890432,29.596113" />
+      <line x1="-8.890432" y1="-17.903887" x2="-8.890432" y2="29.596113" />
+      <line x1="-19.890432" y1="-17.903887" x2="-19.890432" y2="29.596113" />
+    </g>
+  </g>
+    </g>
+    
+    <!-- View: TOP at (145.51131842322948, 101.01000000000002) scale=1.0 -->
+    <g id="view_top_145_101" class="sheet-view" transform="translate(145.51, 101.01) scale(1.0000, 1.0000) translate(-10.61, -0.00)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="-29.390432" y1="-25.0" x2="-29.390432" y2="25.0" />
+      <line x1="-29.390432" y1="-25.0" x2="0.609568" y2="-25.0" />
+      <line x1="0.609568" y1="-25.0" x2="50.609568" y2="-25.0" />
+      <line x1="-29.390432" y1="25.0" x2="0.609568" y2="25.0" />
+      <line x1="0.609568" y1="25.0" x2="50.609568" y2="25.0" />
+      <line x1="0.609568" y1="-25.0" x2="0.609568" y2="25.0" />
+      <circle cx="-14.390432" cy="0.0" r="5.5" />
+      <line x1="50.609568" y1="-25.0" x2="50.609568" y2="25.0" />
+    </g>
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <line x1="-29.390432" y1="-25.0" x2="-29.390432" y2="25.0" />
+      <line x1="-29.390432" y1="-25.0" x2="50.609568" y2="-25.0" />
+      <line x1="-29.390432" y1="25.0" x2="50.609568" y2="25.0" />
+      <line x1="50.609568" y1="-25.0" x2="50.609568" y2="25.0" />
+      <circle cx="-14.390432" cy="0.0" r="5.5" />
+      <line x1="0.609568" y1="-25.0" x2="0.609568" y2="25.0" />
+    </g>
+  </g>
+    </g>
+    
+    <!-- View: RIGHT at (250.12, 189.36868157677054) scale=1.0 -->
+    <g id="view_right_250_189" class="sheet-view" transform="translate(250.12, 189.37) scale(1.0000, 1.0000) translate(-0.00, 5.85)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="-25.0" y1="-17.903887" x2="-25.0" y2="-2.903887" />
+      <line x1="-25.0" y1="-2.903887" x2="-25.0" y2="29.596113" />
+      <line x1="-25.0" y1="-17.903887" x2="25.0" y2="-17.903887" />
+      <line x1="25.0" y1="-17.903887" x2="25.0" y2="-2.903887" />
+      <line x1="25.0" y1="-2.903887" x2="25.0" y2="29.596113" />
+      <line x1="-25.0" y1="29.596113" x2="25.0" y2="29.596113" />
+      <line x1="-25.0" y1="-2.903887" x2="25.0" y2="-2.903887" />
+    </g>
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <line x1="-25.0" y1="-17.903887" x2="-25.0" y2="29.596113" />
+      <line x1="-25.0" y1="-17.903887" x2="25.0" y2="-17.903887" />
+      <line x1="25.0" y1="29.596113" x2="25.0" y2="-17.903887" />
+      <line x1="-25.0" y1="29.596113" x2="25.0" y2="29.596113" />
+      <path d="M 0.0,-17.903887 L 0.615805,-17.903887 L 1.223865,-17.903887 L 1.816535,-17.903887 L 2.386361,-17.903887 L 2.926176,-17.903887 L 3.429194,-17.903887 L 3.889087,-17.903887 L 4.300073,-17.903887 L 4.656983,-17.903887 L 4.955329,-17.903887 L 5.191358,-17.903887 L 5.362104,-17.903887 L 5.465417,-17.903887 L 5.5,-17.903887" />
+      <path d="M 5.5,-17.903887 L 5.362104,-17.903887 L 4.955329,-17.903887 L 4.300073,-17.903887 L 3.429194,-17.903887 L 2.386361,-17.903887 L 1.223865,-17.903887 L 0.0,-17.903887 L -1.223865,-17.903887 L -2.386361,-17.903887 L -3.429194,-17.903887 L -4.300073,-17.903887 L -4.955329,-17.903887 L -5.362104,-17.903887 L -5.5,-17.903887" />
+      <path d="M -5.5,-17.903887 Q -5.482709,-17.903887 -5.465417,-17.903887 Q -5.41376,-17.903887 -5.362104,-17.903887 Q -5.276731,-17.903887 -5.191358,-17.903887 Q -5.073344,-17.903887 -4.955329,-17.903887 Q -4.806156,-17.903887 -4.656983,-17.903887 Q -4.478528,-17.903887 -4.300073,-17.903887 Q -4.09458,-17.903887 -3.889087,-17.903887 Q -3.659141,-17.903887 -3.429194,-17.903887 Q -3.177685,-17.903887 -2.926176,-17.903887 Q -2.656268,-17.903887 -2.386361,-17.903887 Q -2.101448,-17.903887 -1.816535,-17.903887 Q -1.5202,-17.903887 -1.223865,-17.903887 Q -0.617976,-17.903887 -0.0,-17.903887" />
+      <path d="M 0.0,29.596113 L 0.615805,29.596113 L 1.223865,29.596113 L 1.816535,29.596113 L 2.386361,29.596113 L 2.926176,29.596113 L 3.429194,29.596113 L 3.889087,29.596113 L 4.300073,29.596113 L 4.656983,29.596113 L 4.955329,29.596113 L 5.191358,29.596113 L 5.362104,29.596113 L 5.465417,29.596113 L 5.5,29.596113" />
+      <path d="M 5.5,29.596113 L 5.362104,29.596113 L 4.955329,29.596113 L 4.300073,29.596113 L 3.429194,29.596113 L 2.386361,29.596113 L 1.223865,29.596113 L 0.0,29.596113 L -1.223865,29.596113 L -2.386361,29.596113 L -3.429194,29.596113 L -4.300073,29.596113 L -4.955329,29.596113 L -5.362104,29.596113 L -5.5,29.596113" />
+      <path d="M -5.5,29.596113 Q -5.482709,29.596113 -5.465417,29.596113 Q -5.41376,29.596113 -5.362104,29.596113 Q -5.276731,29.596113 -5.191358,29.596113 Q -5.073344,29.596113 -4.955329,29.596113 Q -4.806156,29.596113 -4.656983,29.596113 Q -4.478528,29.596113 -4.300073,29.596113 Q -4.09458,29.596113 -3.889087,29.596113 Q -3.659141,29.596113 -3.429194,29.596113 Q -3.177685,29.596113 -2.926176,29.596113 Q -2.656268,29.596113 -2.386361,29.596113 Q -2.101448,29.596113 -1.816535,29.596113 Q -1.5202,29.596113 -1.223865,29.596113 Q -0.617976,29.596113 -0.0,29.596113" />
+      <line x1="-25.0" y1="-2.903887" x2="25.0" y2="-2.903887" />
+      <line x1="5.5" y1="-17.903887" x2="5.5" y2="29.596113" />
+      <line x1="-5.5" y1="-17.903887" x2="-5.5" y2="29.596113" />
+    </g>
+  </g>
+    </g>
+    
+    <!-- View: ISOMETRIC at (250.12, 101.01000000000002) scale=1.0 -->
+    <g id="view_isometric_250_101" class="sheet-view" transform="translate(250.12, 101.01) scale(1.0000, 1.0000) translate(8.83, 2.26)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="38.321823" y1="23.699016" x2="38.321823" y2="-17.838529" />
+      <line x1="10.586813" y1="43.8792" x2="38.321823" y2="23.699016" />
+      <line x1="-55.977211" y1="-19.183875" x2="-55.977211" y2="-6.066755" />
+      <line x1="10.586813" y1="43.8792" x2="-14.374696" y2="35.807126" />
+      <line x1="-14.374696" y1="7.386701" x2="-14.374696" y2="35.807126" />
+      <line x1="-14.374696" y1="7.386701" x2="-55.977211" y2="-6.066755" />
+      <line x1="38.321823" y1="-17.838529" x2="-28.242201" y2="-39.364059" />
+      <line x1="-55.977211" y1="-19.183875" x2="-28.242201" y2="-39.364059" />
+      <line x1="-28.242201" y1="-39.364059" x2="-28.242201" y2="-26.246939" />
+      <line x1="38.321823" y1="23.699016" x2="13.360314" y2="15.626942" />
+      <line x1="13.360314" y1="-12.793483" x2="13.360314" y2="15.626942" />
+      <line x1="13.360314" y1="-12.793483" x2="-28.242201" y2="-26.246939" />
+      <line x1="-14.374696" y1="35.807126" x2="13.360314" y2="15.626942" />
+      <path d="M 7.397287,28.273191 A 5.5,2.6678918753996625 -1.8185517134323977e-15 0,1 17.473563,29.753071" />
+      <path d="M 17.473563,29.753071 A 5.5,2.6678918753996625 -1.8185517134323977e-15 1,1 6.473563,29.753071" />
+      <path d="M 6.473563,29.753071 A 5.5,2.6678918753996625 -1.8185517134323977e-15 0,1 7.397287,28.273191" />
+      <line x1="-55.977211" y1="-6.066755" x2="-28.242201" y2="-26.246939" />
+      <line x1="-14.374696" y1="7.386701" x2="13.360314" y2="-12.793483" />
+    </g>
+  </g>
+    </g>
+    
+  </g>
+
+  <g class="view-labels">
+                <text x="145.51" y="220.29" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">FRONT</text>
+                <text x="145.51" y="224.09" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="125.51" y1="221.29" x2="165.51" y2="221.29" class="border-sub" stroke-width="0.3"/>
+                
+                <text x="145.51" y="133.19" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">TOP</text>
+                <text x="145.51" y="136.99" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="125.51" y1="134.19" x2="165.51" y2="134.19" class="border-sub" stroke-width="0.3"/>
+                
+                <text x="250.12" y="220.29" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">RIGHT</text>
+                <text x="250.12" y="224.09" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="230.12" y1="221.29" x2="270.12" y2="221.29" class="border-sub" stroke-width="0.3"/>
+                
+                <text x="250.12" y="149.81" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">ISOMETRIC</text>
+                <text x="250.12" y="153.61" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="230.12" y1="150.81" x2="270.12" y2="150.81" class="border-sub" stroke-width="0.3"/>
+                </g>
+
+  <g class="annotations">
+    <line x1="105.34" y1="214.29" x2="105.34" y2="227.09" class="dim-line" stroke-width="0.25"/><line x1="185.69" y1="214.29" x2="185.69" y2="227.09" class="dim-line" stroke-width="0.25"/><line x1="105.34" y1="225.29" x2="185.69" y2="225.29" class="dim-line" stroke-width="0.3"/><polygon points="105.34,225.29 107.84,224.59 107.84,225.99" class="dim-arrow"/><polygon points="185.69,225.29 183.19,225.99 183.19,224.59" class="dim-arrow"/><text x="145.51" y="224.09" class="dim-text" text-anchor="middle" font-size="3.20">80.35</text><line x1="104.34" y1="165.44" x2="91.54" y2="165.44" class="dim-line" stroke-width="0.25"/><line x1="104.34" y1="213.29" x2="91.54" y2="213.29" class="dim-line" stroke-width="0.25"/><line x1="93.34" y1="165.44" x2="93.34" y2="213.29" class="dim-line" stroke-width="0.3"/><polygon points="93.34,165.44 94.04,167.94 92.64,167.94" class="dim-arrow"/><polygon points="93.34,213.29 92.64,210.79 94.04,210.79" class="dim-arrow"/><text x="91.94" y="189.37" transform="rotate(-90 91.94 189.37)" class="dim-text" text-anchor="middle" font-size="3.20">47.85</text><line x1="186.69" y1="75.84" x2="199.49" y2="75.84" class="dim-line" stroke-width="0.25"/><line x1="186.69" y1="126.19" x2="199.49" y2="126.19" class="dim-line" stroke-width="0.25"/><line x1="197.69" y1="75.84" x2="197.69" y2="126.19" class="dim-line" stroke-width="0.3"/><polygon points="197.69,75.84 198.39,78.34 196.99,78.34" class="dim-arrow"/><polygon points="197.69,126.19 196.99,123.69 198.39,123.69" class="dim-arrow"/><text x="196.29" y="101.01" transform="rotate(-90 196.29 101.01)" class="dim-text" text-anchor="middle" font-size="3.20">50.35</text><line x1="119.51" y1="200.12" x2="103.71" y2="200.12" class="dim-line" stroke-width="0.25"/><line x1="119.51" y1="211.12" x2="103.71" y2="211.12" class="dim-line" stroke-width="0.25"/><line x1="105.51" y1="200.12" x2="105.51" y2="211.12" class="dim-line" stroke-width="0.3"/><polygon points="105.51,200.12 106.21,202.62 104.81,202.62" class="dim-arrow"/><polygon points="105.51,211.12 104.81,208.62 106.21,208.62" class="dim-arrow"/><text x="104.11" y="205.62" transform="rotate(-90 104.11 205.62)" class="dim-text" text-anchor="middle" font-size="3.20">⌀11 H11</text>
+        <g class="centermark">
+            <line x1="116.51" y1="205.62" x2="124.51" y2="205.62" class="line-center" stroke-width="0.25"/>
+            <line x1="120.51" y1="201.62" x2="120.51" y2="209.62" class="line-center" stroke-width="0.25"/>
+        </g>
+        <g class="gdt-fcf"><rect x="155.51" y="213.12" width="21.00" height="6.00" class="title-bg" stroke-width="0.35"/><line x1="162.51" y1="213.12" x2="162.51" y2="219.12" class="border-sub" stroke-width="0.3"/><text x="159.01" y="217.20" class="tb-title" text-anchor="middle" font-size="3.60">⏥</text><text x="169.51" y="217.20" class="dim-text" text-anchor="middle" font-size="3.00">0.05</text></g>
+  </g>
+</svg>

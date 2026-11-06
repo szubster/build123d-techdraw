@@ -84,3 +84,10 @@ sheet.export_svg("drawing.svg")
 sheet.export_pdf("drawing.pdf")
 sheet.export_dxf("drawing.dxf")
 ```
+
+### 🖼️ Generated Output Preview
+
+![Enclosure Base Blueprint](assets/examples/quickstart_enclosure.svg)
+
+!!! tip "Runnable Examples"
+    Complete runnable example scripts and their output files (SVG, vector PDF, and DXF) are provided in the repository's `examples/` directory. You can regenerate all drawings with `uv run python examples/generate_all.py`.

@@ -85,6 +85,15 @@ sheet.export_pdf("drawing.pdf")
 sheet.export_dxf("flat_pattern.dxf")
 ```
 
+### 🖼️ Generated Output Preview
+
+<p align="center">
+  <img src="examples/output/quickstart_enclosure.svg" alt="Enclosure Base Blueprint" width="100%">
+</p>
+
+> [!TIP]
+> View full interactive SVG, vector PDF, and 1:1 DXF files in the [`examples/output/`](examples/output/) directory. Run this script directly with `uv run python examples/quickstart_enclosure.py`.
+
 ---
 
 ## 🔩 Assembly Blueprint & Automated BOM
@@ -124,6 +133,15 @@ bom, balloons = add_assembly_bom_and_balloons(
 
 sheet.export_svg("assembly_drawing.svg")
 ```
+
+### 🖼️ Generated Output Preview
+
+<p align="center">
+  <img src="examples/output/assembly_drawing.svg" alt="Assembly Drawing with Automated BOM and Balloons" width="100%">
+</p>
+
+> [!TIP]
+> Run this example directly with `uv run python examples/assembly_bom.py`. Output files are saved to [`examples/output/`](examples/output/).
 
 ---
 
