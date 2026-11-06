@@ -83,8 +83,10 @@ class SheetView:
         view_label_pos: tuple[float, float] | None = None,
         scale_label: str | None = None,
         sheet: Optional["DrawingSheet"] = None,
+        shape: Any | None = None,
     ):
         self.sheet = sheet
+        self.shape = shape
         self.view_type = view_type
         self.center_x = center_x
         self.center_y = center_y
@@ -110,6 +112,11 @@ class SheetView:
         self.view_label = view_label
         self.view_label_pos = view_label_pos
         self.scale_label = scale_label
+
+    @property
+    def center(self) -> tuple[float, float]:
+        """View center on the drawing sheet in paper mm."""
+        return (self.center_x, self.center_y)
 
     def __getitem__(self, key: str) -> Any:
         """Provide dictionary-style access for backward compatibility."""
@@ -611,7 +618,7 @@ def project_shape_to_view(
 
     svg_view_group = f"""
     <!-- View: {view_type.value.upper()} at ({center_x}, {center_y}) scale={scale} -->
-    <g id="{view_id}" transform="{transform}">
+    <g id="{view_id}" class="sheet-view" transform="{transform}">
         {inner_content}
     </g>
     """
@@ -679,6 +686,7 @@ def project_shape_to_view(
         view_label=view_label,
         view_label_pos=lbl_pos,
         scale_label=scale_str,
+        shape=shape,
     )
 
 
@@ -741,7 +749,7 @@ def project_section_to_view(
 
     svg_view_group = f"""
     <!-- View: SECTION at ({center_x}, {center_y}) scale={scale} -->
-    <g id="{view_id}" transform="{transform}">
+    <g id="{view_id}" class="sheet-view" transform="{transform}">
         {inner_content}
     </g>
     """
@@ -769,4 +777,5 @@ def project_section_to_view(
         view_label=view_label,
         view_label_pos=(center_x, lbl_y),
         scale_label=scale_str,
+        shape=shape,
     )
