@@ -1,5 +1,6 @@
 """ISO 5457 drawing sheets, standard sizes, borders, and coordinate grids."""
 
+import os
 from enum import Enum
 from typing import Any
 
@@ -117,6 +118,61 @@ class DrawingSheet:
 
         self.custom_svg_elements: list[str] = []
         self.annotations: list[Any] = []
+
+    def set_title_block(
+        self,
+        title: str | None = None,
+        drawing_number: str | None = None,
+        drawing_title: str | None = None,
+        drawing_no: str | None = None,
+        sheet_no: str | None = None,
+        sheet_num: int | None = None,
+        num_sheets: int | None = None,
+        scale: str | None = None,
+        rev: str | None = None,
+        date: str | None = None,
+        material: str | None = None,
+        finish: str | None = None,
+        author: str | None = None,
+        project: str | None = None,
+        status: str | None = None,
+        units: str | None = None,
+        third_angle: bool | None = None,
+    ) -> None:
+        """Update metadata fields in the ISO 7200 title block."""
+        if title is not None:
+            self.title_info.drawing_title = title
+        if drawing_title is not None:
+            self.title_info.drawing_title = drawing_title
+        if drawing_number is not None:
+            self.title_info.drawing_no = drawing_number
+        if drawing_no is not None:
+            self.title_info.drawing_no = drawing_no
+        if sheet_no is not None:
+            self.title_info.sheet_no = sheet_no
+        elif sheet_num is not None:
+            total = num_sheets if num_sheets is not None else sheet_num
+            self.title_info.sheet_no = f"{sheet_num} OF {total}"
+        if scale is not None:
+            self.title_info.scale = scale
+        if rev is not None:
+            self.title_info.rev = rev
+        if date is not None:
+            self.title_info.date = date
+        if material is not None:
+            self.title_info.material = material
+        if finish is not None:
+            self.title_info.finish = finish
+        if author is not None:
+            self.title_info.author = author
+        if project is not None:
+            self.title_info.project = project
+        if status is not None:
+            self.title_info.status = status
+        if units is not None:
+            self.title_info.units = units
+        if third_angle is not None:
+            self.title_info.third_angle = third_angle
 
     def set_notes(self, notes: list[str]) -> None:
         """Set drawing general notes block."""
@@ -573,6 +629,7 @@ class DrawingSheet:
 
     def export_svg(self, path: str, theme: Theme = Theme.DARK_BLUEPRINT) -> None:
         """Export sheet to an SVG file."""
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         svg = self.to_svg(theme=theme)
         with open(path, "w", encoding="utf-8") as f:
             f.write(svg)
@@ -581,6 +638,28 @@ class DrawingSheet:
         """Export sheet to a vector PDF file."""
         from build123d_techdraw.renderers.pdf import PDFRenderer
 
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         PDFRenderer.render_sheets_to_pdf(
             [(self.width_mm, self.height_mm, self.to_svg(theme))], path, theme
         )
+
+    def export_dxf(self, path: str, dxfversion: str = "R2010") -> None:
+        """Export sheet view shape(s) to a 1:1 DXF file."""
+        from build123d_techdraw.renderers.dxf import DXFRenderer
+
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        unique_shapes: list[Any] = []
+        for v in self.views:
+            if hasattr(v, "shape") and v.shape is not None and v.shape not in unique_shapes:
+                unique_shapes.append(v.shape)
+
+        if unique_shapes:
+            shape_to_export = (
+                unique_shapes[0] if len(unique_shapes) == 1 else bd.Compound(children=unique_shapes)
+            )
+            DXFRenderer.export_shape_to_dxf(shape_to_export, path, dxfversion=dxfversion)
+        else:
+            import ezdxf
+
+            doc = ezdxf.new(dxfversion=dxfversion)  # type: ignore[attr-defined]
+            doc.saveas(path)

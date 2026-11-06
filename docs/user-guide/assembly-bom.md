@@ -73,3 +73,18 @@ bom, balloons = add_assembly_bom_and_balloons(
 
 sheet.export_svg("assembly_drawing.svg")
 ```
+
+---
+
+## 🖼️ Generated Output Preview
+
+The rendered assembly drawing with populated BOM table and balloon callouts:
+
+![Assembly Drawing with BOM and Balloons](../assets/examples/assembly_drawing.svg)
+
+!!! tip "Try It Yourself"
+    Run the complete assembly script:
+    ```bash
+    uv run python examples/assembly_bom.py
+    ```
+    Generated outputs are available in `examples/output/assembly_drawing.svg`, `assembly_drawing.pdf`, and `assembly_drawing.dxf`.
