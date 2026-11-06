@@ -36,6 +36,12 @@ from build123d_techdraw.core.scale import (
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.title_block import BOMItem, RevisionEntry, TitleBlockInfo
 from build123d_techdraw.core.view import SheetView, ViewType
+from build123d_techdraw.layout.multiview import (
+    MultiviewLayout,
+    add_assembly_bom_and_balloons,
+    add_standard_multiview,
+    generate_assembly_bom,
+)
 from build123d_techdraw.renderers.dxf import DXFRenderer
 from build123d_techdraw.renderers.pdf import PDFRenderer
 from build123d_techdraw.renderers.svg import SVGRenderer
@@ -63,6 +69,7 @@ __all__ = [
     "LeaderNote",
     "LinearDimension",
     "MaterialRemoval",
+    "MultiviewLayout",
     "PDFRenderer",
     "RadialDimension",
     "RevisionEntry",
@@ -76,10 +83,13 @@ __all__ = [
     "ThemeColors",
     "TitleBlockInfo",
     "ViewType",
+    "add_assembly_bom_and_balloons",
+    "add_standard_multiview",
     "calculate_auto_scale",
     "find_closest_iso_scale",
     "format_dimension_value",
     "format_iso_scale",
+    "generate_assembly_bom",
     "render_projection_cone_svg",
     "__version__",
 ]
