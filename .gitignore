@@ -38,9 +38,14 @@ venv.bak/
 htmlcov/
 coverage.xml
 
+# Documentation
+site/
+.cache/
+
 # Linters & Type Checking
 .mypy_cache/
 .ruff_cache/
+
 
 # IDE & OS
 .vscode/
