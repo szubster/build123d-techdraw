@@ -1,18 +1,13 @@
 """ISO 5455 scale ladders and auto-scale utilities."""
 
 # Standard ISO 5455 recommended scale ratios
-ISO_5455_ENLARGEMENT_SCALES: list[float] = [50.0, 20.0, 10.0, 5.0, 2.0]
+ISO_5455_ENLARGEMENT_SCALES: list[float] = [5.0, 2.0]
 ISO_5455_FULL_SCALE: float = 1.0
 ISO_5455_REDUCTION_SCALES: list[float] = [
     1.0 / 2.0,
     1.0 / 5.0,
     1.0 / 10.0,
     1.0 / 20.0,
-    1.0 / 50.0,
-    1.0 / 100.0,
-    1.0 / 200.0,
-    1.0 / 500.0,
-    1.0 / 1000.0,
 ]
 
 STANDARD_SCALES: list[float] = (
@@ -53,6 +48,7 @@ def calculate_auto_scale(
     model_bbox_size: tuple[float, float],
     available_size: tuple[float, float],
     margin_factor: float = 0.75,
+    enforce_iso_scale: bool = True,
 ) -> float:
     """Calculate the best standard ISO 5455 scale fitting model dimensions into available space."""
     m_w, m_h = model_bbox_size
@@ -68,4 +64,4 @@ def calculate_auto_scale(
     ratio_h = target_h / m_h
     max_ratio = min(ratio_w, ratio_h)
 
-    return find_closest_iso_scale(max_ratio)
+    return find_closest_iso_scale(max_ratio) if enforce_iso_scale else max_ratio

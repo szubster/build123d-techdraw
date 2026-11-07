@@ -18,6 +18,11 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 from build123d_techdraw.renderers.theme import THEME_COLORS, Theme, ThemeColors
 
+MM_TO_PT: float = 72.0 / 25.4
+# Contours (ISO 128 Type A): 0.50mm -> 1.42pt
+# Dimensions/Leaders (ISO 128 Type B): 0.25mm -> 0.71pt
+# Borders: 0.70mm -> 1.98pt
+
 
 class PDFRenderer:
     """Renders vector technical drawings to multi-page publication-ready PDF documents."""
@@ -87,12 +92,18 @@ class PDFRenderer:
                     mpl_path = mpath.Path(verts, codes)
                     stroke: str | None = None
                     fill: str | None = None
-                    lw: float = 0.35
+                    lw: float = 0.35 * MM_TO_PT
                     ls: Any = "-"
                     hatch: str | None = None
 
+                    raw_stroke = str(el.values.get("stroke", ""))
+
                     # Check if hidden line
-                    is_hidden = "line-hidden" in cls_list or "layer_hidden" in cls_list
+                    is_hidden = (
+                        "line-hidden" in cls_list
+                        or "layer_hidden" in cls_list
+                        or "line-hidden" in raw_stroke
+                    )
                     if not is_hidden:
                         parent = getattr(el, "parent", None)
                         while parent:
@@ -112,58 +123,57 @@ class PDFRenderer:
 
                     if is_hidden:
                         stroke = colors.line_hidden
-                        lw = 0.20
+                        lw = 0.20 * MM_TO_PT
                         ls = (0, (3, 2))
                     elif is_hatch:
                         fill = colors.table_header_bg
                         stroke = colors.line_visible
-                        lw = 0.35
+                        lw = 0.35 * MM_TO_PT
                         hatch = "//"
-                    elif "stroke-visible" in cls_list or "line-visible" in cls_list:
+                    elif (
+                        "stroke-visible" in cls_list
+                        or "line-visible" in cls_list
+                        or "line-visible" in raw_stroke
+                    ):
                         stroke = colors.line_visible
-                        lw = float(el.values.get("stroke-width", 0.35))
+                        lw = float(el.values.get("stroke-width", 0.50)) * MM_TO_PT
                     elif "line-center" in cls_list:
                         stroke = colors.line_center
-                        lw = 0.25
+                        lw = 0.25 * MM_TO_PT
                         ls = (0, (6, 2, 1, 2))
                     elif "line-section" in cls_list or "line-section-thick" in cls_list:
                         stroke = colors.line_section
-                        lw = float(el.values.get("stroke-width", 0.6))
+                        lw = float(el.values.get("stroke-width", 0.6)) * MM_TO_PT
                     elif "section-arrow-head" in cls_list:
                         fill = colors.line_section
-                        stroke = colors.line_section
                     elif "border-main" in cls_list:
                         stroke = colors.border
-                        lw = 0.8
+                        lw = 0.70 * MM_TO_PT
                     elif "border-sub" in cls_list:
                         stroke = colors.border_sub
-                        lw = 0.35
+                        lw = float(el.values.get("stroke-width", 0.35)) * MM_TO_PT
                     elif "title-bg" in cls_list:
                         fill = colors.title_bg
                         stroke = colors.border
-                        lw = 0.6
+                        lw = 0.6 * MM_TO_PT
                     elif "table-header-bg" in cls_list:
                         fill = colors.table_header_bg
-                        stroke = colors.border_sub
-                        lw = 0.4
                     elif "table-row-alt" in cls_list:
                         fill = colors.table_row_alt
                     elif "dim-line" in cls_list:
                         stroke = colors.dim_line
-                        lw = 0.35
-                    elif "dim-arrow" in cls_list:
+                        lw = 0.25 * MM_TO_PT
+                    elif "dim-arrow" in cls_list or "leader-dot" in cls_list:
                         fill = colors.dim_line
-                        stroke = colors.dim_line
                     elif "balloon-circle" in cls_list:
                         fill = colors.balloon_bg
                         stroke = colors.balloon_border
-                        lw = 0.5
+                        lw = 0.5 * MM_TO_PT
                     elif "balloon-dot" in cls_list:
                         fill = colors.balloon_border
-                        stroke = colors.balloon_border
                     elif "balloon-leader" in cls_list:
                         stroke = colors.balloon_border
-                        lw = 0.35
+                        lw = 0.25 * MM_TO_PT
                     else:
                         if (
                             not isinstance(el, (se.Line, se.SimpleLine, se.Polyline))
@@ -174,8 +184,10 @@ class PDFRenderer:
                             fill = el.fill.hex
                         if el.stroke and el.stroke.hex and el.stroke.hex != "#00000000":
                             stroke = el.stroke.hex
-                        else:
+                            lw = float(el.values.get("stroke-width", 0.35)) * MM_TO_PT
+                        elif not fill:
                             stroke = colors.line_visible
+                            lw = 0.35 * MM_TO_PT
 
                     patch = patches.PathPatch(
                         mpl_path,
@@ -199,7 +211,7 @@ class PDFRenderer:
                     x = pt.x
                     y = height_mm - pt.y
                     fs_mm = float(el.font_size or 3.0)
-                    fs_pt = fs_mm * (72.0 / 25.4) * 0.90
+                    fs_pt = fs_mm * MM_TO_PT * 0.90
                     weight = "bold" if el.font_weight in ["bold", "700", "800"] else "normal"
 
                     if "balloon-text" in cls_list:
@@ -230,6 +242,11 @@ class PDFRenderer:
                     anchor_map = {"start": "left", "middle": "center", "end": "right"}
                     ha = anchor_map.get(getattr(el, "anchor", "start"), "left")
                     va = "center" if rotation != 0 else "baseline"
+                    bbox_props = (
+                        {"boxstyle": "square,pad=0.15", "facecolor": colors.bg, "edgecolor": "none"}
+                        if "dim-text" in cls_list
+                        else None
+                    )
                     ax.text(
                         x,
                         y,
@@ -241,6 +258,7 @@ class PDFRenderer:
                         va=va,
                         rotation=rotation,
                         rotation_mode="anchor",
+                        bbox=bbox_props,
                     )
 
     @classmethod

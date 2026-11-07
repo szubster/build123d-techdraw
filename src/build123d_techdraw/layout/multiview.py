@@ -74,6 +74,7 @@ def add_standard_multiview(
     show_scale_label: bool = False,
     auto_dimensions: bool | str = False,
     auto_centerlines: bool = False,
+    enforce_iso_scale: bool = True,
 ) -> MultiviewLayout:
     """Generate a standard orthographic multi-view layout on a drawing sheet.
 
@@ -192,7 +193,8 @@ def add_standard_multiview(
         net_h = avail_h - (num_rows - 1) * spacing
         raw_scale_w = net_w / total_unscaled_w if total_unscaled_w > 0 else 1.0
         raw_scale_h = net_h / total_unscaled_h if total_unscaled_h > 0 else 1.0
-        calculated_scale = find_closest_iso_scale(min(raw_scale_w, raw_scale_h))
+        raw_scale = min(raw_scale_w, raw_scale_h)
+        calculated_scale = find_closest_iso_scale(raw_scale) if enforce_iso_scale else raw_scale
     else:
         calculated_scale = float(scale)
 
