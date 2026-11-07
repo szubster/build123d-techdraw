@@ -104,14 +104,21 @@ def test_set_title_block_and_exports(tmp_path: Path) -> None:
     assert (tmp_path / "part.dxf").exists()
 
 
-def test_theme_print_and_switcher() -> None:
+def test_theme_print_and_html_steering() -> None:
     sheet = DrawingSheet(sheet_size=SheetSize.A4_LANDSCAPE)
     svg_print = sheet.to_svg(theme="print")
     assert 'class="theme-iso-white"' in svg_print
-    assert 'id="theme-switcher-btn"' in svg_print
+    # No inline UI buttons or scripts inside clean CAD SVG output
+    assert "theme-switcher-btn" not in svg_print
+    assert "<script" not in svg_print
+    # Styles support steering from external HTML/JS
+    assert ".theme-dark-blueprint" in svg_print
+    assert ".theme-iso-white" in svg_print
 
     svg_dark = sheet.to_svg(theme="dark_blueprint")
     assert 'class="theme-dark-blueprint"' in svg_dark
+    assert "theme-switcher-btn" not in svg_dark
+    assert "<script" not in svg_dark
 
 
 def test_iso_projection_symbols() -> None:

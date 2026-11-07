@@ -92,12 +92,15 @@ def generate_theme_css(default_theme: Theme = Theme.DARK_BLUEPRINT) -> str:
 
     primary = c_dark if default_theme == Theme.DARK_BLUEPRINT else c_white
     alt = c_white if default_theme == Theme.DARK_BLUEPRINT else c_dark
+    primary_class = (
+        "theme-dark-blueprint" if default_theme == Theme.DARK_BLUEPRINT else "theme-iso-white"
+    )
     alt_class = (
         "theme-iso-white" if default_theme == Theme.DARK_BLUEPRINT else "theme-dark-blueprint"
     )
 
     return f"""
-    :root {{
+    :root, .{primary_class} {{
         --bg-color: {primary.bg};
         --grid-color: {primary.grid};
         --border-main: {primary.border};
