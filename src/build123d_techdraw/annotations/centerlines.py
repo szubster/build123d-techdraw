@@ -10,7 +10,7 @@ from build123d_techdraw.annotations.resolver import (
     resolve_circle_or_cylinder_to_sheet,
     resolve_point_to_sheet,
 )
-from build123d_techdraw.context import CURRENT_VIEW
+from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
 
 class Centerline:
@@ -57,6 +57,10 @@ class Centerline:
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
             self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
 
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
@@ -91,11 +95,16 @@ class Centerline:
                 self.start = p0
                 self.end = p1
             self.resolved = True
+        elif not self.resolved and self.target is None:
+            self.start = (view.min_x - self.overhang, view.center_y)
+            self.end = (view.max_x + self.overhang, view.center_y)
+            self.resolved = True
 
         if hasattr(view, "annotations") and self not in view.annotations:
             view.annotations.append(self)
-        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
-            view.sheet.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         x1, y1 = self.start
@@ -145,20 +154,31 @@ class CenterMark:
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
             self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
 
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
-            paper_c, paper_r, _ = resolve_circle_or_cylinder_to_sheet(self.target, view)
-            self.center = paper_c
-            if self.size == 6.0:  # Default unset size
-                self.size = (paper_r + 2.0) * 2.0
+            try:
+                paper_c, paper_r, _ = resolve_circle_or_cylinder_to_sheet(self.target, view)
+                self.center = paper_c
+                if self.size == 6.0:  # Default unset size
+                    self.size = (paper_r + 2.0) * 2.0
+            except TypeError:
+                self.center = resolve_point_to_sheet(self.target, view)
+            self.resolved = True
+        elif not self.resolved and self.target is None:
+            self.center = (view.center_x, view.center_y)
             self.resolved = True
 
         if hasattr(view, "annotations") and self not in view.annotations:
             view.annotations.append(self)
-        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
-            view.sheet.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         cx, cy = self.center
@@ -214,20 +234,31 @@ class BoltCircle:
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
             self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
 
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
-            paper_c, paper_r, _ = resolve_circle_or_cylinder_to_sheet(self.target, view)
-            self.center = paper_c
-            if self.diameter == 0.0:
-                self.diameter = 2.0 * paper_r
+            try:
+                paper_c, paper_r, _ = resolve_circle_or_cylinder_to_sheet(self.target, view)
+                self.center = paper_c
+                if self.diameter == 0.0:
+                    self.diameter = 2.0 * paper_r
+            except TypeError:
+                self.center = resolve_point_to_sheet(self.target, view)
+            self.resolved = True
+        elif not self.resolved and self.target is None:
+            self.center = (view.center_x, view.center_y)
             self.resolved = True
 
         if hasattr(view, "annotations") and self not in view.annotations:
             view.annotations.append(self)
-        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
-            view.sheet.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         cx, cy = self.center

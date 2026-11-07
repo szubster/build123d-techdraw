@@ -8,13 +8,19 @@ from typing import TYPE_CHECKING, Any, Optional, Self
 
 import build123d as bd
 
-from build123d_techdraw.annotations.callouts import BOMBalloon, LeaderNote
+from build123d_techdraw.annotations.callouts import (
+    BOMBalloon,
+    HoleCallout,
+    LeaderNote,
+    ThreadCallout,
+)
 from build123d_techdraw.annotations.centerlines import BoltCircle, Centerline, CenterMark
 from build123d_techdraw.annotations.dimensions import (
     DiameterDimension,
     DimensionType,
     LinearDimension,
     RadialDimension,
+    Tolerance,
 )
 from build123d_techdraw.annotations.gdt import (
     DatumFeatureSymbol,
@@ -157,6 +163,8 @@ class SheetView:
 
         return self
 
+    add_annotation = add
+
     def _update_transform(self) -> None:
         """Regenerate the view's SVG transform after moving or scaling."""
         if not self.inner_svg_content:
@@ -181,12 +189,17 @@ class SheetView:
 
     def locate(self, center: tuple[float, float]) -> Self:
         """Reposition the view center on the sheet (in paper mm)."""
+        dx = float(center[0]) - self.center_x
+        dy = float(center[1]) - self.center_y
         self.center_x = float(center[0])
         self.center_y = float(center[1])
         self.min_x = self.center_x - self.width / 2.0
         self.max_x = self.center_x + self.width / 2.0
         self.min_y = self.center_y - self.height / 2.0
         self.max_y = self.center_y + self.height / 2.0
+        self.bottom_annotation_y = self.max_y
+        if self.view_label_pos is not None:
+            self.view_label_pos = (self.view_label_pos[0] + dx, self.view_label_pos[1] + dy)
         self._update_transform()
         return self
 
@@ -201,16 +214,20 @@ class SheetView:
         self.max_x = self.center_x + self.width / 2.0
         self.min_y = self.center_y - self.height / 2.0
         self.max_y = self.center_y + self.height / 2.0
+        self.bottom_annotation_y = self.max_y
         self.scale_label = format_iso_scale(scale)
         self._update_transform()
         return self
 
     def align_to(
         self,
-        other: "SheetView",
+        other: "SheetView | tuple[Any, ...]",
         direction: str = "right",
         spacing: float = 25.0,
     ) -> Self:
+        if isinstance(other, (tuple, list, dict)):
+            _apply_align_to(self, other)
+            return self
         """Align this view relative to another view on the sheet."""
         d = direction.lower()
         if d in ("right", "east"):
@@ -670,6 +687,88 @@ class SheetView:
         if self.sheet is not None:
             self.sheet.annotations.append(sym)
         return sym
+
+    def hole_callout(
+        self,
+        model_x: float,
+        model_y: float,
+        diameter: float,
+        depth: float | str | None = None,
+        countersink_dia: float | None = None,
+        countersink_angle: float = 90.0,
+        counterbore_dia: float | None = None,
+        counterbore_depth: float | None = None,
+        quantity: int | None = None,
+        tolerance: str | Tolerance | None = None,
+        elbow_dx: float = 15.0,
+        elbow_dy: float = -12.0,
+    ) -> HoleCallout:
+        """Add a standard engineering hole callout at (model_x, model_y)."""
+        target = self.to_sheet_coords(model_x, model_y)
+        hc = HoleCallout(
+            center=target,
+            diameter=diameter,
+            depth=depth,
+            countersink_dia=countersink_dia,
+            countersink_angle=countersink_angle,
+            counterbore_dia=counterbore_dia,
+            counterbore_depth=counterbore_depth,
+            quantity=quantity,
+            tolerance=str(tolerance) if tolerance is not None else None,
+            elbow_offset=(elbow_dx, elbow_dy),
+            view=self,
+        )
+        return hc
+
+    def thread_callout(
+        self,
+        model_x: float,
+        model_y: float,
+        thread: str = "M5x0.8",
+        depth: float | str | None = "THRU",
+        class_fit: str | None = None,
+        quantity: int | None = None,
+        elbow_dx: float = 15.0,
+        elbow_dy: float = -12.0,
+    ) -> ThreadCallout:
+        """Add a standard engineering thread callout at (model_x, model_y)."""
+        target = self.to_sheet_coords(model_x, model_y)
+        tc = ThreadCallout(
+            center=target,
+            thread=thread,
+            depth=depth,
+            class_fit=class_fit,
+            quantity=quantity,
+            elbow_offset=(elbow_dx, elbow_dy),
+            view=self,
+        )
+        return tc
+
+
+def _apply_align_to(view: Any, align_spec: Any) -> Any:
+    """Apply an align_to specification (tuple, dict, or SheetView) to a view."""
+    if align_spec is None:
+        return view
+    if isinstance(align_spec, SheetView):
+        return view.align_to(align_spec)
+    if isinstance(align_spec, (tuple, list)):
+        if len(align_spec) == 1:
+            return view.align_to(align_spec[0])
+        if len(align_spec) == 2:
+            return view.align_to(align_spec[0], direction=str(align_spec[1]))
+        if len(align_spec) >= 3:
+            return view.align_to(
+                align_spec[0], direction=str(align_spec[1]), spacing=float(align_spec[2])
+            )
+    if isinstance(align_spec, dict):
+        return view.align_to(
+            align_spec["other"],
+            direction=str(align_spec.get("direction", "right")),
+            spacing=float(align_spec.get("spacing", 25.0)),
+        )
+    raise TypeError(
+        "Invalid align_to specification. Expected (other_view, direction[, spacing]) or SheetView."
+    )
 
 
 def project_shape_to_view(

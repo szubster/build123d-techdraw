@@ -285,3 +285,207 @@ def test_radial_and_diameter_dimensions_topological(bracket_part: bd.Compound) -
     front += cl
     sheet += front
     assert cl.resolved
+
+
+def test_context_aware_annotations_and_string_sheet_size(bracket_part: bd.Compound) -> None:
+    """Test exact ergonomic workflow: string sheet_size and context-aware annotations."""
+    from build123d_techdraw import BOMBalloon
+
+    hole_center = (100.0, 100.0)
+    with BuildSheet(sheet_size="A3") as sheet:  # noqa: SIM117
+        with FrontView(bracket_part, center=(100.0, 100.0)) as fv:
+            dim = LinearDimension(offset=-10.0, text="127.00")
+            cm = CenterMark(hole_center)
+            balloon = BOMBalloon(balloon_no=1, position=(20.0, 20.0))
+
+    assert sheet.width_mm == 420.0
+    assert sheet.height_mm == 297.0
+    assert dim in fv.annotations and dim in sheet.annotations
+    assert cm in fv.annotations and cm in sheet.annotations
+    assert balloon in fv.annotations and balloon in sheet.annotations
+    assert balloon.balloon_no == 1
+    assert balloon.position == (20.0, 20.0)
+
+    svg = sheet.to_svg()
+    assert "127.00" in svg
+    assert 'class="centermark"' in svg
+    assert 'class="bom-balloon"' in svg
+
+
+def test_flexible_sheet_size_coercion() -> None:
+    """Test case-insensitive string and enum coercion in DrawingSheet and BuildSheet."""
+    s_a3 = DrawingSheet(sheet_size="a3")
+    assert (s_a3.width_mm, s_a3.height_mm) == (420.0, 297.0)
+
+    s_a4_l = DrawingSheet(sheet_size="A4_LANDSCAPE")
+    assert (s_a4_l.width_mm, s_a4_l.height_mm) == (297.0, 210.0)
+
+    s_a3_p = DrawingSheet(sheet_size="a3-portrait")
+    assert (s_a3_p.width_mm, s_a3_p.height_mm) == (297.0, 420.0)
+
+    s_letter = BuildSheet(sheet_size="LETTER")
+    assert (s_letter.width_mm, s_letter.height_mm) == (279.4, 215.9)
+
+    s_enum_short = BuildSheet(sheet_size=SheetSize.A3)
+    assert (s_enum_short.width_mm, s_enum_short.height_mm) == (420.0, 297.0)
+
+    with pytest.raises(ValueError, match="Unknown sheet_size"):
+        DrawingSheet(sheet_size="INVALID_PAPER")
+
+
+def test_raw_svg_and_table_components() -> None:
+    """Test first-class RawSVG and Table / Schedule in both Builder and Algebraic modes."""
+    from build123d_techdraw import RawSVG, Schedule, Table, Theme
+
+    # Builder mode
+    with BuildSheet(sheet_size="A3") as sheet:
+        raw = RawSVG(
+            '<circle cx="10" cy="10" r="5" class="schematic-node"/>', position=(40.0, 50.0)
+        )
+        tbl = Table(
+            headers=["PIN", "SIGNAL", "AWG"],
+            rows=[
+                [1, "24V_DC", "18"],
+                [2, "GND", "18"],
+                [3, "CAN_H", "22"],
+            ],
+            position=(40.0, 80.0),
+            col_widths=[15.0, 35.0, 15.0],
+            alignments=["center", "left", "right"],
+            title="J1 TERMINAL PINOUT",
+        )
+
+    assert raw in sheet.annotations
+    assert tbl in sheet.annotations
+    assert tbl.width == pytest.approx(65.0)
+    assert tbl.height > 0.0
+
+    svg_dark = sheet.to_svg(theme=Theme.DARK_BLUEPRINT)
+    assert "schematic-node" in svg_dark
+    assert "translate(40.00, 50.00)" in svg_dark
+    assert "J1 TERMINAL PINOUT" in svg_dark
+    assert "24V_DC" in svg_dark
+    assert 'class="table-row-alt"' in svg_dark
+
+    # Algebraic mode with Schedule alias and auto-calculated column widths
+    alg_sheet = DrawingSheet("A4")
+    alg_sheet += RawSVG("<rect width='10' height='10'/>", position=(20.0, 20.0))
+    alg_sheet += Schedule(
+        headers=["PART", "QTY"],
+        rows=[["M5x12 SHCS", 8]],
+        position=(20.0, 40.0),
+    )
+    svg_white = alg_sheet.to_svg(theme=Theme.ISO_WHITE)
+    assert "M5x12 SHCS" in svg_white
+    assert 'class="theme-iso-white"' in svg_white
+
+
+def test_title_block_explicit_line_breaks_subtitle_and_custom_fields() -> None:
+    """Test explicit \n line breaks, consistent font size, subtitle, and custom fields."""
+    with BuildSheet(sheet_size="A3") as sheet:
+        TitleBlock(
+            title="DUAL-AXIS ACTUATOR\nPRIMARY HOUSING",
+            subtitle="MACHINED SUB-ASSEMBLY",
+            drawing_no="ACT-100",
+            fields={"TOLERANCES": "ISO 2768-mK", "PROJECT": "MONITOR ARM"},
+        )
+
+    assert sheet.title_info.project == "MONITOR ARM"
+    assert sheet.title_info.subtitle == "MACHINED SUB-ASSEMBLY"
+    assert sheet.title_info.fields["TOLERANCES"] == "ISO 2768-mK"
+
+    svg = sheet.to_svg()
+    assert "DUAL-AXIS ACTUATOR" in svg
+    assert "PRIMARY HOUSING" in svg
+    assert "MACHINED SUB-ASSEMBLY" in svg
+    assert "MONITOR ARM" in svg
+    assert "TOLERANCES" in svg
+    assert "ISO 2768-mK" in svg
+    # Both title lines must share identical font-size="2.4" (not 2.9 then 2.7)
+    assert svg.count('class="tb-title" font-size="2.4"') == 2
+
+
+def test_builder_mode_align_to_in_view_constructors(bracket_part: bd.Compound) -> None:
+    """Test seamless align_to=(other, direction, spacing) directly in Builder view constructors."""
+    with BuildSheet(sheet_size="A3") as sheet:
+        with FrontView(bracket_part, center=(150.0, 160.0)) as front:
+            pass
+        with TopView(bracket_part, align_to=(front, "above", 25.0)) as top:
+            # Inside context block, top is already aligned!
+            LinearDimension(offset=-8.0)
+        with IsometricView(bracket_part, align_to=(front, "right", 40.0)) as iso:
+            pass
+
+    assert len(sheet.views) == 3
+    assert top.center_x == pytest.approx(front.center_x)
+    assert top.max_y == pytest.approx(front.min_y - 25.0, abs=1e-2)
+    assert iso.center_y == pytest.approx(front.center_y)
+    assert iso.min_x == pytest.approx(front.max_x + 40.0, abs=1e-2)
+
+
+def test_hole_thread_callouts_and_tolerance_helpers(bracket_part: bd.Compound) -> None:
+    """Test HoleCallout, ThreadCallout, and Tolerance formatting helpers."""
+    from build123d_techdraw import HoleCallout, ThreadCallout, Tolerance
+
+    with BuildSheet(sheet_size="A3") as sheet:  # noqa: SIM117
+        with FrontView(bracket_part, center=(150.0, 150.0)) as fv:
+            hc = HoleCallout(
+                center=(140.0, 140.0),
+                diameter=5.5,
+                depth=None,
+                countersink_dia=10.0,
+                countersink_angle=90.0,
+            )
+            tc = ThreadCallout(
+                center=(160.0, 140.0),
+                thread="M5x0.8",
+                depth="THRU",
+                class_fit="6H",
+            )
+            dim_bilat = LinearDimension(
+                offset=-12.0,
+                nominal=127.0,
+                tolerance=Tolerance.bilateral(+0.2, -0.1),
+            )
+            dim_fit = LinearDimension(
+                offset=12.0,
+                nominal=50.0,
+                tolerance=Tolerance.fit("H7"),
+            )
+
+    assert hc.text == "⌀5.5 THRU ⌵ ⌀10 × 90°"
+    assert tc.text == "M5x0.8 - 6H THRU"
+    assert dim_bilat.text == "127"
+    assert dim_bilat.tolerance == "+0.2 / -0.1"
+    assert dim_fit.tolerance == "H7"
+    assert hc in fv.annotations and tc in fv.annotations
+
+    svg = sheet.to_svg()
+    assert "⌀5.5 THRU ⌵ ⌀10 × 90°" in svg
+    assert "M5x0.8 - 6H THRU" in svg
+    assert "127 +0.2 / -0.1" in svg
+    assert "50 H7" in svg
+
+
+def test_booklet_auto_pagination(bracket_part: bd.Compound, tmp_path: Path) -> None:
+    """Test DrawingBooklet automatic sheet_no and total_sheets pagination."""
+    from build123d_techdraw import DrawingBooklet
+
+    sheets = []
+    for i in range(3):
+        with BuildSheet(sheet_size="A4", title=f"PART {i + 1}", drawing_no=f"DWG-{i + 1:03d}") as s:
+            FrontView(bracket_part, center=(120.0, 100.0), scale=0.8)
+        sheets.append(s.sheet)
+
+    booklet = DrawingBooklet(title="AUTO PAGINATED PACKAGE", sheets=sheets)
+    svg_paths = booklet.export_svgs(str(tmp_path / "svgs"))
+    pdf_path = str(tmp_path / "booklet.pdf")
+    booklet.export_pdf(pdf_path)
+
+    for idx, sheet_obj in enumerate(sheets):
+        assert sheet_obj.title_info.sheet_no == f"{idx + 1}"
+        assert sheet_obj.title_info.total_sheets == "3"
+        svg_text = Path(svg_paths[idx]).read_text(encoding="utf-8")
+        assert f">{idx + 1} OF 3<" in svg_text
+
+    assert Path(pdf_path).exists()

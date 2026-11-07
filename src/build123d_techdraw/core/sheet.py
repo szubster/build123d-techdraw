@@ -8,8 +8,10 @@ import build123d as bd
 
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
+    HoleCallout,
     LeaderNote,
     SectionCuttingLine,
+    ThreadCallout,
 )
 from build123d_techdraw.annotations.centerlines import (
     BoltCircle,
@@ -21,6 +23,7 @@ from build123d_techdraw.annotations.dimensions import (
     DimensionType,
     LinearDimension,
     RadialDimension,
+    Tolerance,
 )
 from build123d_techdraw.annotations.gdt import (
     DatumFeatureSymbol,
@@ -31,6 +34,7 @@ from build123d_techdraw.annotations.surface import (
     MaterialRemoval,
     SurfaceFinishSymbol,
 )
+from build123d_techdraw.annotations.tables import RawSVG, Table
 from build123d_techdraw.context import CURRENT_SHEET
 from build123d_techdraw.core.title_block import (
     BOMItem,
@@ -43,6 +47,7 @@ from build123d_techdraw.core.title_block import (
 from build123d_techdraw.core.view import (
     SheetView,
     ViewType,
+    _apply_align_to,
     project_section_to_view,
     project_shape_to_view,
 )
@@ -50,18 +55,37 @@ from build123d_techdraw.renderers.theme import Theme, generate_theme_css
 
 
 class SheetSize(Enum):
-    """Standard ISO 216 paper sheet sizes in millimeters (width, height)."""
+    """Standard ISO 216 and ANSI/US paper sheet sizes in millimeters (width, height)."""
 
     A0_LANDSCAPE = (1189.0, 841.0)
     A0_PORTRAIT = (841.0, 1189.0)
+    A0 = (1189.0, 841.0)
     A1_LANDSCAPE = (841.0, 594.0)
     A1_PORTRAIT = (594.0, 841.0)
+    A1 = (841.0, 594.0)
     A2_LANDSCAPE = (594.0, 420.0)
     A2_PORTRAIT = (420.0, 594.0)
+    A2 = (594.0, 420.0)
     A3_LANDSCAPE = (420.0, 297.0)
     A3_PORTRAIT = (297.0, 420.0)
+    A3 = (420.0, 297.0)
     A4_LANDSCAPE = (297.0, 210.0)
     A4_PORTRAIT = (210.0, 297.0)
+    A4 = (297.0, 210.0)
+    LETTER_LANDSCAPE = (279.4, 215.9)
+    LETTER_PORTRAIT = (215.9, 279.4)
+    LETTER = (279.4, 215.9)
+    ANSI_A = (279.4, 215.9)
+    LEGAL_LANDSCAPE = (355.6, 215.9)
+    LEGAL_PORTRAIT = (215.9, 355.6)
+    LEGAL = (355.6, 215.9)
+    TABLOID_LANDSCAPE = (431.8, 279.4)
+    TABLOID_PORTRAIT = (279.4, 431.8)
+    TABLOID = (431.8, 279.4)
+    ANSI_B = (431.8, 279.4)
+    ANSI_C = (558.8, 431.8)
+    ANSI_D = (863.6, 558.8)
+    ANSI_E = (1117.6, 863.6)
 
     @property
     def width(self) -> float:
@@ -71,24 +95,53 @@ class SheetSize(Enum):
     def height(self) -> float:
         return self.value[1]
 
+    @classmethod
+    def coerce(cls, value: "SheetSize | str") -> "SheetSize":
+        """Coerce a SheetSize enum or case-insensitive string into a SheetSize."""
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, str):
+            key = value.strip().upper().replace("-", "_").replace(" ", "_")
+            if key.startswith("US_"):
+                key = key[3:]
+            if key in cls.__members__:
+                return cls.__members__[key]
+            if f"{key}_LANDSCAPE" in cls.__members__:
+                return cls.__members__[f"{key}_LANDSCAPE"]
+            raise ValueError(
+                f"Unknown sheet_size '{value}'. Expected SheetSize or string like 'A3', 'A4_LANDSCAPE', 'LETTER'."
+            )
+        raise TypeError(f"Expected SheetSize or str, got {type(value).__name__}")
+
 
 class DrawingSheet:
     """Represents a single ISO 5457 technical drawing sheet with views and annotations."""
 
     def __init__(
         self,
-        sheet_size: SheetSize = SheetSize.A3_LANDSCAPE,
+        sheet_size: SheetSize | str | tuple[float, float] = SheetSize.A3_LANDSCAPE,
         custom_size: tuple[float, float] | None = None,
         title_info: TitleBlockInfo | None = None,
         left_margin: float = 15.0,
         margin: float = 8.0,
     ):
-        if custom_size is not None:
-            self.width_mm, self.height_mm = custom_size
-            self.sheet_size = sheet_size
+        if (
+            custom_size is None
+            and isinstance(sheet_size, (tuple, list))
+            and not isinstance(sheet_size, SheetSize)
+            and len(sheet_size) == 2
+        ):
+            custom_size = (float(sheet_size[0]), float(sheet_size[1]))
+            resolved_size = SheetSize.A3_LANDSCAPE
         else:
-            self.width_mm, self.height_mm = sheet_size.value
-            self.sheet_size = sheet_size
+            resolved_size = SheetSize.coerce(sheet_size)  # type: ignore[arg-type]
+
+        if custom_size is not None:
+            self.width_mm, self.height_mm = float(custom_size[0]), float(custom_size[1])
+            self.sheet_size = resolved_size
+        else:
+            self.width_mm, self.height_mm = resolved_size.value
+            self.sheet_size = resolved_size
 
         self.left_margin = left_margin
         self.right_margin = margin
@@ -166,10 +219,13 @@ class DrawingSheet:
             self.title_info = item
             return self
 
-        self.annotations.append(item)
+        if item not in self.annotations:
+            self.annotations.append(item)
         if hasattr(item, "sheet"):
             item.sheet = self
         return self
+
+    add_annotation = add
 
     def set_title_block(
         self,
@@ -177,9 +233,11 @@ class DrawingSheet:
         drawing_number: str | None = None,
         drawing_title: str | None = None,
         drawing_no: str | None = None,
+        subtitle: str | None = None,
         sheet_no: str | None = None,
         sheet_num: int | None = None,
         num_sheets: int | None = None,
+        total_sheets: str | int | None = None,
         scale: str | None = None,
         rev: str | None = None,
         date: str | None = None,
@@ -190,16 +248,21 @@ class DrawingSheet:
         status: str | None = None,
         units: str | None = None,
         third_angle: bool | None = None,
+        fields: dict[str, str] | None = None,
     ) -> None:
         """Update metadata fields in the ISO 7200 title block."""
         if title is not None:
             self.title_info.drawing_title = title
         if drawing_title is not None:
             self.title_info.drawing_title = drawing_title
+        if subtitle is not None:
+            self.title_info.subtitle = subtitle
         if drawing_number is not None:
             self.title_info.drawing_no = drawing_number
         if drawing_no is not None:
             self.title_info.drawing_no = drawing_no
+        if total_sheets is not None:
+            self.title_info.total_sheets = str(total_sheets)
         if sheet_no is not None:
             self.title_info.sheet_no = sheet_no
         elif sheet_num is not None:
@@ -225,6 +288,8 @@ class DrawingSheet:
             self.title_info.units = units
         if third_angle is not None:
             self.title_info.third_angle = third_angle
+        if fields is not None:
+            self.title_info.apply_custom_fields(fields)
 
     def set_notes(self, notes: list[str]) -> None:
         """Set drawing general notes block."""
@@ -266,6 +331,7 @@ class DrawingSheet:
         rotation_angle_deg: float = 0.0,
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
+        align_to: Any = None,
     ) -> SheetView:
         """Add a projected orthographic/isometric view to the sheet."""
         if isinstance(shape_or_view, SheetView):
@@ -283,6 +349,8 @@ class DrawingSheet:
                 view_label_y=view_label_y,
                 model_origin=model_origin,
             )
+        if align_to is not None:
+            _apply_align_to(view, align_to)
         view.sheet = self
         if view not in self.views:
             self.views.append(view)
@@ -295,11 +363,12 @@ class DrawingSheet:
         self,
         shape: bd.Solid | bd.Compound | Any,
         cutting_plane: bd.Plane,
-        center: tuple[float, float],
+        center: tuple[float, float] = (150.0, 150.0),
         scale: float = 1.0,
         view_label: str = "SECTION A-A",
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
+        align_to: Any = None,
     ) -> SheetView:
         """Add a 2D section slice view with 45-degree cross-hatching to the sheet."""
         view = project_section_to_view(
@@ -312,6 +381,8 @@ class DrawingSheet:
             view_label_y=view_label_y,
             model_origin=model_origin,
         )
+        if align_to is not None:
+            _apply_align_to(view, align_to)
         view.sheet = self
         if view not in self.views:
             self.views.append(view)
@@ -327,9 +398,10 @@ class DrawingSheet:
         offset: float = 8.0,
         dim_type: DimensionType = DimensionType.ALIGNED,
         text: str | None = None,
-        tolerance: str | None = None,
+        tolerance: str | Tolerance | None = None,
         prefix: str = "",
         suffix: str = "",
+        nominal: float | None = None,
     ) -> LinearDimension:
         """Add a linear dimension directly in sheet paper coordinates."""
         dim = LinearDimension(
@@ -341,8 +413,10 @@ class DrawingSheet:
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
+            nominal=nominal,
         )
-        self.annotations.append(dim)
+        if dim not in self.annotations:
+            self.annotations.append(dim)
         return dim
 
     def add_radial_dimension(
@@ -351,7 +425,7 @@ class DrawingSheet:
         radius: float,
         angle_deg: float = 45.0,
         text: str | None = None,
-        tolerance: str | None = None,
+        tolerance: str | Tolerance | None = None,
     ) -> RadialDimension:
         """Add a radial dimension in sheet paper coordinates."""
         dim = RadialDimension(
@@ -361,7 +435,8 @@ class DrawingSheet:
             text=text,
             tolerance=tolerance,
         )
-        self.annotations.append(dim)
+        if dim not in self.annotations:
+            self.annotations.append(dim)
         return dim
 
     def add_diameter_dimension(
@@ -370,7 +445,7 @@ class DrawingSheet:
         diameter: float,
         angle_deg: float = 45.0,
         text: str | None = None,
-        tolerance: str | None = None,
+        tolerance: str | Tolerance | None = None,
     ) -> DiameterDimension:
         """Add a diameter dimension in sheet paper coordinates."""
         dim = DiameterDimension(
@@ -380,7 +455,8 @@ class DrawingSheet:
             text=text,
             tolerance=tolerance,
         )
-        self.annotations.append(dim)
+        if dim not in self.annotations:
+            self.annotations.append(dim)
         return dim
 
     def add_gdt_frame(
@@ -401,7 +477,8 @@ class DrawingSheet:
             datum_b=datum_b,
             datum_c=datum_c,
         )
-        self.annotations.append(fcf)
+        if fcf not in self.annotations:
+            self.annotations.append(fcf)
         return fcf
 
     def add_datum_symbol(
@@ -412,7 +489,8 @@ class DrawingSheet:
     ) -> DatumFeatureSymbol:
         """Add an ISO datum feature identifier symbol."""
         sym = DatumFeatureSymbol(target=target, label=label, direction=direction)
-        self.annotations.append(sym)
+        if sym not in self.annotations:
+            self.annotations.append(sym)
         return sym
 
     def add_surface_finish(
@@ -429,7 +507,8 @@ class DrawingSheet:
             material_removal=material_removal,
             process=process,
         )
-        self.annotations.append(sym)
+        if sym not in self.annotations:
+            self.annotations.append(sym)
         return sym
 
     def add_centerline(
@@ -440,7 +519,8 @@ class DrawingSheet:
     ) -> Centerline:
         """Add an ISO dash-dot centerline between two sheet points."""
         cl = Centerline(start=start, end=end, stroke_width=stroke_width)
-        self.annotations.append(cl)
+        if cl not in self.annotations:
+            self.annotations.append(cl)
         return cl
 
     def add_centermark(
@@ -450,7 +530,8 @@ class DrawingSheet:
     ) -> CenterMark:
         """Add an ISO center crosshair."""
         cm = CenterMark(center=center, size=size)
-        self.annotations.append(cm)
+        if cm not in self.annotations:
+            self.annotations.append(cm)
         return cm
 
     def add_bolt_circle(
@@ -467,7 +548,8 @@ class DrawingSheet:
             num_holes=num_holes,
             start_angle_deg=start_angle_deg,
         )
-        self.annotations.append(bc)
+        if bc not in self.annotations:
+            self.annotations.append(bc)
         return bc
 
     def add_leader_note(
@@ -489,10 +571,98 @@ class DrawingSheet:
             align_right=align_right,
             terminator=terminator,
         )
-        self.annotations.append(note)
+        if note not in self.annotations:
+            self.annotations.append(note)
         return note
 
     add_leader = add_leader_note
+
+    def add_hole_callout(
+        self,
+        center: tuple[float, float],
+        diameter: float,
+        depth: float | str | None = None,
+        countersink_dia: float | None = None,
+        countersink_angle: float = 90.0,
+        counterbore_dia: float | None = None,
+        counterbore_depth: float | None = None,
+        quantity: int | None = None,
+        tolerance: str | None = None,
+        elbow_offset: tuple[float, float] = (15.0, -12.0),
+    ) -> HoleCallout:
+        """Add a standard engineering hole callout in sheet paper coordinates."""
+        hc = HoleCallout(
+            center=center,
+            diameter=diameter,
+            depth=depth,
+            countersink_dia=countersink_dia,
+            countersink_angle=countersink_angle,
+            counterbore_dia=counterbore_dia,
+            counterbore_depth=counterbore_depth,
+            quantity=quantity,
+            tolerance=tolerance,
+            elbow_offset=elbow_offset,
+        )
+        if hc not in self.annotations:
+            self.annotations.append(hc)
+        return hc
+
+    def add_thread_callout(
+        self,
+        center: tuple[float, float],
+        thread: str = "M5x0.8",
+        depth: float | str | None = "THRU",
+        class_fit: str | None = None,
+        quantity: int | None = None,
+        elbow_offset: tuple[float, float] = (15.0, -12.0),
+    ) -> ThreadCallout:
+        """Add a standard engineering thread callout in sheet paper coordinates."""
+        tc = ThreadCallout(
+            center=center,
+            thread=thread,
+            depth=depth,
+            class_fit=class_fit,
+            quantity=quantity,
+            elbow_offset=elbow_offset,
+        )
+        if tc not in self.annotations:
+            self.annotations.append(tc)
+        return tc
+
+    def add_table(
+        self,
+        headers: list[str] | None = None,
+        rows: list[list[Any]] | None = None,
+        position: tuple[float, float] = (0.0, 0.0),
+        col_widths: list[float] | None = None,
+        title: str | None = None,
+        **kwargs: Any,
+    ) -> Table:
+        """Add a tabular schedule to the sheet."""
+        tbl = Table(
+            headers=headers,
+            rows=rows,
+            position=position,
+            col_widths=col_widths,
+            title=title,
+            sheet=self,
+            **kwargs,
+        )
+        if tbl not in self.annotations:
+            self.annotations.append(tbl)
+        return tbl
+
+    def add_raw_svg(
+        self,
+        content: str,
+        position: tuple[float, float] = (0.0, 0.0),
+        **kwargs: Any,
+    ) -> RawSVG:
+        """Add a raw SVG vector element to the sheet."""
+        raw = RawSVG(content=content, position=position, sheet=self, **kwargs)
+        if raw not in self.annotations:
+            self.annotations.append(raw)
+        return raw
 
     def add_balloon(
         self,
@@ -510,7 +680,8 @@ class DrawingSheet:
             radius=radius,
             terminator=terminator,
         )
-        self.annotations.append(balloon)
+        if balloon not in self.annotations:
+            self.annotations.append(balloon)
         return balloon
 
     def add_section_cutting_line(
@@ -527,7 +698,8 @@ class DrawingSheet:
             label=label,
             arrow_dir=arrow_dir,
         )
-        self.annotations.append(cut)
+        if cut not in self.annotations:
+            self.annotations.append(cut)
         return cut
 
     add_section_cut = add_section_cutting_line
@@ -660,7 +832,7 @@ class DrawingSheet:
 
         view_elements = "".join([v.svg_content for v in self.views])
 
-        # Annotation SVG rendering (dimensions, leaders, GD&T, etc.)
+        # Annotation SVG rendering (dimensions, leaders, GD&T, tables, raw SVG, etc.)
         annotation_svgs = "".join([a.to_svg() for a in self.annotations if hasattr(a, "to_svg")])
 
         # Position BOM table (bottom-up above title block or top-right below revisions)
@@ -668,7 +840,13 @@ class DrawingSheet:
             rev_h = 10.0 if self.revision_rows else 0.0
             bom_top_y = self.top_margin + rev_h + 2.0
         else:
-            tb_y = h - self.bottom_margin - 36.0
+            extra_fields = self.title_info.extra_fields
+            extra_rows = (
+                (len(extra_fields) + min(3, len(extra_fields)) - 1) // min(3, len(extra_fields))
+                if extra_fields
+                else 0
+            )
+            tb_y = h - self.bottom_margin - 36.0 - extra_rows * 7.0
             bom_h = 5.5 + len(self.bom_items) * 5.2
             bom_top_y = tb_y - bom_h - 1.0
 

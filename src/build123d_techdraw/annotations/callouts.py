@@ -1,4 +1,4 @@
-"""Callouts, leader notes, BOM balloons, and section cutting lines."""
+"""Callouts, leader notes, hole/thread callouts, BOM balloons, and section cutting lines."""
 
 from __future__ import annotations
 
@@ -6,8 +6,12 @@ import html
 import math
 from typing import Any
 
-from build123d_techdraw.annotations.dimensions import render_arrowhead
-from build123d_techdraw.annotations.resolver import is_topological_entity, resolve_point_to_sheet
+from build123d_techdraw.annotations.dimensions import format_dimension_value, render_arrowhead
+from build123d_techdraw.annotations.resolver import (
+    is_topological_entity,
+    resolve_circle_or_cylinder_to_sheet,
+    resolve_point_to_sheet,
+)
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
 
@@ -62,6 +66,7 @@ class LeaderNote:
             self.raw_target is not None
             and not is_topological_entity(self.raw_target)
             and isinstance(self.raw_target, (tuple, list))
+            and len(self.raw_target) == 2
         ):
             self.target = (float(self.raw_target[0]), float(self.raw_target[1]))
             self.resolved = True
@@ -69,17 +74,29 @@ class LeaderNote:
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
             self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
+
+    @property
+    def text(self) -> str:
+        return " ".join(self.lines)
 
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.raw_target is not None:
             self.target = resolve_point_to_sheet(self.raw_target, view)
             self.resolved = True
+        elif not self.resolved and self.raw_target is None:
+            self.target = (view.center_x, view.center_y)
+            self.resolved = True
 
         if hasattr(view, "annotations") and self not in view.annotations:
             view.annotations.append(self)
-        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
-            view.sheet.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         tx, ty = self.target
@@ -119,41 +136,212 @@ class LeaderNote:
         return f'<g class="leader-note">{"".join(elements)}</g>'
 
 
+class HoleCallout(LeaderNote):
+    """Standard ISO / ASME hole and countersink/counterbore callout helper."""
+
+    def __init__(
+        self,
+        target_or_center: Any = None,
+        diameter: float | None = None,
+        depth: float | str | None = None,
+        countersink_dia: float | None = None,
+        countersink_angle: float = 90.0,
+        counterbore_dia: float | None = None,
+        counterbore_depth: float | None = None,
+        quantity: int | None = None,
+        tolerance: str | None = None,
+        center: Any = None,
+        target: Any = None,
+        elbow_offset: tuple[float, float] = (15.0, -12.0),
+        leader_offset: tuple[float, float] | None = None,
+        shelf_length: float = 20.0,
+        align_right: bool | None = None,
+        terminator: str = "arrow",
+        font_size: float = 2.8,
+        view: Any | None = None,
+    ):
+        self.diameter = diameter
+        self.depth = depth
+        self.countersink_dia = countersink_dia
+        self.countersink_angle = countersink_angle
+        self.counterbore_dia = counterbore_dia
+        self.counterbore_depth = counterbore_depth
+        self.quantity = quantity
+        self.tolerance = str(tolerance) if tolerance is not None else None
+
+        effective_target = (
+            center if center is not None else (target if target is not None else target_or_center)
+        )
+        callout_text = self._format_callout(self.diameter)
+
+        super().__init__(
+            target=effective_target,
+            lines=[callout_text],
+            elbow_offset=elbow_offset,
+            leader_offset=leader_offset,
+            shelf_length=shelf_length,
+            align_right=align_right,
+            terminator=terminator,
+            font_size=font_size,
+            view=view,
+        )
+
+    def _format_callout(self, dia: float | None) -> str:
+        qty_prefix = f"{self.quantity}x " if (self.quantity and self.quantity > 1) else ""
+        dia_str = f"⌀{format_dimension_value(float(dia))}" if dia is not None else "⌀"
+        tol_str = f" {self.tolerance}" if self.tolerance else ""
+
+        if self.depth is None or (isinstance(self.depth, str) and self.depth.upper() == "THRU"):
+            depth_str = " THRU"
+        elif isinstance(self.depth, (int, float)):
+            depth_str = f" ↧{format_dimension_value(float(self.depth))}"
+        elif isinstance(self.depth, str) and self.depth.strip():
+            depth_str = f" {self.depth.strip()}"
+        else:
+            depth_str = ""
+
+        csink_str = ""
+        if self.countersink_dia is not None:
+            csink_str = (
+                f" ⌵ ⌀{format_dimension_value(float(self.countersink_dia))}"
+                f" × {format_dimension_value(float(self.countersink_angle))}°"
+            )
+
+        cbore_str = ""
+        if self.counterbore_dia is not None:
+            cbore_str = f" ⌴ ⌀{format_dimension_value(float(self.counterbore_dia))}"
+            if self.counterbore_depth is not None:
+                cbore_str += f" ↧{format_dimension_value(float(self.counterbore_depth))}"
+
+        return f"{qty_prefix}{dia_str}{tol_str}{depth_str}{csink_str}{cbore_str}"
+
+    def _attach_to_view(self, view: Any) -> None:
+        if self.diameter is None and self.raw_target is not None:
+            try:
+                _, _, model_r = resolve_circle_or_cylinder_to_sheet(self.raw_target, view)
+                self.diameter = 2.0 * model_r
+                self.lines = [self._format_callout(self.diameter)]
+            except TypeError:
+                pass
+        super()._attach_to_view(view)
+
+
+class ThreadCallout(LeaderNote):
+    """Standard ISO / ASME tapped thread callout helper."""
+
+    def __init__(
+        self,
+        target_or_center: Any = None,
+        thread: str = "M5x0.8",
+        depth: float | str | None = "THRU",
+        class_fit: str | None = None,
+        quantity: int | None = None,
+        countersink_dia: float | None = None,
+        countersink_angle: float = 90.0,
+        center: Any = None,
+        target: Any = None,
+        elbow_offset: tuple[float, float] = (15.0, -12.0),
+        leader_offset: tuple[float, float] | None = None,
+        shelf_length: float = 20.0,
+        align_right: bool | None = None,
+        terminator: str = "arrow",
+        font_size: float = 2.8,
+        view: Any | None = None,
+    ):
+        self.thread = thread
+        self.depth = depth
+        self.class_fit = class_fit
+        self.quantity = quantity
+        self.countersink_dia = countersink_dia
+        self.countersink_angle = countersink_angle
+
+        effective_target = (
+            center if center is not None else (target if target is not None else target_or_center)
+        )
+        callout_text = self._format_callout()
+
+        super().__init__(
+            target=effective_target,
+            lines=[callout_text],
+            elbow_offset=elbow_offset,
+            leader_offset=leader_offset,
+            shelf_length=shelf_length,
+            align_right=align_right,
+            terminator=terminator,
+            font_size=font_size,
+            view=view,
+        )
+
+    def _format_callout(self) -> str:
+        qty_prefix = f"{self.quantity}x " if (self.quantity and self.quantity > 1) else ""
+        fit_str = f" - {self.class_fit}" if self.class_fit else ""
+
+        if self.depth is None or (isinstance(self.depth, str) and self.depth.upper() == "THRU"):
+            depth_str = " THRU"
+        elif isinstance(self.depth, (int, float)):
+            depth_str = f" ↧{format_dimension_value(float(self.depth))}"
+        elif isinstance(self.depth, str) and self.depth.strip():
+            depth_str = f" {self.depth.strip()}"
+        else:
+            depth_str = ""
+
+        csink_str = ""
+        if self.countersink_dia is not None:
+            csink_str = (
+                f" ⌵ ⌀{format_dimension_value(float(self.countersink_dia))}"
+                f" × {format_dimension_value(float(self.countersink_angle))}°"
+            )
+
+        return f"{qty_prefix}{self.thread}{fit_str}{depth_str}{csink_str}"
+
+
 class BOMBalloon:
     """ISO BOM balloon callout circle connected to component via leader."""
 
     def __init__(
         self,
-        item_no: int,
+        item_no: int | None = None,
         target: Any = None,
         balloon_center: tuple[float, float] | None = None,
         radius: float = 4.5,
         terminator: str = "dot",
         leader_offset: tuple[float, float] = (15.0, -15.0),
         view: Any | None = None,
+        *,
+        balloon_no: int | None = None,
+        position: tuple[float, float] | None = None,
     ):
-        self.item_no = item_no
+        resolved_no = (
+            item_no if item_no is not None else (balloon_no if balloon_no is not None else 1)
+        )
+        self.item_no = int(resolved_no)
         self.radius = radius
         self.terminator = terminator
         self.leader_offset = leader_offset
         self.view = view
-        self.raw_target = target
+
+        effective_target = target if target is not None else position
+        self.raw_target = effective_target
         self.target: tuple[float, float] = (0.0, 0.0)
         self.resolved = False
 
         if balloon_center is not None:
             self.balloon_center = (float(balloon_center[0]), float(balloon_center[1]))
             self.center_explicit = True
+        elif target is not None and position is not None:
+            self.balloon_center = (float(position[0]), float(position[1]))
+            self.center_explicit = True
         else:
             self.balloon_center = (0.0, 0.0)
             self.center_explicit = False
 
         if (
-            target is not None
-            and not is_topological_entity(target)
-            and isinstance(target, (tuple, list))
+            effective_target is not None
+            and not is_topological_entity(effective_target)
+            and isinstance(effective_target, (tuple, list))
+            and len(effective_target) == 2
         ):
-            self.target = (float(target[0]), float(target[1]))
+            self.target = (float(effective_target[0]), float(effective_target[1]))
             if not self.center_explicit:
                 self.balloon_center = (
                     self.target[0] + self.leader_offset[0],
@@ -164,6 +352,22 @@ class BOMBalloon:
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
             self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
+
+    @property
+    def balloon_no(self) -> int:
+        return self.item_no
+
+    @balloon_no.setter
+    def balloon_no(self, val: int) -> None:
+        self.item_no = int(val)
+
+    @property
+    def position(self) -> tuple[float, float]:
+        return self.target
 
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
@@ -175,11 +379,20 @@ class BOMBalloon:
                     self.target[1] + self.leader_offset[1],
                 )
             self.resolved = True
+        elif not self.resolved and self.raw_target is None:
+            self.target = (view.center_x, view.center_y)
+            if not self.center_explicit:
+                self.balloon_center = (
+                    self.target[0] + self.leader_offset[0],
+                    self.target[1] + self.leader_offset[1],
+                )
+            self.resolved = True
 
         if hasattr(view, "annotations") and self not in view.annotations:
             view.annotations.append(self)
-        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
-            view.sheet.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         tx, ty = self.target
@@ -236,7 +449,7 @@ class SectionCuttingLine:
         if target_view is not None:
             if hasattr(target_view, "annotations") and self not in target_view.annotations:
                 target_view.annotations.append(self)
-            t_sheet = getattr(target_view, "sheet", None)
+            t_sheet = getattr(target_view, "sheet", None) or CURRENT_SHEET.get()
             if t_sheet is not None and self not in t_sheet.annotations:
                 t_sheet.annotations.append(self)
         else:

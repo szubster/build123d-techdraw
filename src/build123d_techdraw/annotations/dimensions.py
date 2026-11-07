@@ -5,8 +5,8 @@ import math
 from enum import Enum
 from typing import Any
 
-from build123d_techdraw.annotations.resolver import is_topological_entity
-from build123d_techdraw.context import CURRENT_VIEW
+from build123d_techdraw.annotations.resolver import is_topological_entity, resolve_point_to_sheet
+from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
 
 class DimensionType(Enum):
@@ -23,6 +23,78 @@ def format_dimension_value(value: float, precision: int = 2) -> str:
     if "." in formatted:
         formatted = formatted.rstrip("0").rstrip(".")
     return formatted
+
+
+class Tolerance(str):
+    """Engineering dimension tolerance specification (bilateral, symmetric, unilateral, ISO fit, or limits)."""
+
+    kind: str
+    upper_val: float | None
+    lower_val: float | None
+    fit_class: str | None
+
+    def __new__(
+        cls,
+        text: str,
+        *,
+        kind: str = "custom",
+        upper: float | None = None,
+        lower: float | None = None,
+        fit_class: str | None = None,
+    ) -> "Tolerance":
+        instance = super().__new__(cls, text)
+        instance.kind = kind
+        instance.upper_val = upper
+        instance.lower_val = lower
+        instance.fit_class = fit_class
+        return instance
+
+    @classmethod
+    def bilateral(
+        cls,
+        upper: float,
+        lower: float | None = None,
+        precision: int = 2,
+    ) -> "Tolerance":
+        """Format a bilateral tolerance (e.g. Tolerance.bilateral(+0.2, -0.1) -> '+0.2 / -0.1')."""
+        if lower is None:
+            val_str = format_dimension_value(abs(upper), precision)
+            return cls(f"±{val_str}", kind="symmetric", upper=abs(upper), lower=-abs(upper))
+        u_str = (
+            f"+{format_dimension_value(upper, precision)}"
+            if upper > 0
+            else (f"-{format_dimension_value(abs(upper), precision)}" if upper < 0 else "0")
+        )
+        l_str = (
+            f"+{format_dimension_value(lower, precision)}"
+            if lower > 0
+            else (f"-{format_dimension_value(abs(lower), precision)}" if lower < 0 else "0")
+        )
+        return cls(f"{u_str} / {l_str}", kind="bilateral", upper=upper, lower=lower)
+
+    @classmethod
+    def symmetric(cls, value: float, precision: int = 2) -> "Tolerance":
+        """Format a symmetric plus-minus tolerance (e.g. '±0.1')."""
+        val_str = format_dimension_value(abs(value), precision)
+        return cls(f"±{val_str}", kind="symmetric", upper=abs(value), lower=-abs(value))
+
+    @classmethod
+    def unilateral(cls, upper: float, lower: float = 0.0, precision: int = 2) -> "Tolerance":
+        """Format a unilateral tolerance where one limit is typically zero."""
+        return cls.bilateral(upper, lower, precision=precision)
+
+    @classmethod
+    def fit(cls, fit_class: str) -> "Tolerance":
+        """Format an ISO 286 hole/shaft tolerance fit class (e.g. 'H7', 'g6', 'H7/g6')."""
+        clean = fit_class.strip()
+        return cls(clean, kind="fit", fit_class=clean)
+
+    @classmethod
+    def limits(cls, upper_limit: float, lower_limit: float, precision: int = 2) -> "Tolerance":
+        """Format explicit upper and lower limit dimensions."""
+        u_str = format_dimension_value(upper_limit, precision)
+        l_str = format_dimension_value(lower_limit, precision)
+        return cls(f"{u_str} / {l_str}", kind="limits", upper=upper_limit, lower=lower_limit)
 
 
 def render_arrowhead(
@@ -64,7 +136,7 @@ class LinearDimension:
         offset: float = 8.0,
         dim_type: DimensionType | str = DimensionType.ALIGNED,
         text: str | None = None,
-        tolerance: str | None = None,
+        tolerance: str | Tolerance | None = None,
         prefix: str = "",
         suffix: str = "",
         font_size: float = 3.2,
@@ -72,14 +144,19 @@ class LinearDimension:
         start: tuple[float, float] | None = None,
         end: tuple[float, float] | None = None,
         direction: str | None = None,
+        nominal: float | None = None,
         view: Any | None = None,
     ):
         self.offset = offset
         self.dim_type = (
             dim_type if isinstance(dim_type, DimensionType) else DimensionType(dim_type.lower())
         )
-        self.text = text
-        self.tolerance = tolerance
+        self.nominal = nominal
+        if text is None and nominal is not None:
+            self.text: str | None = format_dimension_value(float(nominal))
+        else:
+            self.text = text
+        self.tolerance = str(tolerance) if tolerance is not None else None
         self.prefix = prefix
         self.suffix = suffix
         self.font_size = font_size
@@ -114,16 +191,26 @@ class LinearDimension:
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
             self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
 
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
+        if self.direction:
+            d_str = self.direction.lower()
+            if d_str == "horizontal":
+                self.dim_type = DimensionType.HORIZONTAL
+            elif d_str == "vertical":
+                self.dim_type = DimensionType.VERTICAL
+            elif d_str == "aligned":
+                self.dim_type = DimensionType.ALIGNED
+
         if not self.resolved and self.target is not None:
             import build123d as bd
 
-            from build123d_techdraw.annotations.resolver import (
-                resolve_edge_to_sheet,
-                resolve_point_to_sheet,
-            )
+            from build123d_techdraw.annotations.resolver import resolve_edge_to_sheet
 
             if isinstance(self.target, bd.Edge) and self.target2 is None:
                 s0, s1, edge_len = resolve_edge_to_sheet(self.target, view)
@@ -160,20 +247,33 @@ class LinearDimension:
                         model_dist = paper_dist / view.scale if view.scale else paper_dist
                     self.text = format_dimension_value(float(model_dist))
             self.resolved = True
-
-        if self.direction:
-            d_str = self.direction.lower()
-            if d_str == "horizontal":
+        elif not self.resolved and self.target is None:
+            if self.dim_type == DimensionType.VERTICAL:
+                x_ref = view.min_x if self.offset < 0 else view.max_x
+                self.start = (x_ref, view.min_y)
+                self.end = (x_ref, view.max_y)
+                if self.text is None:
+                    model_h = view.height / view.scale if view.scale else view.height
+                    self.text = format_dimension_value(float(model_h))
+            else:
                 self.dim_type = DimensionType.HORIZONTAL
-            elif d_str == "vertical":
-                self.dim_type = DimensionType.VERTICAL
-            elif d_str == "aligned":
-                self.dim_type = DimensionType.ALIGNED
+                y_ref = view.min_y if self.offset < 0 else view.max_y
+                self.start = (view.min_x, y_ref)
+                self.end = (view.max_x, y_ref)
+                if self.text is None:
+                    model_w = view.width / view.scale if view.scale else view.width
+                    self.text = format_dimension_value(float(model_w))
+                if self.offset > 0:
+                    view.bottom_annotation_y = max(
+                        view.bottom_annotation_y, y_ref + self.offset + 4.0
+                    )
+            self.resolved = True
 
         if hasattr(view, "annotations") and self not in view.annotations:
             view.annotations.append(self)
-        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
-            view.sheet.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         x1, y1 = self.start
@@ -315,18 +415,23 @@ class RadialDimension:
         prefix: str = "",
         suffix: str = "",
         text: str | None = None,
-        tolerance: str | None = None,
+        tolerance: str | Tolerance | None = None,
         shelf_length: float = 12.0,
         arrow_size: float = 2.5,
         font_size: float = 3.2,
         center: tuple[float, float] | None = None,
+        nominal: float | None = None,
         view: Any | None = None,
     ):
         self.angle_deg = angle_deg
         self.prefix = prefix
         self.suffix = suffix
-        self.text = text
-        self.tolerance = tolerance
+        self.nominal = nominal
+        if text is None and nominal is not None:
+            self.text: str | None = f"R{format_dimension_value(float(nominal))}"
+        else:
+            self.text = text
+        self.tolerance = str(tolerance) if tolerance is not None else None
         self.shelf_length = shelf_length
         self.arrow_size = arrow_size
         self.font_size = font_size
@@ -349,29 +454,40 @@ class RadialDimension:
             self.resolved = True
         else:
             self.center = (0.0, 0.0)
-            self.radius = 0.0
+            self.radius = float(radius) if radius is not None else 0.0
             self.target = target_or_center
 
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
             self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
 
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             from build123d_techdraw.annotations.resolver import resolve_circle_or_cylinder_to_sheet
 
-            paper_c, paper_r, model_r = resolve_circle_or_cylinder_to_sheet(self.target, view)
-            self.center = paper_c
-            self.radius = paper_r
-            if self.text is None:
-                self.text = f"R{format_dimension_value(model_r)}"
+            try:
+                paper_c, paper_r, model_r = resolve_circle_or_cylinder_to_sheet(self.target, view)
+                self.center = paper_c
+                self.radius = paper_r
+                if self.text is None:
+                    self.text = f"R{format_dimension_value(model_r)}"
+            except TypeError:
+                self.center = resolve_point_to_sheet(self.target, view)
+            self.resolved = True
+        elif not self.resolved and self.target is None:
+            self.center = (view.center_x, view.center_y)
             self.resolved = True
 
         if hasattr(view, "annotations") and self not in view.annotations:
             view.annotations.append(self)
-        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
-            view.sheet.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         cx, cy = self.center
@@ -421,18 +537,23 @@ class DiameterDimension:
         prefix: str = "",
         suffix: str = "",
         text: str | None = None,
-        tolerance: str | None = None,
+        tolerance: str | Tolerance | None = None,
         shelf_length: float = 12.0,
         arrow_size: float = 2.5,
         font_size: float = 3.2,
         center: tuple[float, float] | None = None,
+        nominal: float | None = None,
         view: Any | None = None,
     ):
         self.angle_deg = angle_deg
         self.prefix = prefix
         self.suffix = suffix
-        self.text = text
-        self.tolerance = tolerance
+        self.nominal = nominal
+        if text is None and nominal is not None:
+            self.text: str | None = f"⌀{format_dimension_value(float(nominal))}"
+        else:
+            self.text = text
+        self.tolerance = str(tolerance) if tolerance is not None else None
         self.shelf_length = shelf_length
         self.arrow_size = arrow_size
         self.font_size = font_size
@@ -455,29 +576,40 @@ class DiameterDimension:
             self.resolved = True
         else:
             self.center = (0.0, 0.0)
-            self.diameter = 0.0
+            self.diameter = float(diameter) if diameter is not None else 0.0
             self.target = target_or_center
 
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
             self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
 
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             from build123d_techdraw.annotations.resolver import resolve_circle_or_cylinder_to_sheet
 
-            paper_c, paper_r, model_r = resolve_circle_or_cylinder_to_sheet(self.target, view)
-            self.center = paper_c
-            self.diameter = 2.0 * paper_r
-            if self.text is None:
-                self.text = f"⌀{format_dimension_value(2.0 * model_r)}"
+            try:
+                paper_c, paper_r, model_r = resolve_circle_or_cylinder_to_sheet(self.target, view)
+                self.center = paper_c
+                self.diameter = 2.0 * paper_r
+                if self.text is None:
+                    self.text = f"⌀{format_dimension_value(2.0 * model_r)}"
+            except TypeError:
+                self.center = resolve_point_to_sheet(self.target, view)
+            self.resolved = True
+        elif not self.resolved and self.target is None:
+            self.center = (view.center_x, view.center_y)
             self.resolved = True
 
         if hasattr(view, "annotations") and self not in view.annotations:
             view.annotations.append(self)
-        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
-            view.sheet.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         cx, cy = self.center
