@@ -2,8 +2,11 @@
 
 import html
 import math
-from dataclasses import dataclass
 from enum import Enum
+from typing import Any
+
+from build123d_techdraw.annotations.resolver import is_topological_entity
+from build123d_techdraw.context import CURRENT_VIEW
 
 
 class DimensionType(Enum):
@@ -51,20 +54,126 @@ def render_arrowhead(
     return f'<polygon points="{tip_x:.2f},{tip_y:.2f} {p1_x:.2f},{p1_y:.2f} {p2_x:.2f},{p2_y:.2f}" class="dim-arrow"/>'
 
 
-@dataclass
 class LinearDimension:
     """Linear dimension (Horizontal, Vertical, or Aligned) in true 2D paper space."""
 
-    start: tuple[float, float]
-    end: tuple[float, float]
-    offset: float = 8.0
-    dim_type: DimensionType = DimensionType.ALIGNED
-    text: str | None = None
-    tolerance: str | None = None
-    prefix: str = ""
-    suffix: str = ""
-    font_size: float = 3.2
-    arrow_size: float = 2.5
+    def __init__(
+        self,
+        target_or_start: Any = None,
+        target2_or_end: Any = None,
+        offset: float = 8.0,
+        dim_type: DimensionType | str = DimensionType.ALIGNED,
+        text: str | None = None,
+        tolerance: str | None = None,
+        prefix: str = "",
+        suffix: str = "",
+        font_size: float = 3.2,
+        arrow_size: float = 2.5,
+        start: tuple[float, float] | None = None,
+        end: tuple[float, float] | None = None,
+        direction: str | None = None,
+        view: Any | None = None,
+    ):
+        self.offset = offset
+        self.dim_type = (
+            dim_type if isinstance(dim_type, DimensionType) else DimensionType(dim_type.lower())
+        )
+        self.text = text
+        self.tolerance = tolerance
+        self.prefix = prefix
+        self.suffix = suffix
+        self.font_size = font_size
+        self.arrow_size = arrow_size
+        self.direction = direction
+        self.view = view
+        self.target: Any = None
+        self.target2: Any = None
+        self.resolved = False
+
+        if start is not None and end is not None:
+            self.start = (float(start[0]), float(start[1]))
+            self.end = (float(end[0]), float(end[1]))
+            self.resolved = True
+        elif (
+            target_or_start is not None
+            and target2_or_end is not None
+            and not is_topological_entity(target_or_start)
+            and not is_topological_entity(target2_or_end)
+            and isinstance(target_or_start, (tuple, list))
+            and isinstance(target2_or_end, (tuple, list))
+        ):
+            self.start = (float(target_or_start[0]), float(target_or_start[1]))
+            self.end = (float(target2_or_end[0]), float(target2_or_end[1]))
+            self.resolved = True
+        else:
+            self.start = (0.0, 0.0)
+            self.end = (0.0, 0.0)
+            self.target = target_or_start
+            self.target2 = target2_or_end
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if not self.resolved and self.target is not None:
+            import build123d as bd
+
+            from build123d_techdraw.annotations.resolver import (
+                resolve_edge_to_sheet,
+                resolve_point_to_sheet,
+            )
+
+            if isinstance(self.target, bd.Edge) and self.target2 is None:
+                s0, s1, edge_len = resolve_edge_to_sheet(self.target, view)
+                self.start = s0
+                self.end = s1
+                if self.text is None:
+                    self.text = format_dimension_value(edge_len)
+                dx = abs(s1[0] - s0[0])
+                dy = abs(s1[1] - s0[1])
+                if self.dim_type == DimensionType.ALIGNED and self.direction is None:
+                    if dy < 1e-2:
+                        self.dim_type = DimensionType.HORIZONTAL
+                    elif dx < 1e-2:
+                        self.dim_type = DimensionType.VERTICAL
+            elif self.target2 is not None:
+                s0 = resolve_point_to_sheet(self.target, view)
+                s1 = resolve_point_to_sheet(self.target2, view)
+                self.start = s0
+                self.end = s1
+                if self.text is None:
+                    if isinstance(self.target, (bd.Vertex, bd.Vector)) and isinstance(
+                        self.target2, (bd.Vertex, bd.Vector)
+                    ):
+                        p0 = bd.Vector(self.target.X, self.target.Y, self.target.Z)
+                        p1 = bd.Vector(self.target2.X, self.target2.Y, self.target2.Z)
+                        if self.direction == "horizontal":
+                            model_dist = abs(p1.X - p0.X)
+                        elif self.direction == "vertical":
+                            model_dist = abs(p1.Z - p0.Z)
+                        else:
+                            model_dist = (p1 - p0).length
+                    else:
+                        paper_dist = math.hypot(s1[0] - s0[0], s1[1] - s0[1])
+                        model_dist = paper_dist / view.scale if view.scale else paper_dist
+                    self.text = format_dimension_value(float(model_dist))
+            self.resolved = True
+
+        if self.direction:
+            d_str = self.direction.lower()
+            if d_str == "horizontal":
+                self.dim_type = DimensionType.HORIZONTAL
+            elif d_str == "vertical":
+                self.dim_type = DimensionType.VERTICAL
+            elif d_str == "aligned":
+                self.dim_type = DimensionType.ALIGNED
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
+            view.sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         x1, y1 = self.start
@@ -195,20 +304,74 @@ class LinearDimension:
             return "".join(elements)
 
 
-@dataclass
 class RadialDimension:
     """Radius dimension (R) pointing to circular arc."""
 
-    center: tuple[float, float]
-    radius: float
-    angle_deg: float = 45.0
-    prefix: str = ""
-    suffix: str = ""
-    text: str | None = None
-    tolerance: str | None = None
-    shelf_length: float = 12.0
-    arrow_size: float = 2.5
-    font_size: float = 3.2
+    def __init__(
+        self,
+        target_or_center: Any = None,
+        radius: float | None = None,
+        angle_deg: float = 45.0,
+        prefix: str = "",
+        suffix: str = "",
+        text: str | None = None,
+        tolerance: str | None = None,
+        shelf_length: float = 12.0,
+        arrow_size: float = 2.5,
+        font_size: float = 3.2,
+        center: tuple[float, float] | None = None,
+        view: Any | None = None,
+    ):
+        self.angle_deg = angle_deg
+        self.prefix = prefix
+        self.suffix = suffix
+        self.text = text
+        self.tolerance = tolerance
+        self.shelf_length = shelf_length
+        self.arrow_size = arrow_size
+        self.font_size = font_size
+        self.view = view
+        self.target: Any = None
+        self.resolved = False
+
+        if center is not None and radius is not None:
+            self.center = (float(center[0]), float(center[1]))
+            self.radius = float(radius)
+            self.resolved = True
+        elif (
+            target_or_center is not None
+            and radius is not None
+            and not is_topological_entity(target_or_center)
+            and isinstance(target_or_center, (tuple, list))
+        ):
+            self.center = (float(target_or_center[0]), float(target_or_center[1]))
+            self.radius = float(radius)
+            self.resolved = True
+        else:
+            self.center = (0.0, 0.0)
+            self.radius = 0.0
+            self.target = target_or_center
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if not self.resolved and self.target is not None:
+            from build123d_techdraw.annotations.resolver import resolve_circle_or_cylinder_to_sheet
+
+            paper_c, paper_r, model_r = resolve_circle_or_cylinder_to_sheet(self.target, view)
+            self.center = paper_c
+            self.radius = paper_r
+            if self.text is None:
+                self.text = f"R{format_dimension_value(model_r)}"
+            self.resolved = True
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
+            view.sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         cx, cy = self.center
@@ -247,20 +410,74 @@ class RadialDimension:
         return f'<g class="radial-dim">{"".join(elements)}</g>'
 
 
-@dataclass
 class DiameterDimension:
     """Diameter dimension (⌀) across full circle or with leader."""
 
-    center: tuple[float, float]
-    diameter: float
-    angle_deg: float = 45.0
-    prefix: str = ""
-    suffix: str = ""
-    text: str | None = None
-    tolerance: str | None = None
-    shelf_length: float = 12.0
-    arrow_size: float = 2.5
-    font_size: float = 3.2
+    def __init__(
+        self,
+        target_or_center: Any = None,
+        diameter: float | None = None,
+        angle_deg: float = 45.0,
+        prefix: str = "",
+        suffix: str = "",
+        text: str | None = None,
+        tolerance: str | None = None,
+        shelf_length: float = 12.0,
+        arrow_size: float = 2.5,
+        font_size: float = 3.2,
+        center: tuple[float, float] | None = None,
+        view: Any | None = None,
+    ):
+        self.angle_deg = angle_deg
+        self.prefix = prefix
+        self.suffix = suffix
+        self.text = text
+        self.tolerance = tolerance
+        self.shelf_length = shelf_length
+        self.arrow_size = arrow_size
+        self.font_size = font_size
+        self.view = view
+        self.target: Any = None
+        self.resolved = False
+
+        if center is not None and diameter is not None:
+            self.center = (float(center[0]), float(center[1]))
+            self.diameter = float(diameter)
+            self.resolved = True
+        elif (
+            target_or_center is not None
+            and diameter is not None
+            and not is_topological_entity(target_or_center)
+            and isinstance(target_or_center, (tuple, list))
+        ):
+            self.center = (float(target_or_center[0]), float(target_or_center[1]))
+            self.diameter = float(diameter)
+            self.resolved = True
+        else:
+            self.center = (0.0, 0.0)
+            self.diameter = 0.0
+            self.target = target_or_center
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if not self.resolved and self.target is not None:
+            from build123d_techdraw.annotations.resolver import resolve_circle_or_cylinder_to_sheet
+
+            paper_c, paper_r, model_r = resolve_circle_or_cylinder_to_sheet(self.target, view)
+            self.center = paper_c
+            self.diameter = 2.0 * paper_r
+            if self.text is None:
+                self.text = f"⌀{format_dimension_value(2.0 * model_r)}"
+            self.resolved = True
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
+            view.sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         cx, cy = self.center
