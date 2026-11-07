@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextvars
+import math
 import types
 from dataclasses import dataclass
 from typing import Any
@@ -11,6 +12,7 @@ import build123d as bd
 
 from build123d_techdraw.annotations.callouts import BOMBalloon
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
+from build123d_techdraw.core.scale import calculate_auto_scale, find_closest_iso_scale
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.title_block import BOMItem
 from build123d_techdraw.core.view import (
@@ -124,16 +126,55 @@ class BuildSheet:
 BuildDrawing = BuildSheet
 
 
-class BuildView:
-    """Helper for accessing the current view context in Builder mode."""
+def _resolve_view_scale(
+    shape: Any,
+    view_type: ViewType,
+    scale: float | str,
+    sheet: DrawingSheet | None,
+    enforce_iso_scale: bool = True,
+) -> float:
+    """Resolve view scale factor, snapping automatic scales to ISO 5455 ratios when requested."""
+    if isinstance(scale, str) and scale.lower() == "auto":
+        target_sheet = sheet or CURRENT_SHEET.get()
+        if target_sheet is not None:
+            avail_w = target_sheet.width_mm - target_sheet.left_margin - target_sheet.right_margin
+            avail_h = (
+                target_sheet.height_mm - target_sheet.top_margin - target_sheet.bottom_margin - 36.0
+            )
+        else:
+            avail_w, avail_h = 397.0, 245.0
 
-    @classmethod
-    def _get_context(cls) -> SheetView | None:
-        return CURRENT_VIEW.get()
+        try:
+            bbox = shape.bounding_box()
+            sx, sy, sz = float(bbox.size.X), float(bbox.size.Y), float(bbox.size.Z)
+            if view_type in (ViewType.FRONT, ViewType.REAR):
+                m_size = (sx, sz)
+            elif view_type in (ViewType.TOP, ViewType.BOTTOM):
+                m_size = (sx, sy)
+            elif view_type in (ViewType.RIGHT, ViewType.LEFT):
+                m_size = (sy, sz)
+            else:
+                iso_d = math.sqrt(sx * sx + sy * sy + sz * sz) * 0.75
+                m_size = (iso_d, iso_d)
+        except Exception:
+            m_size = (100.0, 100.0)
+
+        return calculate_auto_scale(
+            m_size,
+            (avail_w, avail_h),
+            enforce_iso_scale=enforce_iso_scale,
+        )
+
+    raw_val = float(scale)
+    return find_closest_iso_scale(raw_val) if enforce_iso_scale else raw_val
 
 
 class View(SheetView):
     """General view class for orthographic, isometric, or section views."""
+
+    @classmethod
+    def _get_context(cls) -> SheetView | None:
+        return CURRENT_VIEW.get()
 
     def __new__(
         cls,
@@ -148,8 +189,15 @@ class View(SheetView):
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        enforce_iso_scale: bool = True,
     ) -> View:
-        calc_scale = 1.0 if scale == "auto" else float(scale)
+        calc_scale = _resolve_view_scale(
+            shape=shape,
+            view_type=view_type,
+            scale=scale,
+            sheet=sheet,
+            enforce_iso_scale=enforce_iso_scale,
+        )
         view = project_shape_to_view(
             shape=shape,
             view_type=view_type,
@@ -165,6 +213,7 @@ class View(SheetView):
         view.__class__ = cls
         view.shape = shape
         view.rotation_angle_deg = rotation_angle_deg
+        view.enforce_iso_scale = enforce_iso_scale
 
         if align_to is not None:
             _apply_align_to(view, align_to)
@@ -177,6 +226,44 @@ class View(SheetView):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Initialized via __new__
+        pass
+
+
+class BuildView(View):
+    """Context manager and view builder for constructing a view in Builder mode."""
+
+    def __new__(
+        cls,
+        shape: Any,
+        view_type: ViewType = ViewType.FRONT,
+        center: tuple[float, float] = (150.0, 150.0),
+        scale: float | str = "auto",
+        show_hidden: bool = True,
+        view_label: str | None = None,
+        rotation_angle_deg: float = 0.0,
+        view_label_y: float | None = None,
+        model_origin: tuple[float, float] | None = None,
+        sheet: DrawingSheet | None = None,
+        align_to: Any = None,
+        enforce_iso_scale: bool = True,
+    ) -> BuildView:
+        return super().__new__(  # type: ignore[return-value]
+            cls,
+            shape=shape,
+            view_type=view_type,
+            center=center,
+            scale=scale,
+            show_hidden=show_hidden,
+            view_label=view_label,
+            rotation_angle_deg=rotation_angle_deg,
+            view_label_y=view_label_y,
+            model_origin=model_origin,
+            sheet=sheet,
+            align_to=align_to,
+            enforce_iso_scale=enforce_iso_scale,
+        )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         pass
 
 
@@ -195,6 +282,7 @@ class FrontView(View):
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        enforce_iso_scale: bool = True,
     ) -> FrontView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -209,6 +297,7 @@ class FrontView(View):
             model_origin=model_origin,
             sheet=sheet,
             align_to=align_to,
+            enforce_iso_scale=enforce_iso_scale,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -230,6 +319,7 @@ class TopView(View):
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        enforce_iso_scale: bool = True,
     ) -> TopView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -244,6 +334,7 @@ class TopView(View):
             model_origin=model_origin,
             sheet=sheet,
             align_to=align_to,
+            enforce_iso_scale=enforce_iso_scale,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -265,6 +356,7 @@ class RightView(View):
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        enforce_iso_scale: bool = True,
     ) -> RightView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -279,6 +371,7 @@ class RightView(View):
             model_origin=model_origin,
             sheet=sheet,
             align_to=align_to,
+            enforce_iso_scale=enforce_iso_scale,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -300,6 +393,7 @@ class LeftView(View):
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        enforce_iso_scale: bool = True,
     ) -> LeftView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -314,6 +408,7 @@ class LeftView(View):
             model_origin=model_origin,
             sheet=sheet,
             align_to=align_to,
+            enforce_iso_scale=enforce_iso_scale,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -335,6 +430,7 @@ class BottomView(View):
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        enforce_iso_scale: bool = True,
     ) -> BottomView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -349,6 +445,7 @@ class BottomView(View):
             model_origin=model_origin,
             sheet=sheet,
             align_to=align_to,
+            enforce_iso_scale=enforce_iso_scale,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -370,6 +467,7 @@ class RearView(View):
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        enforce_iso_scale: bool = True,
     ) -> RearView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -384,6 +482,7 @@ class RearView(View):
             model_origin=model_origin,
             sheet=sheet,
             align_to=align_to,
+            enforce_iso_scale=enforce_iso_scale,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -405,6 +504,7 @@ class IsometricView(View):
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        enforce_iso_scale: bool = True,
     ) -> IsometricView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -419,6 +519,7 @@ class IsometricView(View):
             model_origin=model_origin,
             sheet=sheet,
             align_to=align_to,
+            enforce_iso_scale=enforce_iso_scale,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -440,8 +541,15 @@ class SectionView(View):
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
         show_background: bool = True,
+        enforce_iso_scale: bool = True,
     ) -> SectionView:
-        calc_scale = 1.0 if scale == "auto" else float(scale)
+        calc_scale = _resolve_view_scale(
+            shape=shape,
+            view_type=ViewType.SECTION,
+            scale=scale,
+            sheet=sheet,
+            enforce_iso_scale=enforce_iso_scale,
+        )
         view = project_section_to_view(
             shape=shape,
             cutting_plane=cutting_plane,
@@ -455,6 +563,7 @@ class SectionView(View):
         )
         view.__class__ = cls
         view.shape = shape
+        view.enforce_iso_scale = enforce_iso_scale
 
         if align_to is not None:
             _apply_align_to(view, align_to)
@@ -484,8 +593,10 @@ class DetailView(View):
         view_label_y: float | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        enforce_iso_scale: bool = True,
     ) -> DetailView:
-        calc_scale = 2.0 if scale == "auto" else float(scale)
+        raw_scale = 2.0 if scale == "auto" else float(scale)
+        calc_scale = find_closest_iso_scale(raw_scale) if enforce_iso_scale else raw_scale
         view = project_detail_to_view(
             parent_view=parent_view,
             focus_target=focus_target,
@@ -498,6 +609,7 @@ class DetailView(View):
             view_label_y=view_label_y,
         )
         view.__class__ = cls
+        view.enforce_iso_scale = enforce_iso_scale
         if align_to is not None:
             _apply_align_to(view, align_to)
 
@@ -525,8 +637,15 @@ class AuxiliaryView(View):
         view_label_y: float | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        enforce_iso_scale: bool = True,
     ) -> AuxiliaryView:
-        calc_scale = 1.0 if scale == "auto" else float(scale)
+        calc_scale = _resolve_view_scale(
+            shape=shape,
+            view_type=ViewType.AUXILIARY,
+            scale=scale,
+            sheet=sheet,
+            enforce_iso_scale=enforce_iso_scale,
+        )
         view = project_auxiliary_view(
             shape=shape,
             face=face,
@@ -538,6 +657,7 @@ class AuxiliaryView(View):
             view_label_y=view_label_y,
         )
         view.__class__ = cls
+        view.enforce_iso_scale = enforce_iso_scale
         if align_to is not None:
             _apply_align_to(view, align_to)
 
@@ -568,6 +688,7 @@ class StandardMultiview(MultiviewLayout):
         show_scale_label: bool = False,
         auto_dimensions: bool = False,
         auto_centerlines: bool = False,
+        enforce_iso_scale: bool = True,
     ) -> StandardMultiview:
         target_sheet = sheet or CURRENT_SHEET.get()
         created_detached = False
@@ -588,6 +709,7 @@ class StandardMultiview(MultiviewLayout):
             show_scale_label=show_scale_label,
             auto_dimensions=auto_dimensions,
             auto_centerlines=auto_centerlines,
+            enforce_iso_scale=enforce_iso_scale,
         )
         mv.__class__ = cls
         if created_detached:

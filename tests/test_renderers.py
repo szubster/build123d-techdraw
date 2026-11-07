@@ -4,13 +4,16 @@ import os
 import tempfile
 
 import build123d as bd
+import matplotlib.pyplot as plt
+import pytest
 
 from build123d_techdraw.core.booklet import DrawingBooklet
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.view import ViewType
 from build123d_techdraw.renderers.dxf import DXFRenderer
+from build123d_techdraw.renderers.pdf import MM_TO_PT, PDFRenderer
 from build123d_techdraw.renderers.svg import SVGRenderer
-from build123d_techdraw.renderers.theme import Theme
+from build123d_techdraw.renderers.theme import THEME_COLORS, Theme
 
 
 def test_svg_dual_theming() -> None:
@@ -82,3 +85,51 @@ def test_svg_renderer_save() -> None:
         SVGRenderer.save(sheet, svg_path)
         assert os.path.exists(svg_path)
         assert os.path.getsize(svg_path) > 500
+
+
+def test_pdf_lineweight_calibration_stroke_guard_and_dim_knockout() -> None:
+    """Verify MM_TO_PT lineweight scaling, fill stroke guard, and dimension text knockout."""
+    svg_snippet = """<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100mm" height="100mm">
+  <line x1="0" y1="10" x2="50" y2="10" class="line-visible" stroke-width="0.50"/>
+  <line x1="0" y1="20" x2="50" y2="20" class="dim-line"/>
+  <rect x="2" y="2" width="96" height="96" class="border-main" fill="none"/>
+  <polygon points="10,10 15,12 15,8" fill="#38BDF8"/>
+  <polygon points="20,20 25,22 25,18" class="dim-arrow"/>
+  <line x1="0" y1="30" x2="40" y2="30" stroke="#FF0000" stroke-width="0.40"/>
+  <line x1="0" y1="40" x2="40" y2="40"/>
+  <text x="50" y="50" class="dim-text" font-size="3.2">50.0</text>
+  <text x="50" y="70" class="view-title" font-size="4.0">FRONT</text>
+</svg>"""
+    fig, ax = plt.subplots()
+    colors = THEME_COLORS[Theme.DARK_BLUEPRINT]
+    try:
+        PDFRenderer._render_svg_to_ax(ax, svg_snippet, 100.0, 100.0, colors)
+        # patches[0] is canvas background rect
+        user_patches = ax.patches[1:]
+        assert len(user_patches) == 7
+
+        # 1. Contours (0.50mm -> 1.42pt)
+        assert user_patches[0].get_linewidth() == pytest.approx(0.50 * MM_TO_PT)
+        # 2. Dimensions/Leaders (0.25mm -> 0.71pt)
+        assert user_patches[1].get_linewidth() == pytest.approx(0.25 * MM_TO_PT)
+        # 3. Borders (0.70mm -> 1.98pt)
+        assert user_patches[2].get_linewidth() == pytest.approx(0.70 * MM_TO_PT)
+        # 4. Filled shape without explicit stroke -> no accidental stroke (alpha == 0.0)
+        assert user_patches[3].get_edgecolor()[3] == pytest.approx(0.0)
+        # 5. dim-arrow -> solid fill without stroke outline
+        assert user_patches[4].get_edgecolor()[3] == pytest.approx(0.0)
+        # 6. Explicit inline stroke -> scaled by MM_TO_PT
+        assert user_patches[5].get_linewidth() == pytest.approx(0.40 * MM_TO_PT)
+        # 7. Unfilled shape without explicit stroke -> fallback 0.35 * MM_TO_PT
+        assert user_patches[6].get_linewidth() == pytest.approx(0.35 * MM_TO_PT)
+
+        # Dimension text background knockout vs regular text
+        dim_txt = next(t for t in ax.texts if t.get_text() == "50.0")
+        title_txt = next(t for t in ax.texts if t.get_text() == "FRONT")
+        bbox_patch = dim_txt.get_bbox_patch()
+        assert bbox_patch is not None
+        assert bbox_patch.get_edgecolor()[3] == pytest.approx(0.0)
+        assert title_txt.get_bbox_patch() is None
+    finally:
+        plt.close(fig)

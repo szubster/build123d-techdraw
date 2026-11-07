@@ -1,6 +1,11 @@
 """Unit tests for ISO 5455 scale ladders and auto-scale calculations."""
 
+import build123d as bd
+import pytest
+
+from build123d_techdraw.builder import BuildSheet, BuildView
 from build123d_techdraw.core.scale import (
+    STANDARD_SCALES,
     calculate_auto_scale,
     find_closest_iso_scale,
     format_iso_scale,
@@ -33,3 +38,27 @@ def test_calculate_auto_scale() -> None:
 
     # Zero or negative handling
     assert calculate_auto_scale((0.0, 10.0), (100.0, 100.0)) == 1.0
+
+
+def test_build_view_enforce_iso_scale() -> None:
+    """Verify BuildView snaps automatic and arbitrary scales to ISO 5455 ladder when enforce_iso_scale=True."""
+    allowed_iso = {1.0, 0.5, 0.2, 0.1, 0.05, 2.0, 5.0}
+    assert set(STANDARD_SCALES) == allowed_iso
+
+    part = bd.Box(260.0, 140.0, 110.0)
+    with BuildSheet("A4") as sheet:
+        with BuildView(part, scale="auto", enforce_iso_scale=True) as v_snapped:
+            assert BuildView._get_context() is v_snapped
+        with BuildView(part, scale="auto", enforce_iso_scale=False) as v_raw:
+            pass
+        with BuildView(part, scale=0.37, enforce_iso_scale=True) as v_quantized:
+            pass
+        with BuildView(part, scale=0.37, enforce_iso_scale=False) as v_exact:
+            pass
+
+    assert v_snapped.scale in allowed_iso
+    assert v_snapped.scale == 0.5
+    assert v_raw.scale not in allowed_iso
+    assert v_quantized.scale == 0.2
+    assert v_exact.scale == pytest.approx(0.37)
+    assert len(sheet.views) == 4
