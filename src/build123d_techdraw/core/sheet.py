@@ -8,10 +8,13 @@ import build123d as bd
 
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
+    ChamferCallout,
     HoleCallout,
     LeaderNote,
     SectionCuttingLine,
     ThreadCallout,
+    WeldingSymbol,
+    WeldType,
 )
 from build123d_techdraw.annotations.centerlines import (
     BoltCircle,
@@ -19,9 +22,11 @@ from build123d_techdraw.annotations.centerlines import (
     CenterMark,
 )
 from build123d_techdraw.annotations.dimensions import (
+    AngularDimension,
     DiameterDimension,
     DimensionType,
     LinearDimension,
+    OrdinateDimension,
     RadialDimension,
     Tolerance,
 )
@@ -48,9 +53,12 @@ from build123d_techdraw.core.view import (
     SheetView,
     ViewType,
     _apply_align_to,
+    project_auxiliary_view,
+    project_detail_to_view,
     project_section_to_view,
     project_shape_to_view,
 )
+from build123d_techdraw.layout.linter import LintIssue, run_sheet_lint
 from build123d_techdraw.renderers.theme import Theme, generate_theme_css
 
 
@@ -369,6 +377,7 @@ class DrawingSheet:
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         align_to: Any = None,
+        show_background: bool = True,
     ) -> SheetView:
         """Add a 2D section slice view with 45-degree cross-hatching to the sheet."""
         view = project_section_to_view(
@@ -380,6 +389,7 @@ class DrawingSheet:
             view_label=view_label,
             view_label_y=view_label_y,
             model_origin=model_origin,
+            show_background=show_background,
         )
         if align_to is not None:
             _apply_align_to(view, align_to)
@@ -389,6 +399,66 @@ class DrawingSheet:
         for ann in getattr(view, "annotations", []):
             if ann not in self.annotations:
                 self.annotations.append(ann)
+        return view
+
+    def add_detail_view(
+        self,
+        parent_view: SheetView,
+        focus_target: Any,
+        radius: float = 15.0,
+        scale: float = 2.0,
+        center: tuple[float, float] = (150.0, 150.0),
+        view_label: str = "DETAIL A",
+        label_letter: str = "A",
+        view_label_y: float | None = None,
+        align_to: Any = None,
+    ) -> SheetView:
+        """Add a magnified circular detail view to the sheet."""
+        view = project_detail_to_view(
+            parent_view=parent_view,
+            focus_target=focus_target,
+            radius=radius,
+            scale=scale,
+            center_x=center[0],
+            center_y=center[1],
+            view_label=view_label,
+            label_letter=label_letter,
+            view_label_y=view_label_y,
+        )
+        if align_to is not None:
+            _apply_align_to(view, align_to)
+        view.sheet = self
+        if view not in self.views:
+            self.views.append(view)
+        return view
+
+    def add_auxiliary_view(
+        self,
+        shape: bd.Solid | bd.Compound | Any,
+        face: Any,
+        center: tuple[float, float] = (150.0, 150.0),
+        scale: float = 1.0,
+        show_hidden: bool = True,
+        view_label: str = "AUXILIARY VIEW",
+        view_label_y: float | None = None,
+        align_to: Any = None,
+    ) -> SheetView:
+        """Add an auxiliary view normal to an inclined face."""
+        view = project_auxiliary_view(
+            shape=shape,
+            face=face,
+            center_x=center[0],
+            center_y=center[1],
+            scale=scale,
+            show_hidden=show_hidden,
+            view_label=view_label,
+            view_label_y=view_label_y,
+        )
+        if align_to is not None:
+            _apply_align_to(view, align_to)
+        view.sheet = self
+        if view not in self.views:
+            self.views.append(view)
         return view
 
     def add_dimension(
@@ -402,6 +472,7 @@ class DrawingSheet:
         prefix: str = "",
         suffix: str = "",
         nominal: float | None = None,
+        view: Any | None = None,
     ) -> LinearDimension:
         """Add a linear dimension directly in sheet paper coordinates."""
         dim = LinearDimension(
@@ -414,9 +485,12 @@ class DrawingSheet:
             prefix=prefix,
             suffix=suffix,
             nominal=nominal,
+            view=view,
         )
         if dim not in self.annotations:
             self.annotations.append(dim)
+        if view is not None and hasattr(view, "annotations") and dim not in view.annotations:
+            view.annotations.append(dim)
         return dim
 
     def add_radial_dimension(
@@ -458,6 +532,128 @@ class DrawingSheet:
         if dim not in self.annotations:
             self.annotations.append(dim)
         return dim
+
+    def add_angular_dimension(
+        self,
+        target1: Any,
+        target2: Any,
+        radius: float = 20.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+        prefix: str = "",
+        suffix: str = "°",
+        apex: tuple[float, float] | None = None,
+        view: Any | None = None,
+    ) -> AngularDimension:
+        """Add an angular dimension to the sheet."""
+        dim = AngularDimension(
+            target1=target1,
+            target2=target2,
+            radius=radius,
+            text=text,
+            tolerance=tolerance,
+            prefix=prefix,
+            suffix=suffix,
+            apex=apex,
+            view=view,
+        )
+        if dim not in self.annotations:
+            self.annotations.append(dim)
+        if view is not None and hasattr(view, "annotations") and dim not in view.annotations:
+            view.annotations.append(dim)
+        return dim
+
+    def add_ordinate(
+        self,
+        target: Any,
+        datum_coord: float = 0.0,
+        direction: str = "horizontal",
+        jog: float = 0.0,
+        extension_length: float = 12.0,
+        prefix: str = "",
+        suffix: str = "",
+        view: Any | None = None,
+    ) -> OrdinateDimension:
+        """Add an ordinate dimension point to the sheet."""
+        dim = OrdinateDimension(
+            target=target,
+            datum_coord=datum_coord,
+            direction=direction,
+            jog=jog,
+            extension_length=extension_length,
+            prefix=prefix,
+            suffix=suffix,
+            view=view,
+        )
+        if dim not in self.annotations:
+            self.annotations.append(dim)
+        if view is not None and hasattr(view, "annotations") and dim not in view.annotations:
+            view.annotations.append(dim)
+        return dim
+
+    def add_chamfer_callout(
+        self,
+        target: Any,
+        width: float | None = None,
+        angle_deg: float = 45.0,
+        style: str = "iso",
+        quantity: int | None = None,
+        elbow_offset: tuple[float, float] = (15.0, -12.0),
+        view: Any | None = None,
+    ) -> ChamferCallout:
+        """Add an ISO/ASME chamfer callout note to the sheet."""
+        cc = ChamferCallout(
+            target_or_edge=target,
+            width=width,
+            angle_deg=angle_deg,
+            style=style,
+            quantity=quantity,
+            elbow_offset=elbow_offset,
+            view=view,
+        )
+        if cc not in self.annotations:
+            self.annotations.append(cc)
+        if view is not None and hasattr(view, "annotations") and cc not in view.annotations:
+            view.annotations.append(cc)
+        return cc
+
+    def add_welding_symbol(
+        self,
+        target: Any,
+        weld_type: WeldType | str = WeldType.FILLET,
+        size: str | float | None = "a5",
+        length: str | float | None = None,
+        pitch: str | float | None = None,
+        all_around: bool = False,
+        field_weld: bool = False,
+        tail_text: str | None = None,
+        arrow_side: bool = True,
+        elbow_offset: tuple[float, float] = (16.0, -12.0),
+        view: Any | None = None,
+    ) -> WeldingSymbol:
+        """Add an ISO 2553 welding annotation to the sheet."""
+        ws = WeldingSymbol(
+            target=target,
+            weld_type=weld_type,
+            size=size,
+            length=length,
+            pitch=pitch,
+            all_around=all_around,
+            field_weld=field_weld,
+            tail_text=tail_text,
+            arrow_side=arrow_side,
+            elbow_offset=elbow_offset,
+            view=view,
+        )
+        if ws not in self.annotations:
+            self.annotations.append(ws)
+        if view is not None and hasattr(view, "annotations") and ws not in view.annotations:
+            view.annotations.append(ws)
+        return ws
+
+    def lint(self) -> list[LintIssue]:
+        """Inspect sheet layout, annotations, and margins for drawing defects."""
+        return run_sheet_lint(self)
 
     def add_gdt_frame(
         self,
@@ -910,23 +1106,28 @@ class DrawingSheet:
             [(self.width_mm, self.height_mm, self.to_svg(resolved_theme))], path, resolved_theme
         )
 
-    def export_dxf(self, path: str, dxfversion: str = "R2010") -> None:
-        """Export sheet view shape(s) to a 1:1 DXF file."""
+    def export_dxf(self, path: str, flat_pattern: bool = False, dxfversion: str = "R2010") -> None:
+        """Export sheet to a multi-layer DXF CAD drawing. If flat_pattern=True, exports 1:1 unannotated CNC geometry."""
         from build123d_techdraw.renderers.dxf import DXFRenderer
 
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-        unique_shapes: list[Any] = []
-        for v in self.views:
-            if hasattr(v, "shape") and v.shape is not None and v.shape not in unique_shapes:
-                unique_shapes.append(v.shape)
+        if flat_pattern:
+            unique_shapes: list[Any] = []
+            for v in self.views:
+                if hasattr(v, "shape") and v.shape is not None and v.shape not in unique_shapes:
+                    unique_shapes.append(v.shape)
 
-        if unique_shapes:
-            shape_to_export = (
-                unique_shapes[0] if len(unique_shapes) == 1 else bd.Compound(children=unique_shapes)
-            )
-            DXFRenderer.export_shape_to_dxf(shape_to_export, path, dxfversion=dxfversion)
+            if unique_shapes:
+                shape_to_export = (
+                    unique_shapes[0]
+                    if len(unique_shapes) == 1
+                    else bd.Compound(children=unique_shapes)
+                )
+                DXFRenderer.export_shape_to_dxf(shape_to_export, path, dxfversion=dxfversion)
+            else:
+                import ezdxf
+
+                doc = ezdxf.new(dxfversion=dxfversion)  # type: ignore[attr-defined]
+                doc.saveas(path)
         else:
-            import ezdxf
-
-            doc = ezdxf.new(dxfversion=dxfversion)  # type: ignore[attr-defined]
-            doc.saveas(path)
+            DXFRenderer.export_sheet_to_dxf(self, path, dxfversion=dxfversion)

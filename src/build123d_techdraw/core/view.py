@@ -10,15 +10,20 @@ import build123d as bd
 
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
+    ChamferCallout,
     HoleCallout,
     LeaderNote,
     ThreadCallout,
+    WeldingSymbol,
+    WeldType,
 )
 from build123d_techdraw.annotations.centerlines import BoltCircle, Centerline, CenterMark
 from build123d_techdraw.annotations.dimensions import (
+    AngularDimension,
     DiameterDimension,
     DimensionType,
     LinearDimension,
+    OrdinateDimension,
     RadialDimension,
     Tolerance,
 )
@@ -48,6 +53,8 @@ class ViewType(Enum):
     ISOMETRIC_LEFT = "isometric_left"
     ISOMETRIC_REAR = "isometric_rear"
     SECTION = "section"
+    DETAIL = "detail"
+    AUXILIARY = "auxiliary"
 
 
 # Standard camera orientations: (look_from, look_up)
@@ -476,6 +483,104 @@ class SheetView:
         if self.sheet is not None:
             self.sheet.annotations.append(dim)
         return dim
+
+    def dim_angular(
+        self,
+        target1: Any,
+        target2: Any,
+        radius: float = 20.0,
+        text: str | None = None,
+        tolerance: str | None = None,
+        prefix: str = "",
+        suffix: str = "°",
+    ) -> AngularDimension:
+        """Add an angular dimension between two edges, rays, or faces in this view."""
+        dim = AngularDimension(
+            target1=target1,
+            target2=target2,
+            radius=radius,
+            text=text,
+            tolerance=tolerance,
+            prefix=prefix,
+            suffix=suffix,
+            view=self,
+        )
+        return dim
+
+    def dim_ordinate(
+        self,
+        target: Any,
+        datum_coord: float = 0.0,
+        direction: str = "horizontal",
+        jog: float = 0.0,
+        extension_length: float = 12.0,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> OrdinateDimension:
+        """Add an ordinate dimension point in this view."""
+        dim = OrdinateDimension(
+            target=target,
+            datum_coord=datum_coord,
+            direction=direction,
+            jog=jog,
+            extension_length=extension_length,
+            prefix=prefix,
+            suffix=suffix,
+            view=self,
+        )
+        return dim
+
+    def chamfer_callout(
+        self,
+        target: Any,
+        width: float | None = None,
+        angle_deg: float = 45.0,
+        style: str = "iso",
+        quantity: int | None = None,
+        elbow_dx: float = 15.0,
+        elbow_dy: float = -12.0,
+    ) -> ChamferCallout:
+        """Add an ISO/ASME chamfer callout leader note."""
+        cc = ChamferCallout(
+            target_or_edge=target,
+            width=width,
+            angle_deg=angle_deg,
+            style=style,
+            quantity=quantity,
+            elbow_offset=(elbow_dx, elbow_dy),
+            view=self,
+        )
+        return cc
+
+    def weld_symbol(
+        self,
+        target: Any,
+        weld_type: WeldType | str = WeldType.FILLET,
+        size: str | float | None = "a5",
+        length: str | float | None = None,
+        pitch: str | float | None = None,
+        all_around: bool = False,
+        field_weld: bool = False,
+        tail_text: str | None = None,
+        arrow_side: bool = True,
+        elbow_dx: float = 16.0,
+        elbow_dy: float = -12.0,
+    ) -> WeldingSymbol:
+        """Add an ISO 2553 welding annotation."""
+        ws = WeldingSymbol(
+            target=target,
+            weld_type=weld_type,
+            size=size,
+            length=length,
+            pitch=pitch,
+            all_around=all_around,
+            field_weld=field_weld,
+            tail_text=tail_text,
+            arrow_side=arrow_side,
+            elbow_offset=(elbow_dx, elbow_dy),
+            view=self,
+        )
+        return ws
 
     def centermark(
         self,
@@ -977,12 +1082,27 @@ def project_section_to_view(
     view_label_y: float | None = None,
     view_label_offset_y: float = 7.0,
     model_origin: tuple[float, float] | None = None,
+    show_background: bool = True,
 ) -> SheetView:
-    """Project a 2D section slice through 3D shape with 45-degree engineering cross-hatching."""
+    """Project a 2D section slice through 3D shape with 45-degree engineering cross-hatching and background visible lines."""
     sec = bd.section(shape, section_by=cutting_plane)
     sec_2d = cutting_plane.to_local_coords(sec)
 
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
+
+    # Optional background visible geometry behind the section plane
+    if show_background:
+        try:
+            look_from = cutting_plane.z_dir
+            look_up = cutting_plane.y_dir
+            split_half = bd.split(shape, bisect_by=cutting_plane, keep=bd.Keep.BOTTOM)
+            dwg_bg = bd.Drawing(split_half, look_from=look_from, look_up=look_up, with_hidden=False)
+            if len(dwg_bg.visible_lines.edges()) > 0:
+                exporter.add_layer("visible_bg", line_color="gray", line_weight=0.25)
+                exporter.add_shape(dwg_bg.visible_lines, layer="visible_bg")
+        except Exception:
+            pass
+
     exporter.add_layer("visible", line_color="black", line_weight=0.5, fill_color=None)
     exporter.add_shape(sec_2d, layer="visible")
 
@@ -1016,6 +1136,9 @@ def project_section_to_view(
     )
     inner_content = re.sub(r'\s+xmlns(?::[a-zA-Z0-9_]+)?="[^"]*"', "", inner_content)
     inner_content = inner_content.replace('stroke="rgb(0,0,0)"', 'stroke="var(--line-visible)"')
+    inner_content = inner_content.replace(
+        'stroke="rgb(128,128,128)"', 'stroke="var(--line-visible)"'
+    )
     inner_content = inner_content.replace('fill="none"', 'fill="url(#sectionHatch)"')
 
     try:
@@ -1056,6 +1179,197 @@ def project_section_to_view(
         width=exact_w * scale,
         height=exact_h * scale,
         model_origin=(orig_u, orig_v),
+        orig_cx=orig_cx,
+        orig_cy=orig_cy,
+        svg_content=svg_view_group,
+        view_label=view_label,
+        view_label_pos=(center_x, lbl_y),
+        scale_label=scale_str,
+        shape=shape,
+    )
+    view_res.inner_svg_content = inner_content
+    return view_res
+
+
+def project_detail_to_view(
+    parent_view: SheetView,
+    focus_target: Any,
+    radius: float,
+    scale: float,
+    center_x: float,
+    center_y: float,
+    view_label: str = "DETAIL A",
+    label_letter: str = "A",
+    view_label_y: float | None = None,
+    view_label_offset_y: float = 7.0,
+) -> SheetView:
+    """Project a magnified detail view of a circular region from parent view."""
+    import html
+
+    from build123d_techdraw.annotations.resolver import resolve_point_to_sheet
+
+    focus_sheet = resolve_point_to_sheet(focus_target, parent_view)
+
+    # Detail callout indicator on parent view
+    parent_callout_r = radius * parent_view.scale
+    callout_tag_x = focus_sheet[0] + parent_callout_r * 0.707
+    callout_tag_y = focus_sheet[1] - parent_callout_r * 0.707
+    callout_svg = f"""<g class="detail-callout">
+        <circle cx="{focus_sheet[0]:.2f}" cy="{focus_sheet[1]:.2f}" r="{parent_callout_r:.2f}" class="dim-line" stroke-width="0.3" stroke-dasharray="3,2" fill="none"/>
+        <line x1="{callout_tag_x:.2f}" y1="{callout_tag_y:.2f}" x2="{callout_tag_x + 5.0:.2f}" y2="{callout_tag_y - 5.0:.2f}" class="dim-line" stroke-width="0.3"/>
+        <circle cx="{callout_tag_x + 8.0:.2f}" cy="{callout_tag_y - 8.0:.2f}" r="3.0" class="border-sub" fill="none"/>
+        <text x="{callout_tag_x + 8.0:.2f}" y="{callout_tag_y - 6.8:.2f}" class="tb-title" text-anchor="middle" font-size="3.2">{html.escape(label_letter)}</text>
+    </g>"""
+    parent_view.svg_content += f"\n    {callout_svg}"
+
+    paper_r = radius * scale
+    view_id = f"detail_{label_letter}_{int(center_x)}_{int(center_y)}"
+    clip_id = f"clip_{view_id}"
+
+    focus_svg_x = (focus_sheet[0] - parent_view.center_x) / parent_view.scale + parent_view.orig_cx
+    focus_svg_y = (focus_sheet[1] - parent_view.center_y) / parent_view.scale + parent_view.orig_cy
+
+    inner_content = parent_view.inner_svg_content
+
+    transform = (
+        f"translate({center_x:.2f}, {center_y:.2f}) "
+        f"scale({scale:.4f}, {scale:.4f}) "
+        f"translate({-focus_svg_x:.2f}, {-focus_svg_y:.2f})"
+    )
+
+    svg_view_group = f"""
+    <!-- Detail View: {label_letter} at ({center_x}, {center_y}) scale={scale} -->
+    <defs>
+        <clipPath id="{clip_id}">
+            <circle cx="{center_x:.2f}" cy="{center_y:.2f}" r="{paper_r:.2f}"/>
+        </clipPath>
+    </defs>
+    <g id="{view_id}" class="sheet-view detail-view" clip-path="url(#{clip_id})">
+        <g transform="{transform}">
+            {inner_content}
+        </g>
+    </g>
+    <circle cx="{center_x:.2f}" cy="{center_y:.2f}" r="{paper_r:.2f}" class="border-main" stroke-width="0.5" fill="none"/>
+    """
+
+    lbl_y = view_label_y if view_label_y is not None else (center_y + paper_r + view_label_offset_y)
+    scale_str = format_iso_scale(scale)
+
+    view_res = SheetView(
+        view_type=ViewType.DETAIL,
+        center_x=center_x,
+        center_y=center_y,
+        scale=scale,
+        width=paper_r * 2.0,
+        height=paper_r * 2.0,
+        model_origin=parent_view.model_origin,
+        projection_origin=parent_view.projection_origin,
+        proj_x=parent_view.proj_x,
+        proj_y=parent_view.proj_y,
+        orig_cx=focus_svg_x,
+        orig_cy=focus_svg_y,
+        svg_content=svg_view_group,
+        view_label=view_label,
+        view_label_pos=(center_x, lbl_y),
+        scale_label=scale_str,
+        shape=parent_view.shape,
+    )
+    view_res.inner_svg_content = inner_content
+    return view_res
+
+
+def project_auxiliary_view(
+    shape: bd.Solid | bd.Compound | Any,
+    face: bd.Face | tuple[float, float, float] | Any,
+    center_x: float,
+    center_y: float,
+    scale: float = 1.0,
+    show_hidden: bool = True,
+    view_label: str = "AUXILIARY VIEW",
+    view_label_y: float | None = None,
+    view_label_offset_y: float = 7.0,
+) -> SheetView:
+    """Project an auxiliary view normal to an inclined face."""
+    import build123d as bd
+
+    if isinstance(face, bd.Face):
+        n = face.normal_at()
+        look_from = (-float(n.X), -float(n.Y), -float(n.Z))
+    elif isinstance(face, (tuple, list)) and len(face) == 3:
+        look_from = (-float(face[0]), -float(face[1]), -float(face[2]))
+    else:
+        look_from = (0.0, -1.0, 0.0)
+
+    lf_vec = bd.Vector(look_from).normalized()
+    ref_up = bd.Vector(0, 0, 1) if abs(lf_vec.Z) < 0.9 else bd.Vector(0, 1, 0)
+    look_up_vec = ref_up - lf_vec * (ref_up.dot(lf_vec))
+    look_up_vec = bd.Vector(0, 1, 0) if look_up_vec.length < 1e-4 else look_up_vec.normalized()
+    look_up = (float(look_up_vec.X), float(look_up_vec.Y), float(look_up_vec.Z))
+
+    dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
+    exporter = bd.ExportSVG(unit=bd.Unit.MM)
+    if show_hidden and len(dwg.hidden_lines.edges()) > 0:
+        exporter.add_layer(
+            "hidden", line_color="gray", line_weight=0.18, line_type=bd.LineType.DASHED
+        )
+        exporter.add_shape(dwg.hidden_lines, layer="hidden")
+    exporter.add_layer("visible", line_color="black", line_weight=0.35)
+    exporter.add_shape(dwg.visible_lines, layer="visible")
+
+    with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tf:
+        tmp_path = tf.name
+    try:
+        exporter.write(tmp_path)
+        with open(tmp_path, encoding="utf-8") as f:
+            raw_svg = f.read()
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+    vb_m = re.search(r'viewBox="([^"]+)"', raw_svg)
+    viewbox_str = vb_m.group(1) if vb_m else "0 0 100 100"
+    vb_parts = [float(p) for p in viewbox_str.split()]
+    vb_min_x, vb_min_y, vb_w, vb_h = vb_parts
+
+    orig_cx = vb_min_x + vb_w / 2.0
+    orig_cy = vb_min_y + vb_h / 2.0
+    view_id = f"view_auxiliary_{int(center_x)}_{int(center_y)}"
+
+    inner_m = re.search(r"<svg[^>]*>(.*)</svg>", raw_svg, flags=re.DOTALL)
+    inner_content = inner_m.group(1).strip() if inner_m else raw_svg
+    inner_content = inner_content.replace('stroke="rgb(0,0,0)"', 'stroke="var(--line-visible)"')
+    inner_content = inner_content.replace(
+        'stroke="rgb(128,128,128)"', 'stroke="var(--line-hidden)"'
+    )
+
+    transform = (
+        f"translate({center_x:.2f}, {center_y:.2f}) "
+        f"scale({scale:.4f}, {scale:.4f}) "
+        f"translate({-orig_cx:.2f}, {-orig_cy:.2f})"
+    )
+
+    svg_view_group = f"""
+    <!-- View: AUXILIARY at ({center_x}, {center_y}) scale={scale} -->
+    <g id="{view_id}" class="sheet-view auxiliary-view" transform="{transform}">
+        {inner_content}
+    </g>
+    """
+
+    lbl_y = (
+        view_label_y
+        if view_label_y is not None
+        else (center_y + (vb_h * scale / 2.0) + view_label_offset_y)
+    )
+    scale_str = format_iso_scale(scale)
+
+    view_res = SheetView(
+        view_type=ViewType.AUXILIARY,
+        center_x=center_x,
+        center_y=center_y,
+        scale=scale,
+        width=vb_w * scale,
+        height=vb_h * scale,
+        model_origin=(0.0, 0.0),
         orig_cx=orig_cx,
         orig_cy=orig_cy,
         svg_content=svg_view_group,

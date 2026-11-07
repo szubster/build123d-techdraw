@@ -17,6 +17,8 @@ from build123d_techdraw.core.view import (
     SheetView,
     ViewType,
     _apply_align_to,
+    project_auxiliary_view,
+    project_detail_to_view,
     project_section_to_view,
     project_shape_to_view,
 )
@@ -437,6 +439,7 @@ class SectionView(View):
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
+        show_background: bool = True,
     ) -> SectionView:
         calc_scale = 1.0 if scale == "auto" else float(scale)
         view = project_section_to_view(
@@ -448,6 +451,7 @@ class SectionView(View):
             view_label=view_label,
             view_label_y=view_label_y,
             model_origin=model_origin,
+            show_background=show_background,
         )
         view.__class__ = cls
         view.shape = shape
@@ -457,6 +461,88 @@ class SectionView(View):
 
         target_sheet = sheet or CURRENT_SHEET.get()
         if target_sheet is not None:
+            target_sheet.add_view(view)
+
+        return view  # type: ignore[return-value]
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+
+class DetailView(View):
+    """Magnified circular detail view."""
+
+    def __new__(
+        cls,
+        parent_view: SheetView,
+        focus_target: Any,
+        radius: float = 15.0,
+        center: tuple[float, float] = (150.0, 150.0),
+        scale: float | str = 2.0,
+        view_label: str = "DETAIL A",
+        label_letter: str = "A",
+        view_label_y: float | None = None,
+        sheet: DrawingSheet | None = None,
+        align_to: Any = None,
+    ) -> DetailView:
+        calc_scale = 2.0 if scale == "auto" else float(scale)
+        view = project_detail_to_view(
+            parent_view=parent_view,
+            focus_target=focus_target,
+            radius=radius,
+            scale=calc_scale,
+            center_x=center[0],
+            center_y=center[1],
+            view_label=view_label,
+            label_letter=label_letter,
+            view_label_y=view_label_y,
+        )
+        view.__class__ = cls
+        if align_to is not None:
+            _apply_align_to(view, align_to)
+
+        target_sheet = sheet or getattr(parent_view, "sheet", None) or CURRENT_SHEET.get()
+        if target_sheet is not None and view not in target_sheet.views:
+            target_sheet.add_view(view)
+
+        return view  # type: ignore[return-value]
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+
+class AuxiliaryView(View):
+    """Auxiliary projection view normal to an inclined face."""
+
+    def __new__(
+        cls,
+        shape: Any,
+        face: Any,
+        center: tuple[float, float] = (150.0, 150.0),
+        scale: float | str = 1.0,
+        show_hidden: bool = True,
+        view_label: str = "AUXILIARY VIEW",
+        view_label_y: float | None = None,
+        sheet: DrawingSheet | None = None,
+        align_to: Any = None,
+    ) -> AuxiliaryView:
+        calc_scale = 1.0 if scale == "auto" else float(scale)
+        view = project_auxiliary_view(
+            shape=shape,
+            face=face,
+            center_x=center[0],
+            center_y=center[1],
+            scale=calc_scale,
+            show_hidden=show_hidden,
+            view_label=view_label,
+            view_label_y=view_label_y,
+        )
+        view.__class__ = cls
+        if align_to is not None:
+            _apply_align_to(view, align_to)
+
+        target_sheet = sheet or CURRENT_SHEET.get()
+        if target_sheet is not None and view not in target_sheet.views:
             target_sheet.add_view(view)
 
         return view  # type: ignore[return-value]

@@ -2,10 +2,13 @@
 
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
+    ChamferCallout,
     HoleCallout,
     LeaderNote,
     SectionCuttingLine,
     ThreadCallout,
+    WeldingSymbol,
+    WeldType,
 )
 from build123d_techdraw.annotations.centerlines import (
     BoltCircle,
@@ -13,9 +16,14 @@ from build123d_techdraw.annotations.centerlines import (
     CenterMark,
 )
 from build123d_techdraw.annotations.dimensions import (
+    AngularDimension,
+    BaselineDimensionGroup,
+    ChainDimensionGroup,
     DiameterDimension,
     DimensionType,
     LinearDimension,
+    OrdinateDimension,
+    OrdinateDimensionGroup,
     RadialDimension,
     Tolerance,
     format_dimension_value,
@@ -35,10 +43,12 @@ from build123d_techdraw.annotations.symbols import render_projection_cone_svg
 from build123d_techdraw.annotations.tables import RawSVG, Schedule, Table
 from build123d_techdraw.builder import (
     AssemblyBOM,
+    AuxiliaryView,
     BottomView,
     BuildDrawing,
     BuildSheet,
     BuildView,
+    DetailView,
     FrontView,
     GeneralNotes,
     IsometricView,
@@ -61,11 +71,18 @@ from build123d_techdraw.core.scale import (
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.title_block import BOMItem, RevisionEntry, TitleBlockInfo
 from build123d_techdraw.core.view import SheetView, ViewType
+from build123d_techdraw.layout.linter import LintIssue, run_sheet_lint
 from build123d_techdraw.layout.multiview import (
     MultiviewLayout,
     add_assembly_bom_and_balloons,
     add_standard_multiview,
     generate_assembly_bom,
+)
+from build123d_techdraw.recognizers.features import (
+    RecognizedBoltCircle,
+    RecognizedHole,
+    recognize_bolt_circles,
+    recognize_holes,
 )
 from build123d_techdraw.renderers.dxf import DXFRenderer
 from build123d_techdraw.renderers.pdf import PDFRenderer
@@ -78,9 +95,12 @@ except ImportError:  # pragma: no cover
     __version__ = "0.1.0.dev0"
 
 __all__ = [
+    "AngularDimension",
     "AssemblyBOM",
+    "AuxiliaryView",
     "BOMBalloon",
     "BOMItem",
+    "BaselineDimensionGroup",
     "BoltCircle",
     "BottomView",
     "BuildDrawing",
@@ -88,9 +108,12 @@ __all__ = [
     "BuildView",
     "CenterMark",
     "Centerline",
+    "ChainDimensionGroup",
+    "ChamferCallout",
     "DXFRenderer",
     "DatumFeature",
     "DatumFeatureSymbol",
+    "DetailView",
     "DiameterDimension",
     "DimensionType",
     "DrawingBooklet",
@@ -104,12 +127,17 @@ __all__ = [
     "LeaderNote",
     "LeftView",
     "LinearDimension",
+    "LintIssue",
     "MaterialRemoval",
     "MultiviewLayout",
+    "OrdinateDimension",
+    "OrdinateDimensionGroup",
     "PDFRenderer",
     "RadialDimension",
     "RawSVG",
     "RearView",
+    "RecognizedBoltCircle",
+    "RecognizedHole",
     "Revision",
     "RevisionEntry",
     "RightView",
@@ -133,6 +161,8 @@ __all__ = [
     "TopView",
     "View",
     "ViewType",
+    "WeldType",
+    "WeldingSymbol",
     "add_assembly_bom_and_balloons",
     "add_standard_multiview",
     "calculate_auto_scale",
@@ -140,6 +170,9 @@ __all__ = [
     "format_dimension_value",
     "format_iso_scale",
     "generate_assembly_bom",
+    "recognize_bolt_circles",
+    "recognize_holes",
     "render_projection_cone_svg",
+    "run_sheet_lint",
     "__version__",
 ]

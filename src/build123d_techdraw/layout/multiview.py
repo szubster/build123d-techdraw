@@ -72,7 +72,7 @@ def add_standard_multiview(
     show_hidden: bool = False,
     show_labels: bool = True,
     show_scale_label: bool = False,
-    auto_dimensions: bool = False,
+    auto_dimensions: bool | str = False,
     auto_centerlines: bool = False,
 ) -> MultiviewLayout:
     """Generate a standard orthographic multi-view layout on a drawing sheet.
@@ -300,6 +300,66 @@ def add_standard_multiview(
 
     if auto_dimensions:
         layout_obj.add_overall_dimensions()
+        if str(auto_dimensions).lower() in ("smart", "full", "all"):
+            from build123d_techdraw.recognizers.features import (
+                recognize_bolt_circles,
+                recognize_holes,
+            )
+
+            # 1. Bolt circles
+            bcs = recognize_bolt_circles(shape)
+            for bc in bcs:
+                target_view = layout_obj.top if layout_obj.top is not None else layout_obj.front
+                if target_view is not None:
+                    target_view.bolt_circle(
+                        center_model=(bc.center_3d[0], bc.center_3d[1]),
+                        diameter_model=bc.diameter,
+                        num_holes=bc.num_holes,
+                    )
+                    target_view.hole_callout(
+                        model_x=bc.center_3d[0] + bc.diameter / 2.0,
+                        model_y=bc.center_3d[1],
+                        diameter=bc.hole_feature.diameter,
+                        depth=bc.hole_feature.depth,
+                        counterbore_dia=bc.hole_feature.counterbore_dia,
+                        counterbore_depth=bc.hole_feature.counterbore_depth,
+                        countersink_dia=bc.hole_feature.countersink_dia,
+                        countersink_angle=bc.hole_feature.countersink_angle,
+                        quantity=bc.num_holes,
+                        elbow_dx=20.0,
+                        elbow_dy=-15.0,
+                    )
+
+            # 2. Other recognized holes
+            if not bcs:
+                holes = recognize_holes(shape)
+                seen_sig: set[tuple[Any, ...]] = set()
+                for h in holes:
+                    sig = (h.diameter, str(h.depth), h.counterbore_dia, h.countersink_dia)
+                    if sig in seen_sig:
+                        continue
+                    seen_sig.add(sig)
+                    v_choice = (
+                        layout_obj.top
+                        if abs(h.axis_dir[2]) > 0.8 and layout_obj.top
+                        else layout_obj.front
+                    )
+                    if v_choice is not None:
+                        mx = h.center_3d[0]
+                        my = h.center_3d[1] if v_choice == layout_obj.top else h.center_3d[2]
+                        v_choice.hole_callout(
+                            model_x=mx,
+                            model_y=my,
+                            diameter=h.diameter,
+                            depth=h.depth,
+                            counterbore_dia=h.counterbore_dia,
+                            counterbore_depth=h.counterbore_depth,
+                            countersink_dia=h.countersink_dia,
+                            countersink_angle=h.countersink_angle,
+                            quantity=h.quantity,
+                            elbow_dx=20.0,
+                            elbow_dy=-15.0,
+                        )
 
     if auto_centerlines:
         # 1. Add centermarks to circular projected holes/bosses on 2D views
