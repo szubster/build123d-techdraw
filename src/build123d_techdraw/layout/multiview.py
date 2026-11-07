@@ -159,23 +159,39 @@ def add_standard_multiview(
     total_unscaled_w = unscaled_w_col1 + unscaled_w_col2
     total_unscaled_h = unscaled_h_row1 + unscaled_h_row2
 
-    # Available printable drawing area on sheet
-    sheet_w = sheet.width_mm - sheet.left_margin - sheet.right_margin
-    sheet_h = sheet.height_mm - sheet.top_margin - sheet.bottom_margin
+    # Exclusion zone at bottom-right for title block and optional stacked BOM table
+    has_bom = bool(getattr(sheet, "bom_items", None)) or any(
+        getattr(c, "label", None) for c in extract_assembly_components(shape)
+    )
+    bom_h = (5.5 + len(sheet.bom_items) * 5.2) if getattr(sheet, "bom_items", None) else 20.0
+    bottom_excl = (
+        sheet.bottom_margin
+        + 36.0
+        + (
+            bom_h + 2.0
+            if has_bom
+            and getattr(sheet, "bom_position", "above_title_block") == "above_title_block"
+            else 0.0
+        )
+        + 16.0  # clearance for dimension lines and view labels
+    )
+    top_excl = sheet.top_margin + 14.0
+
+    avail_w = sheet.width_mm - sheet.left_margin - sheet.right_margin
+    avail_h = sheet.height_mm - bottom_excl - top_excl
 
     if center is None:
-        # Default center offset slightly upwards/leftwards to leave room for title block at bottom-right
-        center_x = sheet.left_margin + sheet_w * 0.46
-        center_y = sheet.top_margin + sheet_h * 0.46
+        center_x = sheet.left_margin + avail_w * 0.44
+        center_y = top_excl + avail_h / 2.0
     else:
         center_x, center_y = center
 
     # Auto scale computation
     if isinstance(scale, str) and scale.lower() == "auto":
-        avail_w = sheet_w * 0.85 - (num_cols - 1) * spacing
-        avail_h = sheet_h * 0.80 - (num_rows - 1) * spacing
-        raw_scale_w = avail_w / total_unscaled_w if total_unscaled_w > 0 else 1.0
-        raw_scale_h = avail_h / total_unscaled_h if total_unscaled_h > 0 else 1.0
+        net_w = avail_w * 0.85 - (num_cols - 1) * spacing
+        net_h = avail_h - (num_rows - 1) * spacing
+        raw_scale_w = net_w / total_unscaled_w if total_unscaled_w > 0 else 1.0
+        raw_scale_h = net_h / total_unscaled_h if total_unscaled_h > 0 else 1.0
         calculated_scale = find_closest_iso_scale(min(raw_scale_w, raw_scale_h))
     else:
         calculated_scale = float(scale)
@@ -199,6 +215,15 @@ def add_standard_multiview(
 
     row1_cy = min_y + h_row1 / 2.0
     row2_cy = min_y + h_row1 + spacing + h_row2 / 2.0 if num_rows > 1 else row1_cy
+
+    # Ensure row2 labels and dimensions do not encroach on bottom-right exclusion zone
+    if has_row2:
+        row2_bottom = row2_cy + h_row2 / 2.0 + 16.0
+        max_allowed_row2_bottom = sheet.height_mm - bottom_excl + 10.0
+        if row2_bottom > max_allowed_row2_bottom:
+            dy_shift = row2_bottom - max_allowed_row2_bottom
+            row1_cy -= dy_shift
+            row2_cy -= dy_shift
 
     layout_obj = MultiviewLayout(
         scale=calculated_scale,
@@ -287,8 +312,10 @@ def add_standard_multiview(
                 for edge in dwg_v.visible_lines.edges():
                     if edge.geom_type == bd.GeomType.CIRCLE:
                         c = edge.arc_center
-                        r = float(edge.radius)
-                        v_obj.centermark(float(c.X), float(c.Y), size=max(r * 1.6, 6.0))
+                        paper_r = float(edge.radius) * v_obj.scale
+                        # Centermark arms extend 2.0 mm beyond circle perimeter per ISO 128 / ASME Y14.2
+                        cm_size = (paper_r + 2.0) * 2.0
+                        v_obj.centermark(float(c.X), float(c.Y), size=cm_size)
             except Exception:
                 pass
 
