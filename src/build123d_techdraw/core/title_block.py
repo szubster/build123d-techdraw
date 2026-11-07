@@ -1,7 +1,39 @@
 """ISO 7200 title blocks, BOM tables, and revision tables."""
 
 import html
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+_STANDARD_FIELD_MAP: dict[str, str] = {
+    "PROJECT": "project",
+    "TITLE": "drawing_title",
+    "DRAWING_TITLE": "drawing_title",
+    "DRAWING TITLE": "drawing_title",
+    "SUBTITLE": "subtitle",
+    "DRAWING NO": "drawing_no",
+    "DRAWING NO.": "drawing_no",
+    "DRAWING_NO": "drawing_no",
+    "DRAWING NUMBER": "drawing_no",
+    "DRAWING_NUMBER": "drawing_no",
+    "DWG NO": "drawing_no",
+    "DWG NO.": "drawing_no",
+    "DWG_NO": "drawing_no",
+    "REV": "rev",
+    "REVISION": "rev",
+    "MATERIAL": "material",
+    "FINISH": "finish",
+    "SCALE": "scale",
+    "SHEET": "sheet_no",
+    "SHEET NO": "sheet_no",
+    "SHEET_NO": "sheet_no",
+    "TOTAL SHEETS": "total_sheets",
+    "TOTAL_SHEETS": "total_sheets",
+    "DATE": "date",
+    "DRAWN BY": "author",
+    "DRAWN_BY": "author",
+    "AUTHOR": "author",
+    "STATUS": "status",
+    "UNITS": "units",
+}
 
 
 @dataclass
@@ -21,6 +53,30 @@ class TitleBlockInfo:
     status: str = "APPROVED"
     units: str = "METRIC (mm)"
     third_angle: bool = True
+    subtitle: str | None = None
+    total_sheets: str | None = None
+    fields: dict[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.fields:
+            self.apply_custom_fields(self.fields)
+
+    def apply_custom_fields(self, custom_fields: dict[str, str]) -> None:
+        """Merge custom metadata key-values and sync any standard ISO 7200 fields."""
+        for k, v in custom_fields.items():
+            str_k = str(k).strip()
+            str_v = str(v)
+            self.fields[str_k] = str_v
+            norm_k = str_k.upper()
+            if norm_k in _STANDARD_FIELD_MAP:
+                setattr(self, _STANDARD_FIELD_MAP[norm_k], str_v)
+
+    @property
+    def extra_fields(self) -> list[tuple[str, str]]:
+        """Return custom fields that do not map to built-in title block cells."""
+        return [
+            (k, v) for k, v in self.fields.items() if k.strip().upper() not in _STANDARD_FIELD_MAP
+        ]
 
 
 @dataclass
@@ -58,34 +114,100 @@ def render_title_block_svg(
     by = sheet_height - margin_bottom - height
 
     title_str = info.drawing_title
-    if len(title_str) > 26 and " - " in title_str:
+    if "\n" in title_str:
+        lines = [line.strip() for line in title_str.split("\n") if line.strip()]
+    elif len(title_str) > 26 and " - " in title_str:
         parts = title_str.split(" - ", 1)
-        title_svg = (
-            f'<text x="3" y="15.0" class="tb-title" font-size="2.9">{html.escape(parts[0])}</text>'
-            f'<text x="3" y="19.2" class="tb-title" font-size="2.7">- {html.escape(parts[1])}</text>'
-        )
+        lines = [parts[0], f"- {parts[1]}"]
     elif len(title_str) > 26 and " & " in title_str:
         parts = title_str.split(" & ", 1)
-        title_svg = (
-            f'<text x="3" y="15.0" class="tb-title" font-size="2.9">{html.escape(parts[0])} &amp;</text>'
-            f'<text x="3" y="19.2" class="tb-title" font-size="2.7">{html.escape(parts[1])}</text>'
-        )
+        lines = [f"{parts[0]} &", parts[1]]
     elif len(title_str) > 28:
         words = title_str.split()
         mid = len(words) // 2
-        l1 = " ".join(words[:mid])
-        l2 = " ".join(words[mid:])
-        title_svg = (
-            f'<text x="3" y="15.0" class="tb-title" font-size="2.9">{html.escape(l1)}</text>'
-            f'<text x="3" y="19.2" class="tb-title" font-size="2.7">{html.escape(l2)}</text>'
-        )
+        lines = [" ".join(words[:mid]), " ".join(words[mid:])]
     else:
-        title_svg = (
-            f'<text x="3" y="18.0" class="tb-title" font-size="3.2">{html.escape(title_str)}</text>'
+        lines = [title_str]
+
+    title_nodes: list[str] = []
+    has_sub = bool(info.subtitle)
+
+    if len(lines) == 1 and not has_sub:
+        title_nodes.append(
+            f'<text x="3" y="18.0" class="tb-title" font-size="3.2">{html.escape(lines[0])}</text>'
         )
+    elif len(lines) == 1 and has_sub:
+        title_nodes.append(
+            f'<text x="3" y="16.0" class="tb-title" font-size="2.9">{html.escape(lines[0])}</text>'
+        )
+        title_nodes.append(
+            f'<text x="3" y="19.8" class="tb-subtitle tb-field-val-sm" font-size="2.2">{html.escape(info.subtitle or "")}</text>'
+        )
+    elif len(lines) == 2 and not has_sub:
+        for idx, line in enumerate(lines):
+            y_pos = 15.2 + idx * 3.8
+            title_nodes.append(
+                f'<text x="3" y="{y_pos:.1f}" class="tb-title" font-size="2.8">{html.escape(line)}</text>'
+            )
+    else:
+        line_count = len(lines) + (1 if has_sub else 0)
+        font_sz = "2.4" if line_count <= 3 else "2.0"
+        step = min(3.0, 9.0 / max(line_count, 1))
+        start_y = 14.2
+        for idx, line in enumerate(lines):
+            y_pos = start_y + idx * step
+            title_nodes.append(
+                f'<text x="3" y="{y_pos:.1f}" class="tb-title" font-size="{font_sz}">{html.escape(line)}</text>'
+            )
+        if has_sub and info.subtitle:
+            sub_y = start_y + len(lines) * step
+            title_nodes.append(
+                f'<text x="3" y="{sub_y:.1f}" class="tb-subtitle tb-field-val-sm" font-size="2.0">{html.escape(info.subtitle)}</text>'
+            )
+
+    title_svg = "".join(title_nodes)
 
     mat_font = "1.9" if len(info.material) > 18 else "2.1" if len(info.material) > 13 else "2.5"
     fin_font = "1.9" if len(info.finish) > 18 else "2.1" if len(info.finish) > 13 else "2.5"
+
+    if info.total_sheets and "OF" not in info.sheet_no.upper():
+        sheet_display = f"{info.sheet_no} OF {info.total_sheets}"
+    else:
+        sheet_display = info.sheet_no
+
+    # Render optional custom fields band above the main title block
+    extra = info.extra_fields
+    extra_svg_parts: list[str] = []
+    if extra:
+        cols_per_row = min(3, len(extra))
+        num_rows = (len(extra) + cols_per_row - 1) // cols_per_row
+        row_h = 7.0
+        band_h = num_rows * row_h
+        band_y = -band_h
+        extra_svg_parts.append(
+            f'<rect x="0" y="{band_y:.2f}" width="{width:.2f}" height="{band_h:.2f}" class="title-bg" stroke-width="0.5"/>'
+        )
+        col_w = width / cols_per_row
+        for idx, (k, v) in enumerate(extra):
+            r_idx = idx // cols_per_row
+            c_idx = idx % cols_per_row
+            cx = c_idx * col_w
+            cy = band_y + r_idx * row_h
+            if c_idx > 0:
+                extra_svg_parts.append(
+                    f'<line x1="{cx:.2f}" y1="{cy:.2f}" x2="{cx:.2f}" y2="{cy + row_h:.2f}" class="border-sub" stroke-width="0.25"/>'
+                )
+            if r_idx > 0:
+                extra_svg_parts.append(
+                    f'<line x1="0" y1="{cy:.2f}" x2="{width:.2f}" y2="{cy:.2f}" class="border-sub" stroke-width="0.25"/>'
+                )
+            extra_svg_parts.append(
+                f'<text x="{cx + 3.0:.2f}" y="{cy + 2.8:.2f}" class="tb-field-label">{html.escape(k.upper())}</text>'
+            )
+            extra_svg_parts.append(
+                f'<text x="{cx + 3.0:.2f}" y="{cy + 6.0:.2f}" class="tb-field-val-sm">{html.escape(v)}</text>'
+            )
+    extra_svg = "".join(extra_svg_parts)
 
     if info.third_angle:
         # ISO 5456-2 Third Angle Projection symbol (circles to left of frustum)
@@ -112,6 +234,7 @@ def render_title_block_svg(
 
     return f"""
     <g class="title-block" transform="translate({bx:.2f}, {by:.2f})">
+        {extra_svg}
         <rect x="0" y="0" width="{width:.2f}" height="{height:.2f}" class="title-bg" stroke-width="0.6"/>
         <line x1="0" y1="8" x2="{width}" y2="8" class="border-sub" stroke-width="0.3"/>
         <line x1="0" y1="22" x2="{width}" y2="22" class="border-sub" stroke-width="0.3"/>
@@ -150,7 +273,7 @@ def render_title_block_svg(
         <text x="41" y="25.2" class="tb-field-label">SCALE</text>
         <text x="41" y="28.2" class="tb-field-val-sm">{html.escape(info.scale)}</text>
         <text x="41" y="32.0" class="tb-field-label">SHEET</text>
-        <text x="41" y="35.0" class="tb-field-val-sm">{html.escape(info.sheet_no)}</text>
+        <text x="41" y="35.0" class="tb-field-val-sm">{html.escape(sheet_display)}</text>
 
         <text x="79" y="25.2" class="tb-field-label">DATE</text>
         <text x="79" y="28.2" class="tb-field-val-sm">{html.escape(info.date)}</text>

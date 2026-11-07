@@ -16,6 +16,7 @@ from build123d_techdraw.core.title_block import BOMItem
 from build123d_techdraw.core.view import (
     SheetView,
     ViewType,
+    _apply_align_to,
     project_section_to_view,
     project_shape_to_view,
 )
@@ -31,17 +32,19 @@ class BuildSheet:
 
     def __init__(
         self,
-        sheet_size: SheetSize = SheetSize.A3_LANDSCAPE,
+        sheet_size: SheetSize | str = SheetSize.A3_LANDSCAPE,
         custom_size: tuple[float, float] | None = None,
         title: str | None = None,
         drawing_number: str | None = None,
         drawing_no: str | None = None,
         drawing_title: str | None = None,
+        subtitle: str | None = None,
         rev: str | None = None,
         author: str | None = None,
         material: str | None = None,
         finish: str | None = None,
         date: str | None = None,
+        fields: dict[str, str] | None = None,
         left_margin: float = 15.0,
         margin: float = 8.0,
         **kwargs: Any,
@@ -54,18 +57,33 @@ class BuildSheet:
         )
         effective_title = title or drawing_title
         effective_dwg_no = drawing_number or drawing_no
-        if any(
-            v is not None
-            for v in [effective_title, effective_dwg_no, rev, author, material, finish, date]
+        if (
+            any(
+                v is not None
+                for v in [
+                    effective_title,
+                    effective_dwg_no,
+                    subtitle,
+                    rev,
+                    author,
+                    material,
+                    finish,
+                    date,
+                    fields,
+                ]
+            )
+            or kwargs
         ):
             self.sheet.set_title_block(
                 title=effective_title,
                 drawing_no=effective_dwg_no,
+                subtitle=subtitle,
                 rev=rev,
                 author=author,
                 material=material,
                 finish=finish,
                 date=date,
+                fields=fields,
                 **kwargs,
             )
         self._token: contextvars.Token[DrawingSheet | None] | None = None
@@ -127,6 +145,7 @@ class View(SheetView):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
+        align_to: Any = None,
     ) -> View:
         calc_scale = 1.0 if scale == "auto" else float(scale)
         view = project_shape_to_view(
@@ -144,6 +163,9 @@ class View(SheetView):
         view.__class__ = cls
         view.shape = shape
         view.rotation_angle_deg = rotation_angle_deg
+
+        if align_to is not None:
+            _apply_align_to(view, align_to)
 
         target_sheet = sheet or CURRENT_SHEET.get()
         if target_sheet is not None:
@@ -170,6 +192,7 @@ class FrontView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
+        align_to: Any = None,
     ) -> FrontView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -183,6 +206,7 @@ class FrontView(View):
             view_label_y=view_label_y,
             model_origin=model_origin,
             sheet=sheet,
+            align_to=align_to,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -203,6 +227,7 @@ class TopView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
+        align_to: Any = None,
     ) -> TopView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -216,6 +241,7 @@ class TopView(View):
             view_label_y=view_label_y,
             model_origin=model_origin,
             sheet=sheet,
+            align_to=align_to,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -236,6 +262,7 @@ class RightView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
+        align_to: Any = None,
     ) -> RightView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -249,6 +276,7 @@ class RightView(View):
             view_label_y=view_label_y,
             model_origin=model_origin,
             sheet=sheet,
+            align_to=align_to,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -269,6 +297,7 @@ class LeftView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
+        align_to: Any = None,
     ) -> LeftView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -282,6 +311,7 @@ class LeftView(View):
             view_label_y=view_label_y,
             model_origin=model_origin,
             sheet=sheet,
+            align_to=align_to,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -302,6 +332,7 @@ class BottomView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
+        align_to: Any = None,
     ) -> BottomView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -315,6 +346,7 @@ class BottomView(View):
             view_label_y=view_label_y,
             model_origin=model_origin,
             sheet=sheet,
+            align_to=align_to,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -335,6 +367,7 @@ class RearView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
+        align_to: Any = None,
     ) -> RearView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -348,6 +381,7 @@ class RearView(View):
             view_label_y=view_label_y,
             model_origin=model_origin,
             sheet=sheet,
+            align_to=align_to,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -368,6 +402,7 @@ class IsometricView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
+        align_to: Any = None,
     ) -> IsometricView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -381,6 +416,7 @@ class IsometricView(View):
             view_label_y=view_label_y,
             model_origin=model_origin,
             sheet=sheet,
+            align_to=align_to,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -400,6 +436,7 @@ class SectionView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
+        align_to: Any = None,
     ) -> SectionView:
         calc_scale = 1.0 if scale == "auto" else float(scale)
         view = project_section_to_view(
@@ -414,6 +451,9 @@ class SectionView(View):
         )
         view.__class__ = cls
         view.shape = shape
+
+        if align_to is not None:
+            _apply_align_to(view, align_to)
 
         target_sheet = sheet or CURRENT_SHEET.get()
         if target_sheet is not None:
@@ -493,9 +533,11 @@ class TitleBlock:
     drawing_number: str | None = None
     drawing_no: str | None = None
     drawing_title: str | None = None
+    subtitle: str | None = None
     sheet_no: str | None = None
     sheet_num: int | None = None
     num_sheets: int | None = None
+    total_sheets: str | int | None = None
     scale: str | None = None
     rev: str | None = None
     date: str | None = None
@@ -506,6 +548,7 @@ class TitleBlock:
     status: str | None = None
     units: str | None = None
     third_angle: bool | None = None
+    fields: dict[str, str] | None = None
 
     def __post_init__(self) -> None:
         ctx = CURRENT_SHEET.get()
@@ -518,9 +561,11 @@ class TitleBlock:
             drawing_number=self.drawing_number,
             drawing_title=self.drawing_title,
             drawing_no=self.drawing_no,
+            subtitle=self.subtitle,
             sheet_no=self.sheet_no,
             sheet_num=self.sheet_num,
             num_sheets=self.num_sheets,
+            total_sheets=self.total_sheets,
             scale=self.scale,
             rev=self.rev,
             date=self.date,
@@ -531,6 +576,7 @@ class TitleBlock:
             status=self.status,
             units=self.units,
             third_angle=self.third_angle,
+            fields=self.fields,
         )
 
 

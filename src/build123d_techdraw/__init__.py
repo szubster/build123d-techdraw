@@ -2,8 +2,10 @@
 
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
+    HoleCallout,
     LeaderNote,
     SectionCuttingLine,
+    ThreadCallout,
 )
 from build123d_techdraw.annotations.centerlines import (
     BoltCircle,
@@ -15,6 +17,7 @@ from build123d_techdraw.annotations.dimensions import (
     DimensionType,
     LinearDimension,
     RadialDimension,
+    Tolerance,
     format_dimension_value,
 )
 from build123d_techdraw.annotations.gdt import (
@@ -29,6 +32,7 @@ from build123d_techdraw.annotations.surface import (
     SurfaceFinishSymbol,
 )
 from build123d_techdraw.annotations.symbols import render_projection_cone_svg
+from build123d_techdraw.annotations.tables import RawSVG, Schedule, Table
 from build123d_techdraw.builder import (
     AssemblyBOM,
     BottomView,
@@ -95,6 +99,7 @@ __all__ = [
     "FrontView",
     "GDTCharacteristic",
     "GeneralNotes",
+    "HoleCallout",
     "IsometricView",
     "LeaderNote",
     "LeftView",
@@ -103,11 +108,13 @@ __all__ = [
     "MultiviewLayout",
     "PDFRenderer",
     "RadialDimension",
+    "RawSVG",
     "RearView",
     "Revision",
     "RevisionEntry",
     "RightView",
     "SVGRenderer",
+    "Schedule",
     "SectionCuttingLine",
     "SectionView",
     "SheetSize",
@@ -116,10 +123,13 @@ __all__ = [
     "SurfaceFinish",
     "SurfaceFinishSymbol",
     "THEME_COLORS",
+    "Table",
     "Theme",
     "ThemeColors",
+    "ThreadCallout",
     "TitleBlock",
     "TitleBlockInfo",
+    "Tolerance",
     "TopView",
     "View",
     "ViewType",

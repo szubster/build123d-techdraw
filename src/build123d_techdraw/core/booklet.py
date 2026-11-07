@@ -1,6 +1,7 @@
 """Multi-page drawing booklets and PDF/SVG package generation."""
 
 import os
+from typing import Any, Self
 
 from build123d_techdraw.core.sheet import DrawingSheet
 from build123d_techdraw.renderers.pdf import PDFRenderer
@@ -8,18 +9,46 @@ from build123d_techdraw.renderers.theme import Theme
 
 
 class DrawingBooklet:
-    """Manages an ordered package of multiple technical drawing sheets."""
+    """Manages an ordered package of multiple technical drawing sheets with auto-pagination."""
 
-    def __init__(self, title: str = "ENGINEERING DRAWING PACKAGE"):
+    def __init__(
+        self,
+        title: str = "ENGINEERING DRAWING PACKAGE",
+        sheets: list[DrawingSheet] | None = None,
+    ):
         self.title = title
         self.sheets: list[DrawingSheet] = []
+        if sheets:
+            for s in sheets:
+                self.add_sheet(s)
 
-    def add_sheet(self, sheet: DrawingSheet) -> None:
-        """Add a sheet to the drawing booklet."""
-        self.sheets.append(sheet)
+    def _paginate(self) -> None:
+        """Dynamically assign sheet_no and total_sheets across all booklet sheets."""
+        total = len(self.sheets)
+        for idx, sheet in enumerate(self.sheets):
+            sheet.title_info.sheet_no = f"{idx + 1}"
+            sheet.title_info.total_sheets = f"{total}"
 
-    def export_svgs(self, output_dir: str, theme: Theme = Theme.DARK_BLUEPRINT) -> list[str]:
-        """Export each sheet in the booklet as an individual SVG file."""
+    def add_sheet(self, sheet: DrawingSheet | Any) -> Self:
+        """Add a sheet to the drawing booklet and update pagination."""
+        actual_sheet = getattr(sheet, "sheet", sheet)
+        self.sheets.append(actual_sheet)
+        self._paginate()
+        return self
+
+    def __iadd__(self, sheet: DrawingSheet | list[DrawingSheet] | Any) -> Self:
+        if isinstance(sheet, (list, tuple)):
+            for s in sheet:
+                self.add_sheet(s)
+            return self
+        return self.add_sheet(sheet)
+
+    def __add__(self, sheet: DrawingSheet | list[DrawingSheet] | Any) -> Self:
+        return self.__iadd__(sheet)
+
+    def export_svgs(self, output_dir: str, theme: Theme | str = Theme.DARK_BLUEPRINT) -> list[str]:
+        """Export each sheet in the booklet as an individual SVG file with auto-pagination."""
+        self._paginate()
         os.makedirs(output_dir, exist_ok=True)
         paths: list[str] = []
         for i, s in enumerate(self.sheets):
@@ -30,9 +59,17 @@ class DrawingBooklet:
             paths.append(path)
         return paths
 
-    def export_pdf(self, output_path: str, theme: Theme = Theme.DARK_BLUEPRINT) -> None:
-        """Compile all sheets into a single multi-page vector PDF file."""
+    def export_pdf(self, output_path: str, theme: Theme | str = Theme.DARK_BLUEPRINT) -> None:
+        """Compile all sheets into a single multi-page vector PDF file with auto-pagination."""
+        self._paginate()
+        resolved_theme = (
+            Theme.ISO_WHITE
+            if (isinstance(theme, str) and theme.lower() in ("print", "white", "iso_white"))
+            or theme == Theme.ISO_WHITE
+            else Theme.DARK_BLUEPRINT
+        )
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         sheet_data = [
-            (sheet.width_mm, sheet.height_mm, sheet.to_svg(theme)) for sheet in self.sheets
+            (sheet.width_mm, sheet.height_mm, sheet.to_svg(resolved_theme)) for sheet in self.sheets
         ]
-        PDFRenderer.render_sheets_to_pdf(sheet_data, output_path, theme)
+        PDFRenderer.render_sheets_to_pdf(sheet_data, output_path, resolved_theme)
