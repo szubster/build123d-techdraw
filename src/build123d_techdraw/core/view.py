@@ -98,9 +98,11 @@ class SheetView:
         scale_label: str | None = None,
         sheet: Optional["DrawingSheet"] = None,
         shape: Any | None = None,
+        enforce_iso_scale: bool = True,
     ):
         self.sheet = sheet
         self.shape = shape
+        self.enforce_iso_scale = enforce_iso_scale
         self.view_type = view_type
         self.center_x = center_x
         self.center_y = center_y

@@ -139,10 +139,7 @@ def _resolve_view_scale(
         if target_sheet is not None:
             avail_w = target_sheet.width_mm - target_sheet.left_margin - target_sheet.right_margin
             avail_h = (
-                target_sheet.height_mm
-                - target_sheet.top_margin
-                - target_sheet.bottom_margin
-                - 36.0
+                target_sheet.height_mm - target_sheet.top_margin - target_sheet.bottom_margin - 36.0
             )
         else:
             avail_w, avail_h = 397.0, 245.0
