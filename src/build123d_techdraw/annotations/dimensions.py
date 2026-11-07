@@ -15,6 +15,8 @@ class DimensionType(Enum):
     ALIGNED = "aligned"
     RADIAL = "radial"
     DIAMETER = "diameter"
+    ANGULAR = "angular"
+    ORDINATE = "ordinate"
 
 
 def format_dimension_value(value: float, precision: int = 2) -> str:
@@ -298,17 +300,32 @@ class LinearDimension:
             ext_y_start = base_y + gap_dir * ext_gap
             ext_y_end = dim_y + gap_dir * ext_overshoot
 
+            is_narrow = dist < (2.0 * self.arrow_size + 4.0)
+            if is_narrow:
+                arrow_elems = [
+                    f'<line x1="{left_x - 5.0:.2f}" y1="{dim_y:.2f}" x2="{left_x:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>',
+                    render_arrowhead(left_x, dim_y, 1.0, 0.0, length=self.arrow_size),
+                    f'<line x1="{right_x:.2f}" y1="{dim_y:.2f}" x2="{right_x + 5.0:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>',
+                    render_arrowhead(right_x, dim_y, -1.0, 0.0, length=self.arrow_size),
+                ]
+                text_x = right_x + 6.0 if dist < 8.0 else (left_x + right_x) / 2.0
+                text_anchor = "start" if dist < 8.0 else "middle"
+                text_elem = f'<text x="{text_x:.2f}" y="{dim_y - 1.2:.2f}" class="dim-text" text-anchor="{text_anchor}" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>'
+            else:
+                arrow_elems = [
+                    render_arrowhead(left_x, dim_y, -1.0, 0.0, length=self.arrow_size),
+                    render_arrowhead(right_x, dim_y, 1.0, 0.0, length=self.arrow_size),
+                ]
+                text_elem = f'<text x="{(left_x + right_x) / 2.0:.2f}" y="{dim_y - 1.2:.2f}" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>'
+
             elements = [
                 # Extension lines
                 f'<line x1="{left_x:.2f}" y1="{ext_y_start:.2f}" x2="{left_x:.2f}" y2="{ext_y_end:.2f}" class="dim-line" stroke-width="0.25"/>',
                 f'<line x1="{right_x:.2f}" y1="{ext_y_start:.2f}" x2="{right_x:.2f}" y2="{ext_y_end:.2f}" class="dim-line" stroke-width="0.25"/>',
                 # Dimension line
                 f'<line x1="{left_x:.2f}" y1="{dim_y:.2f}" x2="{right_x:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>',
-                # Arrowheads
-                render_arrowhead(left_x, dim_y, -1.0, 0.0, length=self.arrow_size),
-                render_arrowhead(right_x, dim_y, 1.0, 0.0, length=self.arrow_size),
-                # Dimension text
-                f'<text x="{(left_x + right_x) / 2.0:.2f}" y="{dim_y - 1.2:.2f}" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>',
+                *arrow_elems,
+                text_elem,
             ]
             return "".join(elements)
 
@@ -330,15 +347,27 @@ class LinearDimension:
             ext_x_end = dim_x + gap_dir * ext_overshoot
 
             mid_y = (top_y + bottom_y) / 2.0
+            is_narrow = dist < (2.0 * self.arrow_size + 4.0)
+            if is_narrow:
+                arrow_elems = [
+                    f'<line x1="{dim_x:.2f}" y1="{top_y - 5.0:.2f}" x2="{dim_x:.2f}" y2="{top_y:.2f}" class="dim-line" stroke-width="0.3"/>',
+                    render_arrowhead(dim_x, top_y, 0.0, 1.0, length=self.arrow_size),
+                    f'<line x1="{dim_x:.2f}" y1="{bottom_y:.2f}" x2="{dim_x:.2f}" y2="{bottom_y + 5.0:.2f}" class="dim-line" stroke-width="0.3"/>',
+                    render_arrowhead(dim_x, bottom_y, 0.0, -1.0, length=self.arrow_size),
+                ]
+            else:
+                arrow_elems = [
+                    render_arrowhead(dim_x, top_y, 0.0, -1.0, length=self.arrow_size),
+                    render_arrowhead(dim_x, bottom_y, 0.0, 1.0, length=self.arrow_size),
+                ]
+
             elements = [
                 # Extension lines
                 f'<line x1="{ext_x_start:.2f}" y1="{top_y:.2f}" x2="{ext_x_end:.2f}" y2="{top_y:.2f}" class="dim-line" stroke-width="0.25"/>',
                 f'<line x1="{ext_x_start:.2f}" y1="{bottom_y:.2f}" x2="{ext_x_end:.2f}" y2="{bottom_y:.2f}" class="dim-line" stroke-width="0.25"/>',
                 # Dimension line
                 f'<line x1="{dim_x:.2f}" y1="{top_y:.2f}" x2="{dim_x:.2f}" y2="{bottom_y:.2f}" class="dim-line" stroke-width="0.3"/>',
-                # Arrowheads
-                render_arrowhead(dim_x, top_y, 0.0, -1.0, length=self.arrow_size),
-                render_arrowhead(dim_x, bottom_y, 0.0, 1.0, length=self.arrow_size),
+                *arrow_elems,
                 # Rotated dimension text
                 f'<text x="{dim_x - 1.4:.2f}" y="{mid_y:.2f}" transform="rotate(-90 {dim_x - 1.4:.2f} {mid_y:.2f})" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>',
             ]
@@ -653,3 +682,351 @@ class DiameterDimension:
             f'<text x="{text_x:.2f}" y="{text_y:.2f}" class="dim-text" text-anchor="{text_anchor}" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>',
         ]
         return f'<g class="diameter-dim">{"".join(elements)}</g>'
+
+
+class AngularDimension:
+    """ISO 129 compliant angular dimension measuring angles between edges, faces, or rays."""
+
+    def __init__(
+        self,
+        target1: Any = None,
+        target2: Any = None,
+        radius: float = 20.0,
+        text: str | None = None,
+        tolerance: str | Tolerance | None = None,
+        prefix: str = "",
+        suffix: str = "°",
+        arrow_size: float = 2.5,
+        font_size: float = 3.2,
+        apex: tuple[float, float] | None = None,
+        start_angle_deg: float | None = None,
+        end_angle_deg: float | None = None,
+        nominal: float | None = None,
+        view: Any | None = None,
+    ):
+        self.radius = radius
+        self.prefix = prefix
+        self.suffix = suffix
+        self.arrow_size = arrow_size
+        self.font_size = font_size
+        self.tolerance = str(tolerance) if tolerance is not None else None
+        self.view = view
+        self.target1 = target1
+        self.target2 = target2
+
+        if text is not None:
+            self.text: str | None = text
+        elif nominal is not None:
+            self.text = f"{format_dimension_value(float(nominal))}{suffix}"
+        else:
+            self.text = None
+
+        if apex is not None and start_angle_deg is not None and end_angle_deg is not None:
+            self.apex = (float(apex[0]), float(apex[1]))
+            self.start_angle_deg = float(start_angle_deg)
+            self.end_angle_deg = float(end_angle_deg)
+            self.resolved = True
+        else:
+            self.apex = (0.0, 0.0)
+            self.start_angle_deg = 0.0
+            self.end_angle_deg = 90.0
+            self.resolved = False
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if not self.resolved and self.target1 is not None and self.target2 is not None:
+            from build123d_techdraw.annotations.resolver import resolve_angle_to_sheet
+
+            ap, a1, a2, angle_val = resolve_angle_to_sheet(self.target1, self.target2, view)
+            self.apex = ap
+            self.start_angle_deg = a1
+            self.end_angle_deg = a2
+            if self.text is None:
+                self.text = f"{format_dimension_value(angle_val)}{self.suffix}"
+            self.resolved = True
+        elif not self.resolved:
+            self.apex = (view.center_x, view.center_y)
+            self.resolved = True
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
+
+    def to_svg(self) -> str:
+        cx, cy = self.apex
+        r = self.radius
+        a1 = self.start_angle_deg % 360.0
+        a2 = self.end_angle_deg % 360.0
+        diff = (a2 - a1) % 360.0
+
+        rad1 = math.radians(a1)
+        rad2 = math.radians(a2)
+
+        # SVG y is downwards, math angles go CCW
+        p1_x = cx + r * math.cos(rad1)
+        p1_y = cy - r * math.sin(rad1)
+        p2_x = cx + r * math.cos(rad2)
+        p2_y = cy - r * math.sin(rad2)
+
+        large_arc = 1 if diff > 180.0 else 0
+        # In SVG y-down, moving CCW uses sweep-flag = 0
+        arc_d = f"M {p1_x:.2f} {p1_y:.2f} A {r:.2f} {r:.2f} 0 {large_arc} 0 {p2_x:.2f} {p2_y:.2f}"
+
+        # Tangent vectors
+        # Tangent along CCW direction at a1: (-sin(a1), -cos(a1) in svg)
+        t1_x = -math.sin(rad1)
+        t1_y = -math.cos(rad1)
+        # Tangent along CW direction at a2 (pointing into the arc from p2): (sin(a2), cos(a2) in svg)
+        t2_x = math.sin(rad2)
+        t2_y = math.cos(rad2)
+
+        # Extension lines from apex out to arc
+        ext1_x = cx + (r + 2.0) * math.cos(rad1)
+        ext1_y = cy - (r + 2.0) * math.sin(rad1)
+        ext2_x = cx + (r + 2.0) * math.cos(rad2)
+        ext2_y = cy - (r + 2.0) * math.sin(rad2)
+
+        # Mid angle for label
+        mid_rad = math.radians((a1 + diff / 2.0) % 360.0)
+        text_r = r + 3.0
+        text_x = cx + text_r * math.cos(mid_rad)
+        text_y = cy - text_r * math.sin(mid_rad)
+
+        disp_val = (
+            self.text if self.text is not None else f"{format_dimension_value(diff)}{self.suffix}"
+        )
+        full_str = f"{self.prefix}{disp_val}"
+        if self.tolerance:
+            full_str += f" {self.tolerance}"
+
+        elements = [
+            f'<line x1="{cx:.2f}" y1="{cy:.2f}" x2="{ext1_x:.2f}" y2="{ext1_y:.2f}" class="dim-line" stroke-width="0.25"/>',
+            f'<line x1="{cx:.2f}" y1="{cy:.2f}" x2="{ext2_x:.2f}" y2="{ext2_y:.2f}" class="dim-line" stroke-width="0.25"/>',
+            f'<path d="{arc_d}" class="dim-line" stroke-width="0.3" fill="none"/>',
+            render_arrowhead(p1_x, p1_y, -t1_x, -t1_y, length=self.arrow_size),
+            render_arrowhead(p2_x, p2_y, -t2_x, -t2_y, length=self.arrow_size),
+            f'<text x="{text_x:.2f}" y="{text_y:.2f}" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>',
+        ]
+        return f'<g class="angular-dim">{"".join(elements)}</g>'
+
+
+class OrdinateDimension:
+    """Single ordinate dimension point with extension line, jog, and coordinate text."""
+
+    def __init__(
+        self,
+        target: Any = None,
+        datum_coord: float = 0.0,
+        direction: str = "horizontal",
+        jog: float = 0.0,
+        extension_length: float = 12.0,
+        font_size: float = 3.2,
+        prefix: str = "",
+        suffix: str = "",
+        view: Any | None = None,
+    ):
+        self.datum_coord = datum_coord
+        self.direction = direction.lower()
+        self.jog = jog
+        self.extension_length = extension_length
+        self.font_size = font_size
+        self.prefix = prefix
+        self.suffix = suffix
+        self.view = view
+        self.target = target
+        self.point = (0.0, 0.0)
+        self.resolved = False
+
+        if (
+            isinstance(target, (tuple, list))
+            and len(target) == 2
+            and not is_topological_entity(target)
+        ):
+            self.point = (float(target[0]), float(target[1]))
+            self.resolved = True
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if not self.resolved and self.target is not None:
+            self.point = resolve_point_to_sheet(self.target, view)
+            self.resolved = True
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
+
+    def to_svg(self) -> str:
+        px, py = self.point
+        if self.direction == "horizontal":
+            # Measures X coordinate relative to datum
+            coord_val = abs(px - self.datum_coord) / (
+                self.view.scale if self.view and self.view.scale else 1.0
+            )
+            disp_str = f"{self.prefix}{format_dimension_value(coord_val)}{self.suffix}"
+            end_y = py - self.extension_length
+            if self.jog != 0.0:
+                mid_y = (py + end_y) / 2.0
+                pts = f"{px:.2f},{py:.2f} {px:.2f},{mid_y:.2f} {px + self.jog:.2f},{mid_y:.2f} {px + self.jog:.2f},{end_y:.2f}"
+                text_x = px + self.jog
+            else:
+                pts = f"{px:.2f},{py:.2f} {px:.2f},{end_y:.2f}"
+                text_x = px
+            text_y = end_y - 1.2
+            return f"""<g class="ordinate-dim">
+                <polyline points="{pts}" class="dim-line" stroke-width="0.25" fill="none"/>
+                <text x="{text_x:.2f}" y="{text_y:.2f}" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(disp_str)}</text>
+            </g>"""
+        else:
+            # Measures Y coordinate relative to datum
+            coord_val = abs(py - self.datum_coord) / (
+                self.view.scale if self.view and self.view.scale else 1.0
+            )
+            disp_str = f"{self.prefix}{format_dimension_value(coord_val)}{self.suffix}"
+            end_x = px - self.extension_length
+            if self.jog != 0.0:
+                mid_x = (px + end_x) / 2.0
+                pts = f"{px:.2f},{py:.2f} {mid_x:.2f},{py:.2f} {mid_x:.2f},{py + self.jog:.2f} {end_x:.2f},{py + self.jog:.2f}"
+                text_y = py + self.jog
+            else:
+                pts = f"{px:.2f},{py:.2f} {end_x:.2f},{py:.2f}"
+                text_y = py
+            text_x = end_x - 1.5
+            return f"""<g class="ordinate-dim">
+                <polyline points="{pts}" class="dim-line" stroke-width="0.25" fill="none"/>
+                <text x="{text_x:.2f}" y="{text_y + 1.0:.2f}" class="dim-text" text-anchor="end" font-size="{self.font_size:.2f}">{html.escape(disp_str)}</text>
+            </g>"""
+
+
+class OrdinateDimensionGroup:
+    """Collection of ordinate dimensions sharing a common datum origin (0)."""
+
+    def __init__(
+        self,
+        datum_target: Any = None,
+        direction: str = "horizontal",
+        extension_length: float = 14.0,
+        view: Any | None = None,
+    ):
+        self.datum_target = datum_target
+        self.direction = direction.lower()
+        self.extension_length = extension_length
+        self.view = view
+        self.ordinates: list[OrdinateDimension] = []
+        self.datum_point = (0.0, 0.0)
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if self.datum_target is not None:
+            self.datum_point = resolve_point_to_sheet(self.datum_target, view)
+        else:
+            self.datum_point = (view.min_x, view.min_y)
+
+        # Add datum 0 ordinate
+        self.add_ordinate(self.datum_target or self.datum_point)
+
+    def add_ordinate(self, target: Any, jog: float = 0.0) -> OrdinateDimension:
+        datum_c = self.datum_point[0] if self.direction == "horizontal" else self.datum_point[1]
+        dim = OrdinateDimension(
+            target=target,
+            datum_coord=datum_c,
+            direction=self.direction,
+            jog=jog,
+            extension_length=self.extension_length,
+            view=self.view,
+        )
+        self.ordinates.append(dim)
+        return dim
+
+    def to_svg(self) -> str:
+        return "".join(o.to_svg() for o in self.ordinates)
+
+
+class BaselineDimensionGroup:
+    """Group of linear dimensions stacked progressively from a single reference baseline."""
+
+    def __init__(
+        self,
+        base_target: Any,
+        targets: list[Any],
+        direction: str = "horizontal",
+        first_offset: float = 10.0,
+        step_offset: float = 7.0,
+        view: Any | None = None,
+    ):
+        self.base_target = base_target
+        self.targets = targets
+        self.direction = direction
+        self.first_offset = first_offset
+        self.step_offset = step_offset
+        self.view = view
+        self.dimensions: list[LinearDimension] = []
+
+        sign = 1.0 if first_offset >= 0 else -1.0
+        for i, target in enumerate(targets):
+            offset = first_offset + sign * (i * step_offset)
+            dim = LinearDimension(
+                target_or_start=base_target,
+                target2_or_end=target,
+                offset=offset,
+                direction=direction,
+                view=view,
+            )
+            self.dimensions.append(dim)
+
+    def to_svg(self) -> str:
+        return "".join(d.to_svg() for d in self.dimensions)
+
+
+class ChainDimensionGroup:
+    """Group of consecutive linear dimensions aligned in a single continuous chain."""
+
+    def __init__(
+        self,
+        targets: list[Any],
+        direction: str = "horizontal",
+        offset: float = 8.0,
+        view: Any | None = None,
+    ):
+        self.targets = targets
+        self.direction = direction
+        self.offset = offset
+        self.view = view
+        self.dimensions: list[LinearDimension] = []
+
+        if len(targets) >= 2:
+            for i in range(len(targets) - 1):
+                dim = LinearDimension(
+                    target_or_start=targets[i],
+                    target2_or_end=targets[i + 1],
+                    offset=offset,
+                    direction=direction,
+                    view=view,
+                )
+                self.dimensions.append(dim)
+
+    def to_svg(self) -> str:
+        return "".join(d.to_svg() for d in self.dimensions)
