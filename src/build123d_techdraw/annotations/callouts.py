@@ -65,6 +65,7 @@ class BOMBalloon:
     target: tuple[float, float]
     balloon_center: tuple[float, float]
     radius: float = 4.5
+    terminator: str = "dot"  # "dot" or "arrow"
 
     def to_svg(self) -> str:
         tx, ty = self.target
@@ -81,9 +82,14 @@ class BOMBalloon:
         else:
             end_x, end_y = bx, by
 
+        if self.terminator == "arrow" and dist > 0.0:
+            term_elem = render_arrowhead(tx, ty, -dx, -dy, length=2.5, half_width=0.7)
+        else:
+            term_elem = f'<circle cx="{tx:.2f}" cy="{ty:.2f}" r="0.8" class="balloon-dot"/>'
+
         return f"""
         <g class="bom-balloon">
-            <circle cx="{tx:.2f}" cy="{ty:.2f}" r="0.8" class="balloon-dot"/>
+            {term_elem}
             <line x1="{tx:.2f}" y1="{ty:.2f}" x2="{end_x:.2f}" y2="{end_y:.2f}" class="balloon-leader" stroke-width="0.3"/>
             <circle cx="{bx:.2f}" cy="{by:.2f}" r="{r:.2f}" class="balloon-circle" stroke-width="0.4"/>
             <text x="{bx:.2f}" y="{by + 1.2:.2f}" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">{self.item_no}</text>

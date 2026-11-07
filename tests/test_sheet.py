@@ -102,3 +102,29 @@ def test_set_title_block_and_exports(tmp_path: Path) -> None:
     dxf_with_view = str(tmp_path / "part.dxf")
     sheet.export_dxf(dxf_with_view)
     assert (tmp_path / "part.dxf").exists()
+
+
+def test_theme_print_and_switcher() -> None:
+    sheet = DrawingSheet(sheet_size=SheetSize.A4_LANDSCAPE)
+    svg_print = sheet.to_svg(theme="print")
+    assert 'class="theme-iso-white"' in svg_print
+    assert 'id="theme-switcher-btn"' in svg_print
+
+    svg_dark = sheet.to_svg(theme="dark_blueprint")
+    assert 'class="theme-dark-blueprint"' in svg_dark
+
+
+def test_iso_projection_symbols() -> None:
+    from build123d_techdraw.core.title_block import render_title_block_svg
+
+    # Third angle (ISO-A): circle on left (cx="-8"), frustum on right
+    ti_third = TitleBlockInfo(drawing_title="TITLE", drawing_no="DWG-001", third_angle=True)
+    svg_third = render_title_block_svg(ti_third, 100.0, 100.0)
+    assert 'cx="-8"' in svg_third
+    assert 'points="0,-4 8,-7 8,7 0,4"' in svg_third
+
+    # First angle (ISO-E): frustum on left, circle on right (cx="8")
+    ti_first = TitleBlockInfo(drawing_title="TITLE", drawing_no="DWG-001", third_angle=False)
+    svg_first = render_title_block_svg(ti_first, 100.0, 100.0)
+    assert 'cx="8"' in svg_first
+    assert 'points="-8,-4 0,-7 0,7 -8,4"' in svg_first

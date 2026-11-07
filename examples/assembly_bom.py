@@ -19,12 +19,21 @@ def generate_assembly_bom(output_dir: Path) -> None:
     # 1. Build an assembly of labeled components
     base = bd.Box(120.0, 80.0, 20.0)
     base.label = "Machined Baseplate"
+    base.material = "alu_g6061_t6"
+    base.material_spec = "AL 6061-T6"
+    base.part_no = "BP-001"
 
     pin1 = bd.Cylinder(radius=6.0, height=30.0).move(bd.Location((30.0, 20.0, 25.0)))
     pin1.label = "Dowel Pin"
+    pin1.material = "alloy_steel"
+    pin1.material_spec = "STEEL A2"
+    pin1.part_no = "DP-002"
 
     pin2 = bd.Cylinder(radius=6.0, height=30.0).move(bd.Location((-30.0, -20.0, 25.0)))
     pin2.label = "Dowel Pin"
+    pin2.material = "alloy_steel"
+    pin2.material_spec = "STEEL A2"
+    pin2.part_no = "DP-002"
 
     assembly = bd.Compound(children=[base, pin1, pin2])
 
@@ -34,9 +43,15 @@ def generate_assembly_bom(output_dir: Path) -> None:
         title="BASE ASSEMBLY",
         drawing_number="ASM-001",
         author="J. DOE",
-        material="AL 6061-T6 / STEEL",
+        material="SEE BOM",
     )
-    layout = add_standard_multiview(sheet, assembly, scale="auto")
+    layout = add_standard_multiview(
+        sheet,
+        assembly,
+        scale="auto",
+        show_hidden=True,
+        auto_centerlines=True,
+    )
 
     # 3. Automatically tally quantities, populate BOM table, and place radiating balloons
     assert layout.isometric is not None

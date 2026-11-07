@@ -87,6 +87,13 @@
     .balloon-leader { stroke: var(--balloon-border); fill: none; }
     .balloon-circle { fill: var(--balloon-bg); stroke: var(--balloon-border); }
     .balloon-text { fill: var(--balloon-text); }
+    .theme-iso-white .blueprint-grid { display: none; }
+    .theme-iso-white .line-visible, .theme-iso-white #layer_visible, .theme-iso-white #layer_visible * { stroke: #000000; stroke-width: 0.5px; }
+    .theme-iso-white .line-hidden, .theme-iso-white #layer_hidden, .theme-iso-white #layer_hidden * { stroke: #64748B; stroke-width: 0.25px; stroke-dasharray: 2.0, 1.2; }
+    .theme-iso-white .line-center { stroke: #0F172A; stroke-width: 0.25px; stroke-dasharray: 8.0, 1.5, 1.5, 1.5; }
+    .theme-iso-white .dim-line { stroke: #000000; stroke-width: 0.25px; }
+    .theme-iso-white .dim-arrow { fill: #000000; }
+    .theme-iso-white .dim-text { fill: #000000; }
     
     </style>
     <pattern id="techGrid" width="10" height="10" patternUnits="userSpaceOnUse">
@@ -111,6 +118,34 @@
         
         <g class="grid-ticks"><line x1="15.00" y1="5.00" x2="15.00" y2="8.00" class="border-sub"/><line x1="15.00" y1="289.00" x2="15.00" y2="292.00" class="border-sub"/><line x1="64.62" y1="5.00" x2="64.62" y2="8.00" class="border-sub"/><line x1="64.62" y1="289.00" x2="64.62" y2="292.00" class="border-sub"/><line x1="114.25" y1="5.00" x2="114.25" y2="8.00" class="border-sub"/><line x1="114.25" y1="289.00" x2="114.25" y2="292.00" class="border-sub"/><line x1="163.88" y1="5.00" x2="163.88" y2="8.00" class="border-sub"/><line x1="163.88" y1="289.00" x2="163.88" y2="292.00" class="border-sub"/><line x1="213.50" y1="5.00" x2="213.50" y2="8.00" class="border-sub"/><line x1="213.50" y1="289.00" x2="213.50" y2="292.00" class="border-sub"/><line x1="263.12" y1="5.00" x2="263.12" y2="8.00" class="border-sub"/><line x1="263.12" y1="289.00" x2="263.12" y2="292.00" class="border-sub"/><line x1="312.75" y1="5.00" x2="312.75" y2="8.00" class="border-sub"/><line x1="312.75" y1="289.00" x2="312.75" y2="292.00" class="border-sub"/><line x1="362.38" y1="5.00" x2="362.38" y2="8.00" class="border-sub"/><line x1="362.38" y1="289.00" x2="362.38" y2="292.00" class="border-sub"/><line x1="412.00" y1="5.00" x2="412.00" y2="8.00" class="border-sub"/><line x1="412.00" y1="289.00" x2="412.00" y2="292.00" class="border-sub"/><line x1="12.00" y1="8.00" x2="15.00" y2="8.00" class="border-sub"/><line x1="412.00" y1="8.00" x2="415.00" y2="8.00" class="border-sub"/><line x1="12.00" y1="54.83" x2="15.00" y2="54.83" class="border-sub"/><line x1="412.00" y1="54.83" x2="415.00" y2="54.83" class="border-sub"/><line x1="12.00" y1="101.67" x2="15.00" y2="101.67" class="border-sub"/><line x1="412.00" y1="101.67" x2="415.00" y2="101.67" class="border-sub"/><line x1="12.00" y1="148.50" x2="15.00" y2="148.50" class="border-sub"/><line x1="412.00" y1="148.50" x2="415.00" y2="148.50" class="border-sub"/><line x1="12.00" y1="195.33" x2="15.00" y2="195.33" class="border-sub"/><line x1="412.00" y1="195.33" x2="415.00" y2="195.33" class="border-sub"/><line x1="12.00" y1="242.17" x2="15.00" y2="242.17" class="border-sub"/><line x1="412.00" y1="242.17" x2="415.00" y2="242.17" class="border-sub"/><line x1="12.00" y1="289.00" x2="15.00" y2="289.00" class="border-sub"/><line x1="412.00" y1="289.00" x2="415.00" y2="289.00" class="border-sub"/></g>
         <g class="zone-labels"><text x="39.81" y="7.00" class="zone-text">8</text><text x="39.81" y="293.50" class="zone-text">8</text><text x="89.44" y="7.00" class="zone-text">7</text><text x="89.44" y="293.50" class="zone-text">7</text><text x="139.06" y="7.00" class="zone-text">6</text><text x="139.06" y="293.50" class="zone-text">6</text><text x="188.69" y="7.00" class="zone-text">5</text><text x="188.69" y="293.50" class="zone-text">5</text><text x="238.31" y="7.00" class="zone-text">4</text><text x="238.31" y="293.50" class="zone-text">4</text><text x="287.94" y="7.00" class="zone-text">3</text><text x="287.94" y="293.50" class="zone-text">3</text><text x="337.56" y="7.00" class="zone-text">2</text><text x="337.56" y="293.50" class="zone-text">2</text><text x="387.19" y="7.00" class="zone-text">1</text><text x="387.19" y="293.50" class="zone-text">1</text><text x="13.20" y="32.62" class="zone-text">A</text><text x="413.80" y="32.62" class="zone-text">A</text><text x="13.20" y="79.45" class="zone-text">B</text><text x="413.80" y="79.45" class="zone-text">B</text><text x="13.20" y="126.28" class="zone-text">C</text><text x="413.80" y="126.28" class="zone-text">C</text><text x="13.20" y="173.12" class="zone-text">D</text><text x="413.80" y="173.12" class="zone-text">D</text><text x="13.20" y="219.95" class="zone-text">E</text><text x="413.80" y="219.95" class="zone-text">E</text><text x="13.20" y="266.78" class="zone-text">F</text><text x="413.80" y="266.78" class="zone-text">F</text></g>
+        
+  
+  <g id="theme-switcher-btn" style="cursor: pointer;" transform="translate(388.00, 2.00)">
+    <rect width="24" height="4.5" rx="2.25" class="title-bg" stroke-width="0.3"/>
+    <circle class="theme-btn-knob" cx="3" cy="2.25" r="1.5" fill="var(--text-accent)"/>
+    <text x="13.5" y="3.1" class="tb-field-label" font-size="1.8" font-weight="bold" text-anchor="middle">THEME ⇄</text>
+  </g>
+  <script type="text/javascript">
+    <![CDATA[
+    document.addEventListener('DOMContentLoaded', function() {
+      var btn = document.getElementById('theme-switcher-btn');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var svg = document.querySelector('svg');
+          if (svg) {
+            if (svg.classList.contains('theme-iso-white')) {
+              svg.classList.remove('theme-iso-white');
+              svg.classList.add('theme-dark-blueprint');
+            } else {
+              svg.classList.remove('theme-dark-blueprint');
+              svg.classList.add('theme-iso-white');
+            }
+          }
+        });
+      }
+    });
+    ]]>
+  </script>
         
   
     <g class="title-block" transform="translate(267.00, 253.00)">
@@ -139,9 +174,9 @@
 
         <text x="91" y="11.5" class="tb-field-label">PROJECTION</text>
         <g transform="translate(102, 17) scale(0.65)">
-            <polygon points="-8,-4 0,-7 0,7 -8,4" fill="none" class="line-visible" stroke-width="0.35"/>
-            <circle cx="8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>
-            <line x1="-12" y1="0" x2="18" y2="0" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/><line x1="8" y1="-9" x2="8" y2="9" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>
+            <polygon points="0,-4 8,-7 8,7 0,4" fill="none" class="line-visible" stroke-width="0.35"/>
+            <circle cx="-8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="-8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>
+            <line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/><line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>
         </g>
 
         <text x="3" y="25.2" class="tb-field-label">MATERIAL</text>
@@ -150,7 +185,7 @@
         <text x="3" y="35.0" class="tb-field-val-sm" font-size="2.5">STANDARD</text>
 
         <text x="41" y="25.2" class="tb-field-label">SCALE</text>
-        <text x="41" y="28.2" class="tb-field-val-sm">1:1</text>
+        <text x="41" y="28.2" class="tb-field-val-sm">SCALE 1:1</text>
         <text x="41" y="32.0" class="tb-field-label">SHEET</text>
         <text x="41" y="35.0" class="tb-field-val-sm">1 OF 1</text>
 
@@ -251,24 +286,24 @@
   </g>
 
   <g class="view-labels">
-                <text x="141.71" y="215.34" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">FRONT</text>
-                <text x="141.71" y="219.14" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="121.71" y1="216.34" x2="161.71" y2="216.34" class="border-sub" stroke-width="0.3"/>
+                <text x="141.71" y="232.17" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">FRONT</text>
+                <text x="141.71" y="235.97" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="131.71" y1="233.17" x2="151.71" y2="233.17" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="141.71" y="141.94" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">TOP</text>
-                <text x="141.71" y="145.74" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="121.71" y1="142.94" x2="161.71" y2="142.94" class="border-sub" stroke-width="0.3"/>
+                <text x="141.71" y="142.76" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">TOP</text>
+                <text x="141.71" y="146.56" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="131.71" y1="143.76" x2="151.71" y2="143.76" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="260.12" y="215.34" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">RIGHT</text>
-                <text x="260.12" y="219.14" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="240.12" y1="216.34" x2="280.12" y2="216.34" class="border-sub" stroke-width="0.3"/>
+                <text x="260.12" y="216.17" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">RIGHT</text>
+                <text x="260.12" y="219.97" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="250.12" y1="217.17" x2="270.12" y2="217.17" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="260.12" y="153.60" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">ISOMETRIC</text>
-                <text x="260.12" y="157.40" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="240.12" y1="154.60" x2="280.12" y2="154.60" class="border-sub" stroke-width="0.3"/>
+                <text x="260.12" y="154.42" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">ISOMETRIC</text>
+                <text x="260.12" y="158.22" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="247.52" y1="155.42" x2="272.72" y2="155.42" class="border-sub" stroke-width="0.3"/>
                 </g>
 
   <g class="annotations">
-    <line x1="91.54" y1="209.34" x2="91.54" y2="222.14" class="dim-line" stroke-width="0.25"/><line x1="191.89" y1="209.34" x2="191.89" y2="222.14" class="dim-line" stroke-width="0.25"/><line x1="91.54" y1="220.34" x2="191.89" y2="220.34" class="dim-line" stroke-width="0.3"/><polygon points="91.54,220.34 94.04,219.64 94.04,221.04" class="dim-arrow"/><polygon points="191.89,220.34 189.39,221.04 189.39,219.64" class="dim-arrow"/><text x="141.71" y="219.14" class="dim-text" text-anchor="middle" font-size="3.20">100.35</text><line x1="90.54" y1="177.99" x2="77.74" y2="177.99" class="dim-line" stroke-width="0.25"/><line x1="90.54" y1="208.34" x2="77.74" y2="208.34" class="dim-line" stroke-width="0.25"/><line x1="79.54" y1="177.99" x2="79.54" y2="208.34" class="dim-line" stroke-width="0.3"/><polygon points="79.54,177.99 80.24,180.49 78.84,180.49" class="dim-arrow"/><polygon points="79.54,208.34 78.84,205.84 80.24,205.84" class="dim-arrow"/><text x="78.14" y="193.17" transform="rotate(-90 78.14 193.17)" class="dim-text" text-anchor="middle" font-size="3.20">30.35</text><line x1="192.89" y1="84.59" x2="205.69" y2="84.59" class="dim-line" stroke-width="0.25"/><line x1="192.89" y1="134.94" x2="205.69" y2="134.94" class="dim-line" stroke-width="0.25"/><line x1="203.89" y1="84.59" x2="203.89" y2="134.94" class="dim-line" stroke-width="0.3"/><polygon points="203.89,84.59 204.59,87.09 203.19,87.09" class="dim-arrow"/><polygon points="203.89,134.94 203.19,132.44 204.59,132.44" class="dim-arrow"/><text x="202.49" y="109.76" transform="rotate(-90 202.49 109.76)" class="dim-text" text-anchor="middle" font-size="3.20">50.35</text>
+    <line x1="91.71" y1="209.67" x2="91.71" y2="222.17" class="dim-line" stroke-width="0.25"/><line x1="191.71" y1="209.67" x2="191.71" y2="222.17" class="dim-line" stroke-width="0.25"/><line x1="91.71" y1="220.17" x2="191.71" y2="220.17" class="dim-line" stroke-width="0.3"/><polygon points="91.71,220.17 94.21,219.47 94.21,220.87" class="dim-arrow"/><polygon points="191.71,220.17 189.21,220.87 189.21,219.47" class="dim-arrow"/><text x="141.71" y="218.97" class="dim-text" text-anchor="middle" font-size="3.20">100</text><line x1="90.21" y1="178.17" x2="77.71" y2="178.17" class="dim-line" stroke-width="0.25"/><line x1="90.21" y1="208.17" x2="77.71" y2="208.17" class="dim-line" stroke-width="0.25"/><line x1="79.71" y1="178.17" x2="79.71" y2="208.17" class="dim-line" stroke-width="0.3"/><polygon points="79.71,178.17 80.41,180.67 79.01,180.67" class="dim-arrow"/><polygon points="79.71,208.17 79.01,205.67 80.41,205.67" class="dim-arrow"/><text x="78.31" y="193.17" transform="rotate(-90 78.31 193.17)" class="dim-text" text-anchor="middle" font-size="3.20">30</text><line x1="193.21" y1="84.76" x2="205.71" y2="84.76" class="dim-line" stroke-width="0.25"/><line x1="193.21" y1="134.76" x2="205.71" y2="134.76" class="dim-line" stroke-width="0.25"/><line x1="203.71" y1="84.76" x2="203.71" y2="134.76" class="dim-line" stroke-width="0.3"/><polygon points="203.71,84.76 204.41,87.26 203.01,87.26" class="dim-arrow"/><polygon points="203.71,134.76 203.01,132.26 204.41,132.26" class="dim-arrow"/><text x="202.31" y="109.76" transform="rotate(-90 202.31 109.76)" class="dim-text" text-anchor="middle" font-size="3.20">50</text>
   </g>
 </svg>

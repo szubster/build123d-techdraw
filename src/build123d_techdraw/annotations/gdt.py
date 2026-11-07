@@ -1,8 +1,11 @@
 """ISO 1101 and ASME Y14.5 Geometric Dimensioning and Tolerancing (GD&T) annotations."""
 
 import html
+import math
 from dataclasses import dataclass
 from enum import Enum
+
+from build123d_techdraw.annotations.dimensions import render_arrowhead
 
 
 class GDTCharacteristic(Enum):
@@ -37,6 +40,7 @@ class FeatureControlFrame:
     frame_height: float = 6.0
     symbol_font_size: float = 3.6
     text_font_size: float = 3.0
+    leader_target: tuple[float, float] | None = None
 
     def to_svg(self) -> str:
         x, y = self.position
@@ -54,7 +58,24 @@ class FeatureControlFrame:
         datum_w = 7.0
         total_w = sym_w + tol_w + len(datums) * datum_w
 
+        leader_svg = ""
+        if self.leader_target is not None:
+            tx, ty = self.leader_target
+            att_x = x if tx < x else (x + total_w if tx > x + total_w else x + total_w / 2.0)
+            att_y = y + h / 2.0
+            dx = att_x - tx
+            dy = att_y - ty
+            dist = math.hypot(dx, dy)
+            arrow_svg = (
+                render_arrowhead(tx, ty, -dx, -dy, length=2.5, half_width=0.7) if dist > 0 else ""
+            )
+            leader_svg = f"""
+            {arrow_svg}
+            <line x1="{tx:.2f}" y1="{ty:.2f}" x2="{att_x:.2f}" y2="{att_y:.2f}" class="dim-line" stroke-width="0.3"/>
+            """
+
         elements: list[str] = [
+            leader_svg,
             f'<rect x="{x:.2f}" y="{y:.2f}" width="{total_w:.2f}" height="{h:.2f}" class="title-bg" stroke-width="0.35"/>',
             f'<line x1="{x + sym_w:.2f}" y1="{y:.2f}" x2="{x + sym_w:.2f}" y2="{y + h:.2f}" class="border-sub" stroke-width="0.3"/>',
             # Characteristic symbol

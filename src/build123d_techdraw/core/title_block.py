@@ -88,18 +88,7 @@ def render_title_block_svg(
     fin_font = "1.9" if len(info.finish) > 18 else "2.1" if len(info.finish) > 13 else "2.5"
 
     if info.third_angle:
-        # ISO 5456-2 Third Angle Projection symbol (circles to right of frustum)
-        cone_poly = '<polygon points="-8,-4 0,-7 0,7 -8,4" fill="none" class="line-visible" stroke-width="0.35"/>'
-        circles = (
-            '<circle cx="8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/>'
-            '<circle cx="8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>'
-        )
-        centerlines = (
-            '<line x1="-12" y1="0" x2="18" y2="0" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>'
-            '<line x1="8" y1="-9" x2="8" y2="9" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>'
-        )
-    else:
-        # ISO 5456-2 First Angle Projection symbol (circles to left of frustum)
+        # ISO 5456-2 Third Angle Projection symbol (circles to left of frustum)
         circles = (
             '<circle cx="-8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/>'
             '<circle cx="-8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>'
@@ -108,6 +97,17 @@ def render_title_block_svg(
         centerlines = (
             '<line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>'
             '<line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>'
+        )
+    else:
+        # ISO 5456-2 First Angle Projection symbol (frustum to left of circles)
+        cone_poly = '<polygon points="-8,-4 0,-7 0,7 -8,4" fill="none" class="line-visible" stroke-width="0.35"/>'
+        circles = (
+            '<circle cx="8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/>'
+            '<circle cx="8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>'
+        )
+        centerlines = (
+            '<line x1="-12" y1="0" x2="18" y2="0" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>'
+            '<line x1="8" y1="-9" x2="8" y2="9" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>'
         )
 
     return f"""

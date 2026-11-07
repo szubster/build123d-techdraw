@@ -7,6 +7,7 @@ from enum import Enum
 class Theme(Enum):
     DARK_BLUEPRINT = "dark_blueprint"
     ISO_WHITE = "iso_white"
+    PRINT = "iso_white"
 
 
 @dataclass(frozen=True)
@@ -175,4 +176,11 @@ def generate_theme_css(default_theme: Theme = Theme.DARK_BLUEPRINT) -> str:
     .balloon-leader {{ stroke: var(--balloon-border); fill: none; }}
     .balloon-circle {{ fill: var(--balloon-bg); stroke: var(--balloon-border); }}
     .balloon-text {{ fill: var(--balloon-text); }}
+    .theme-iso-white .blueprint-grid {{ display: none; }}
+    .theme-iso-white .line-visible, .theme-iso-white #layer_visible, .theme-iso-white #layer_visible * {{ stroke: #000000; stroke-width: 0.5px; }}
+    .theme-iso-white .line-hidden, .theme-iso-white #layer_hidden, .theme-iso-white #layer_hidden * {{ stroke: #64748B; stroke-width: 0.25px; stroke-dasharray: 2.0, 1.2; }}
+    .theme-iso-white .line-center {{ stroke: #0F172A; stroke-width: 0.25px; stroke-dasharray: 8.0, 1.5, 1.5, 1.5; }}
+    .theme-iso-white .dim-line {{ stroke: #000000; stroke-width: 0.25px; }}
+    .theme-iso-white .dim-arrow {{ fill: #000000; }}
+    .theme-iso-white .dim-text {{ fill: #000000; }}
     """

@@ -69,8 +69,8 @@ class LinearDimension:
     def to_svg(self) -> str:
         x1, y1 = self.start
         x2, y2 = self.end
-        ext_gap = 1.0
-        ext_overshoot = 1.8
+        ext_gap = 1.5
+        ext_overshoot = 2.0
 
         if self.dim_type == DimensionType.HORIZONTAL:
             # Horizontal dimension across x1, x2

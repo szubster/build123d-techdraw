@@ -54,6 +54,19 @@ def test_gdt_feature_control_frames() -> None:
     assert "0.02" in svg_perp
 
 
+def test_fcf_leader_target() -> None:
+    fcf = FeatureControlFrame(
+        position=(50.0, 50.0),
+        characteristic=GDTCharacteristic.FLATNESS,
+        tolerance_value="0.05",
+        leader_target=(30.0, 60.0),
+    )
+    svg = fcf.to_svg()
+    assert 'class="dim-arrow"' in svg
+    assert 'class="dim-line"' in svg
+    assert "⏥" in svg
+
+
 def test_datum_feature_symbols() -> None:
     for direction in ["up", "down", "left", "right"]:
         sym = DatumFeatureSymbol(target=(60.0, 60.0), label="B", direction=direction)
