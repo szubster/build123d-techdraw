@@ -1,8 +1,13 @@
 """ISO 1302 surface roughness and texture symbols."""
 
+from __future__ import annotations
+
 import html
-from dataclasses import dataclass
 from enum import Enum
+from typing import Any
+
+from build123d_techdraw.annotations.resolver import is_topological_entity, resolve_point_to_sheet
+from build123d_techdraw.context import CURRENT_VIEW
 
 
 class MaterialRemoval(Enum):
@@ -11,15 +16,57 @@ class MaterialRemoval(Enum):
     PROHIBITED = "prohibited"  # Circle in vertex (no material removal)
 
 
-@dataclass
 class SurfaceFinishSymbol:
     """ISO 1302 surface texture / roughness symbol."""
 
-    position: tuple[float, float]
-    ra_value: str = "Ra 3.2"
-    material_removal: MaterialRemoval = MaterialRemoval.REQUIRED
-    process: str | None = None
-    scale: float = 1.0
+    def __init__(
+        self,
+        target_or_pos: Any = None,
+        ra_value: str = "Ra 3.2",
+        material_removal: MaterialRemoval = MaterialRemoval.REQUIRED,
+        process: str | None = None,
+        scale: float = 1.0,
+        position: tuple[float, float] | None = None,
+        target: Any = None,
+        view: Any | None = None,
+    ):
+        self.ra_value = ra_value
+        self.material_removal = material_removal
+        self.process = process
+        self.scale = scale
+        self.view = view
+        self.resolved = False
+
+        effective_target = target if target is not None else target_or_pos
+
+        if position is not None:
+            self.position = (float(position[0]), float(position[1]))
+            self.resolved = True
+        elif (
+            effective_target is not None
+            and not is_topological_entity(effective_target)
+            and isinstance(effective_target, (tuple, list))
+        ):
+            self.position = (float(effective_target[0]), float(effective_target[1]))
+            self.resolved = True
+        else:
+            self.position = (0.0, 0.0)
+            self.target = effective_target
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if not self.resolved and self.target is not None:
+            self.position = resolve_point_to_sheet(self.target, view)
+            self.resolved = True
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
+            view.sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         x, y = self.position
@@ -59,10 +106,14 @@ class SurfaceFinishSymbol:
             f'<text x="{text_x:.2f}" y="{text_y:.2f}" class="dim-text" font-size="{2.8 * s:.2f}">{html.escape(self.ra_value)}</text>'
         )
 
+        # Optional process description above Ra
         if self.process:
-            proc_y = p_right[1] + 3.2 * s
             elements.append(
-                f'<text x="{text_x:.2f}" y="{proc_y:.2f}" class="notes-text" font-size="{2.2 * s:.2f}">{html.escape(self.process)}</text>'
+                f'<text x="{text_x:.2f}" y="{text_y - 3.2 * s:.2f}" class="tb-field-val" font-size="{2.2 * s:.2f}">{html.escape(self.process)}</text>'
             )
 
         return f'<g class="surface-finish-symbol">{"".join(elements)}</g>'
+
+
+# Familiar build123d-style alias
+SurfaceFinish = SurfaceFinishSymbol

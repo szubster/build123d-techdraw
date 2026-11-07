@@ -2,7 +2,7 @@
 
 import os
 from enum import Enum
-from typing import Any
+from typing import Any, Self
 
 import build123d as bd
 
@@ -31,6 +31,7 @@ from build123d_techdraw.annotations.surface import (
     MaterialRemoval,
     SurfaceFinishSymbol,
 )
+from build123d_techdraw.context import CURRENT_SHEET
 from build123d_techdraw.core.title_block import (
     BOMItem,
     RevisionEntry,
@@ -119,6 +120,56 @@ class DrawingSheet:
 
         self.custom_svg_elements: list[str] = []
         self.annotations: list[Any] = []
+        self._ctx_token: Any = None
+
+    def __enter__(self) -> Self:
+        self._ctx_token = CURRENT_SHEET.set(self)
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        if self._ctx_token is not None:
+            CURRENT_SHEET.reset(self._ctx_token)
+            self._ctx_token = None
+
+    def __iadd__(self, item: Any) -> Self:
+        return self.add(item)
+
+    def __add__(self, item: Any) -> Self:
+        return self.add(item)
+
+    def add(self, item: Any) -> Self:
+        """Add a view, layout, annotation, title block, or notes to the drawing sheet."""
+        if isinstance(item, (list, tuple, set)):
+            for sub_item in item:
+                self.add(sub_item)
+            return self
+
+        if hasattr(item, "_apply_to_sheet"):
+            item._apply_to_sheet(self)
+            return self
+
+        if hasattr(item, "views") and isinstance(item.views, dict):
+            for v in item.views.values():
+                self.add_view(v)
+            return self
+
+        if isinstance(item, SheetView):
+            self.add_view(item)
+            return self
+
+        if isinstance(item, TitleBlockInfo):
+            self.title_info = item
+            return self
+
+        self.annotations.append(item)
+        if hasattr(item, "sheet"):
+            item.sheet = self
+        return self
 
     def set_title_block(
         self,
@@ -233,7 +284,11 @@ class DrawingSheet:
                 model_origin=model_origin,
             )
         view.sheet = self
-        self.views.append(view)
+        if view not in self.views:
+            self.views.append(view)
+        for ann in getattr(view, "annotations", []):
+            if ann not in self.annotations:
+                self.annotations.append(ann)
         return view
 
     def add_section_view(
@@ -258,7 +313,11 @@ class DrawingSheet:
             model_origin=model_origin,
         )
         view.sheet = self
-        self.views.append(view)
+        if view not in self.views:
+            self.views.append(view)
+        for ann in getattr(view, "annotations", []):
+            if ann not in self.annotations:
+                self.annotations.append(ann)
         return view
 
     def add_dimension(

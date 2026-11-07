@@ -77,3 +77,44 @@ section_view = sheet.add_section_view(
     view_label="SECTION A-A",
 )
 ```
+
+---
+
+## 🏗️ Builder Mode vs Algebraic Mode
+
+`build123d-techdraw` supports both `build123d` programming paradigms:
+
+### Builder Mode (`BuildSheet`)
+```python
+with BuildSheet(SheetSize.A3_LANDSCAPE) as sheet:
+    TitleBlock(title="BRACKET", drawing_no="DWG-001")
+    GeneralNotes(["1. ALL DIMENSIONS IN MM."])
+
+    with FrontView(part, center=(130, 150), scale=1.0) as front:
+        CenterMark(hole_face)
+        LinearDimension(part.edges().filter_by(bd.Axis.Z)[0], offset=-15.0)
+
+    with TopView(part, center=(130, 230), scale=1.0):
+        LinearDimension(v_min, v_max, offset=15.0, direction="horizontal")
+
+    with IsometricView(part, center=(320, 190), scale=0.8):
+        pass
+```
+
+### Algebraic Mode
+```python
+sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+sheet += TitleBlock(title="BRACKET", drawing_no="DWG-001")
+
+front = FrontView(part, scale=1.0).locate((130, 150))
+top = TopView(part, scale=1.0).align_to(front, direction="above", spacing=25.0)
+iso = IsometricView(part, scale=0.8).align_to(front, direction="right", spacing=50.0)
+
+front += [
+    CenterMark(hole_face),
+    LinearDimension(part.edges().filter_by(bd.Axis.Z)[0], offset=-15.0),
+]
+top += LinearDimension(v_min, v_max, offset=15.0, direction="horizontal")
+
+sheet += [front, top, iso]
+```

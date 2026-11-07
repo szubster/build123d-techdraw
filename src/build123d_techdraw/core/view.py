@@ -4,7 +4,7 @@ import os
 import re
 import tempfile
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Self
 
 import build123d as bd
 
@@ -22,6 +22,7 @@ from build123d_techdraw.annotations.gdt import (
     GDTCharacteristic,
 )
 from build123d_techdraw.annotations.surface import MaterialRemoval, SurfaceFinishSymbol
+from build123d_techdraw.context import CURRENT_VIEW
 from build123d_techdraw.core.scale import format_iso_scale
 
 if TYPE_CHECKING:
@@ -109,10 +110,126 @@ class SheetView:
         self.orig_cy = orig_cy
 
         self.svg_content = svg_content
+        self.inner_svg_content: str = ""
+        self.rotation_angle_deg: float = 0.0
         self.view_label = view_label
         self.view_label_pos = view_label_pos
         self.scale_label = scale_label
         self.bottom_annotation_y: float = self.max_y
+        self.annotations: list[Any] = []
+        self._ctx_token: Any = None
+
+    def __enter__(self) -> Self:
+        self._ctx_token = CURRENT_VIEW.set(self)
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        if self._ctx_token is not None:
+            CURRENT_VIEW.reset(self._ctx_token)
+            self._ctx_token = None
+
+    def __iadd__(self, item: Any) -> Self:
+        return self.add(item)
+
+    def __add__(self, item: Any) -> Self:
+        return self.add(item)
+
+    def add(self, item: Any) -> Self:
+        """Attach an annotation or collection of annotations to this view."""
+        if isinstance(item, (list, tuple, set)):
+            for sub_item in item:
+                self.add(sub_item)
+            return self
+
+        if hasattr(item, "_attach_to_view"):
+            item._attach_to_view(self)
+
+        if item not in self.annotations:
+            self.annotations.append(item)
+
+        if self.sheet is not None and item not in self.sheet.annotations:
+            self.sheet.annotations.append(item)
+
+        return self
+
+    def _update_transform(self) -> None:
+        """Regenerate the view's SVG transform after moving or scaling."""
+        if not self.inner_svg_content:
+            return
+        rot_str = (
+            f" rotate({self.rotation_angle_deg:.1f}, {self.orig_cx:.2f}, {self.orig_cy:.2f})"
+            if self.rotation_angle_deg != 0.0
+            else ""
+        )
+        transform = (
+            f"translate({self.center_x:.2f}, {self.center_y:.2f}) "
+            f"scale({self.scale:.4f}, {self.scale:.4f}){rot_str} "
+            f"translate({-self.orig_cx:.2f}, {-self.orig_cy:.2f})"
+        )
+        view_id = f"view_{self.view_type.value}_{int(self.center_x)}_{int(self.center_y)}"
+        self.svg_content = f"""
+    <!-- View: {self.view_type.value.upper()} at ({self.center_x}, {self.center_y}) scale={self.scale} -->
+    <g id="{view_id}" class="sheet-view" transform="{transform}">
+        {self.inner_svg_content}
+    </g>
+    """
+
+    def locate(self, center: tuple[float, float]) -> Self:
+        """Reposition the view center on the sheet (in paper mm)."""
+        self.center_x = float(center[0])
+        self.center_y = float(center[1])
+        self.min_x = self.center_x - self.width / 2.0
+        self.max_x = self.center_x + self.width / 2.0
+        self.min_y = self.center_y - self.height / 2.0
+        self.max_y = self.center_y + self.height / 2.0
+        self._update_transform()
+        return self
+
+    def scale_to(self, scale: float) -> Self:
+        """Change the view scale factor and update its bounding box."""
+        if self.scale != 0.0:
+            ratio = scale / self.scale
+            self.width *= ratio
+            self.height *= ratio
+        self.scale = scale
+        self.min_x = self.center_x - self.width / 2.0
+        self.max_x = self.center_x + self.width / 2.0
+        self.min_y = self.center_y - self.height / 2.0
+        self.max_y = self.center_y + self.height / 2.0
+        self.scale_label = format_iso_scale(scale)
+        self._update_transform()
+        return self
+
+    def align_to(
+        self,
+        other: "SheetView",
+        direction: str = "right",
+        spacing: float = 25.0,
+    ) -> Self:
+        """Align this view relative to another view on the sheet."""
+        d = direction.lower()
+        if d in ("right", "east"):
+            new_cx = other.max_x + spacing + self.width / 2.0
+            new_cy = other.center_y
+        elif d in ("left", "west"):
+            new_cx = other.min_x - spacing - self.width / 2.0
+            new_cy = other.center_y
+        elif d in ("above", "top", "north"):
+            new_cx = other.center_x
+            new_cy = other.min_y - spacing - self.height / 2.0
+        elif d in ("below", "bottom", "south"):
+            new_cx = other.center_x
+            new_cy = other.max_y + spacing + self.height / 2.0
+        else:
+            raise ValueError(
+                f"Unknown alignment direction '{direction}'. Use 'above', 'below', 'right', or 'left'."
+            )
+        return self.locate((new_cx, new_cy))
 
     @property
     def center(self) -> tuple[float, float]:
@@ -727,7 +844,7 @@ def project_shape_to_view(
         p_x = None
         p_y = None
 
-    return SheetView(
+    view_res = SheetView(
         view_type=view_type,
         center_x=center_x,
         center_y=center_y,
@@ -746,6 +863,9 @@ def project_shape_to_view(
         scale_label=scale_str,
         shape=shape,
     )
+    view_res.inner_svg_content = inner_content
+    view_res.rotation_angle_deg = rotation_angle_deg
+    return view_res
 
 
 def project_section_to_view(
@@ -829,7 +949,7 @@ def project_section_to_view(
 
     orig_u, orig_v = model_origin if model_origin is not None else (0.0, 0.0)
 
-    return SheetView(
+    view_res = SheetView(
         view_type=ViewType.SECTION,
         center_x=center_x,
         center_y=center_y,
@@ -845,3 +965,5 @@ def project_section_to_view(
         scale_label=scale_str,
         shape=shape,
     )
+    view_res.inner_svg_content = inner_content
+    return view_res

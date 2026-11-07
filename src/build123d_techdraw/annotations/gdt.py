@@ -1,11 +1,15 @@
 """ISO 1101 and ASME Y14.5 Geometric Dimensioning and Tolerancing (GD&T) annotations."""
 
+from __future__ import annotations
+
 import html
 import math
-from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 from build123d_techdraw.annotations.dimensions import render_arrowhead
+from build123d_techdraw.annotations.resolver import is_topological_entity, resolve_point_to_sheet
+from build123d_techdraw.context import CURRENT_VIEW
 
 
 class GDTCharacteristic(Enum):
@@ -27,20 +31,79 @@ class GDTCharacteristic(Enum):
     TOTAL_RUNOUT = "⇗"
 
 
-@dataclass
 class FeatureControlFrame:
     """ISO 1101 Feature Control Frame ([ Symbol | Tolerance | Datum A | Datum B | Datum C ])."""
 
-    position: tuple[float, float]
-    characteristic: GDTCharacteristic
-    tolerance_value: str
-    datum_a: str | None = None
-    datum_b: str | None = None
-    datum_c: str | None = None
-    frame_height: float = 6.0
-    symbol_font_size: float = 3.6
-    text_font_size: float = 3.0
-    leader_target: tuple[float, float] | None = None
+    def __init__(
+        self,
+        characteristic: GDTCharacteristic = GDTCharacteristic.FLATNESS,
+        tolerance_value: str = "0.05",
+        datum_a: str | None = None,
+        datum_b: str | None = None,
+        datum_c: str | None = None,
+        position: tuple[float, float] | None = None,
+        target: Any = None,
+        leader_offset: tuple[float, float] = (12.0, -10.0),
+        frame_height: float = 6.0,
+        symbol_font_size: float = 3.6,
+        text_font_size: float = 3.0,
+        leader_target: tuple[float, float] | None = None,
+        datum_refs: list[str] | None = None,
+        view: Any | None = None,
+    ):
+        self.characteristic = characteristic
+        self.tolerance_value = tolerance_value
+        self.frame_height = frame_height
+        self.symbol_font_size = symbol_font_size
+        self.text_font_size = text_font_size
+        self.leader_offset = leader_offset
+        self.view = view
+        self.target = target if target is not None else leader_target
+        self.resolved = False
+
+        if datum_refs:
+            self.datum_a = datum_refs[0] if len(datum_refs) > 0 else None
+            self.datum_b = datum_refs[1] if len(datum_refs) > 1 else None
+            self.datum_c = datum_refs[2] if len(datum_refs) > 2 else None
+        else:
+            self.datum_a = datum_a
+            self.datum_b = datum_b
+            self.datum_c = datum_c
+
+        if position is not None:
+            self.position = (float(position[0]), float(position[1]))
+            self.position_explicit = True
+        else:
+            self.position = (100.0, 100.0)
+            self.position_explicit = False
+
+        self.leader_target: tuple[float, float] | None
+        if leader_target is not None and not is_topological_entity(leader_target):
+            self.leader_target = (float(leader_target[0]), float(leader_target[1]))
+            self.resolved = True
+        else:
+            self.leader_target = None
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if not self.resolved and self.target is not None:
+            target_pt = resolve_point_to_sheet(self.target, view)
+            self.leader_target = target_pt
+            if not self.position_explicit:
+                self.position = (
+                    target_pt[0] + self.leader_offset[0],
+                    target_pt[1] + self.leader_offset[1],
+                )
+            self.resolved = True
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
+            view.sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         x, y = self.position
@@ -97,15 +160,49 @@ class FeatureControlFrame:
         return f'<g class="gdt-fcf">{"".join(elements)}</g>'
 
 
-@dataclass
 class DatumFeatureSymbol:
     """ISO 1101 Datum Feature Identifier tag (e.g. —▲— [A])."""
 
-    target: tuple[float, float]
-    label: str = "A"
-    stem_length: float = 7.0
-    box_size: float = 5.5
-    direction: str = "up"  # "up", "down", "left", "right"
+    def __init__(
+        self,
+        label: str = "A",
+        target: Any = None,
+        stem_length: float = 7.0,
+        box_size: float = 5.5,
+        direction: str = "up",
+        view: Any | None = None,
+    ):
+        self.label = label
+        self.stem_length = stem_length
+        self.box_size = box_size
+        self.direction = direction
+        self.view = view
+        self.raw_target = target
+        self.target: tuple[float, float] = (0.0, 0.0)
+        self.resolved = False
+
+        if (
+            target is not None
+            and not is_topological_entity(target)
+            and isinstance(target, (tuple, list))
+        ):
+            self.target = (float(target[0]), float(target[1]))
+            self.resolved = True
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if not self.resolved and self.raw_target is not None:
+            self.target = resolve_point_to_sheet(self.raw_target, view)
+            self.resolved = True
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
+            view.sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         tx, ty = self.target
@@ -144,3 +241,7 @@ class DatumFeatureSymbol:
         ]
 
         return f'<g class="datum-symbol">{"".join(elements)}</g>'
+
+
+# Familiar build123d-style alias
+DatumFeature = DatumFeatureSymbol

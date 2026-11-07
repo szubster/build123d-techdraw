@@ -1,23 +1,85 @@
 """Callouts, leader notes, BOM balloons, and section cutting lines."""
 
+from __future__ import annotations
+
 import html
 import math
-from dataclasses import dataclass
+from typing import Any
 
 from build123d_techdraw.annotations.dimensions import render_arrowhead
+from build123d_techdraw.annotations.resolver import is_topological_entity, resolve_point_to_sheet
+from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
 
-@dataclass
 class LeaderNote:
     """Multi-line leader note with pointer dot/arrow, elbow, and horizontal shelf."""
 
-    target: tuple[float, float]
-    lines: list[str]
-    elbow_offset: tuple[float, float] = (15.0, -12.0)
-    shelf_length: float = 20.0
-    align_right: bool | None = None
-    terminator: str = "dot"  # "dot" or "arrow"
-    font_size: float = 2.8
+    def __init__(
+        self,
+        target_or_text: Any = None,
+        lines_or_target: Any = None,
+        elbow_offset: tuple[float, float] = (15.0, -12.0),
+        shelf_length: float = 20.0,
+        align_right: bool | None = None,
+        terminator: str = "dot",
+        font_size: float = 2.8,
+        target: Any = None,
+        lines: list[str] | str | None = None,
+        text: str | list[str] | None = None,
+        leader_offset: tuple[float, float] | None = None,
+        view: Any | None = None,
+    ):
+        self.shelf_length = shelf_length
+        self.align_right = align_right
+        self.terminator = terminator
+        self.font_size = font_size
+        self.elbow_offset = leader_offset or elbow_offset
+        self.view = view
+        self.raw_target: Any = None
+        self.target: tuple[float, float] = (0.0, 0.0)
+        self.resolved = False
+
+        # Parse text / lines
+        raw_text = text or lines
+        if raw_text is None:
+            if isinstance(target_or_text, (str, list)):
+                raw_text = target_or_text
+                self.raw_target = target or lines_or_target
+            elif isinstance(lines_or_target, (str, list)):
+                raw_text = lines_or_target
+                self.raw_target = target or target_or_text
+        else:
+            self.raw_target = target or target_or_text
+
+        if isinstance(raw_text, str):
+            self.lines = [raw_text]
+        elif isinstance(raw_text, list):
+            self.lines = list(raw_text)
+        else:
+            self.lines = ["NOTE"]
+
+        if (
+            self.raw_target is not None
+            and not is_topological_entity(self.raw_target)
+            and isinstance(self.raw_target, (tuple, list))
+        ):
+            self.target = (float(self.raw_target[0]), float(self.raw_target[1]))
+            self.resolved = True
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if not self.resolved and self.raw_target is not None:
+            self.target = resolve_point_to_sheet(self.raw_target, view)
+            self.resolved = True
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
+            view.sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         tx, ty = self.target
@@ -57,15 +119,67 @@ class LeaderNote:
         return f'<g class="leader-note">{"".join(elements)}</g>'
 
 
-@dataclass
 class BOMBalloon:
     """ISO BOM balloon callout circle connected to component via leader."""
 
-    item_no: int
-    target: tuple[float, float]
-    balloon_center: tuple[float, float]
-    radius: float = 4.5
-    terminator: str = "dot"  # "dot" or "arrow"
+    def __init__(
+        self,
+        item_no: int,
+        target: Any = None,
+        balloon_center: tuple[float, float] | None = None,
+        radius: float = 4.5,
+        terminator: str = "dot",
+        leader_offset: tuple[float, float] = (15.0, -15.0),
+        view: Any | None = None,
+    ):
+        self.item_no = item_no
+        self.radius = radius
+        self.terminator = terminator
+        self.leader_offset = leader_offset
+        self.view = view
+        self.raw_target = target
+        self.target: tuple[float, float] = (0.0, 0.0)
+        self.resolved = False
+
+        if balloon_center is not None:
+            self.balloon_center = (float(balloon_center[0]), float(balloon_center[1]))
+            self.center_explicit = True
+        else:
+            self.balloon_center = (0.0, 0.0)
+            self.center_explicit = False
+
+        if (
+            target is not None
+            and not is_topological_entity(target)
+            and isinstance(target, (tuple, list))
+        ):
+            self.target = (float(target[0]), float(target[1]))
+            if not self.center_explicit:
+                self.balloon_center = (
+                    self.target[0] + self.leader_offset[0],
+                    self.target[1] + self.leader_offset[1],
+                )
+            self.resolved = True
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if not self.resolved and self.raw_target is not None:
+            self.target = resolve_point_to_sheet(self.raw_target, view)
+            if not self.center_explicit:
+                self.balloon_center = (
+                    self.target[0] + self.leader_offset[0],
+                    self.target[1] + self.leader_offset[1],
+                )
+            self.resolved = True
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        if getattr(view, "sheet", None) is not None and self not in view.sheet.annotations:
+            view.sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         tx, ty = self.target
@@ -97,16 +211,38 @@ class BOMBalloon:
         """
 
 
-@dataclass
 class SectionCuttingLine:
     """ISO cutting plane line with thick termination segments and viewing direction arrows."""
 
-    start: tuple[float, float]
-    end: tuple[float, float]
-    label: str = "A"
-    arrow_dir: str = "up"  # "up", "down", "left", "right"
-    thick_length: float = 8.0
-    arrow_length: float = 6.0
+    def __init__(
+        self,
+        start: tuple[float, float],
+        end: tuple[float, float],
+        label: str = "A",
+        arrow_dir: str = "up",
+        thick_length: float = 8.0,
+        arrow_length: float = 6.0,
+        view: Any | None = None,
+    ):
+        self.start = (float(start[0]), float(start[1]))
+        self.end = (float(end[0]), float(end[1]))
+        self.label = label
+        self.arrow_dir = arrow_dir
+        self.thick_length = thick_length
+        self.arrow_length = arrow_length
+        self.view = view
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            if hasattr(target_view, "annotations") and self not in target_view.annotations:
+                target_view.annotations.append(self)
+            t_sheet = getattr(target_view, "sheet", None)
+            if t_sheet is not None and self not in t_sheet.annotations:
+                t_sheet.annotations.append(self)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
 
     def to_svg(self) -> str:
         x1, y1 = self.start

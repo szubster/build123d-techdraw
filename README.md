@@ -96,6 +96,94 @@ sheet.export_dxf("flat_pattern.dxf")
 
 ---
 
+## 🎨 Native build123d Paradigms: Builder & Algebraic Modes
+
+`build123d-techdraw` supports **both programming modes** that `build123d` users love, with **direct 3D topological selections** (`edges()`, `faces()`, `vertices()`):
+
+### 1. 🏗️ Builder Mode (Context Managers & Auto-Registration)
+
+```python
+import build123d as bd
+from build123d_techdraw import (
+    BuildSheet,
+    CenterMark,
+    DatumFeature,
+    FeatureControlFrame,
+    FrontView,
+    GDTCharacteristic,
+    GeneralNotes,
+    IsometricView,
+    LinearDimension,
+    SheetSize,
+    TitleBlock,
+    TopView,
+)
+
+with BuildSheet(SheetSize.A3_LANDSCAPE) as sheet:
+    TitleBlock(title="BRACKET BLUEPRINT", drawing_no="DWG-001", material="AL 6061-T6")
+    GeneralNotes(["1. ALL DIMENSIONS IN MILLIMETERS.", "2. ISO 2768-mK."])
+
+    # Front View with topological annotations
+    with FrontView(part, center=(130.0, 150.0), scale=1.0) as front:
+        CenterMark(part.faces().filter_by(bd.GeomType.CYLINDER)[0])
+        LinearDimension(part.edges().filter_by(bd.Axis.Z).sort_by(bd.Axis.X)[0], offset=-15.0)
+        DatumFeature("A", target=part.faces().sort_by(bd.Axis.Z)[0])
+        FeatureControlFrame(
+            GDTCharacteristic.FLATNESS,
+            tolerance_value="0.05",
+            datum_refs=["A"],
+            target=part.faces().sort_by(bd.Axis.Z)[-1],
+        )
+
+    # Top View with two-vertex dimension
+    with TopView(part, center=(130.0, 230.0), scale=1.0):
+        v_min = part.vertices().sort_by(bd.Axis.X)[0]
+        v_max = part.vertices().sort_by(bd.Axis.X)[-1]
+        LinearDimension(v_min, v_max, offset=15.0, direction="horizontal")
+
+    with IsometricView(part, center=(320.0, 190.0), scale=0.8):
+        pass
+
+sheet.export_svg("bracket_builder.svg")
+```
+
+### 2. ⚡ Algebraic Mode (Operators, Chaining & Composition)
+
+```python
+import build123d as bd
+from build123d_techdraw import (
+    CenterMark,
+    DrawingSheet,
+    FrontView,
+    IsometricView,
+    LinearDimension,
+    SheetSize,
+    TitleBlock,
+    TopView,
+)
+
+sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+sheet += TitleBlock(title="BRACKET BLUEPRINT", drawing_no="DWG-001", material="AL 6061-T6")
+
+# Create views and layout relatively
+front = FrontView(part, scale=1.0).locate((130.0, 150.0))
+top = TopView(part, scale=1.0).align_to(front, direction="above", spacing=25.0)
+iso = IsometricView(part, scale=0.8).align_to(front, direction="right", spacing=50.0)
+
+# Attach dimensions directly to views
+front += CenterMark(part.faces().filter_by(bd.GeomType.CYLINDER)[0])
+front += LinearDimension(part.edges().filter_by(bd.Axis.Z).sort_by(bd.Axis.X)[0], offset=-15.0)
+top += LinearDimension(
+    part.vertices().sort_by(bd.Axis.X)[0], part.vertices().sort_by(bd.Axis.X)[-1], offset=15.0
+)
+
+# Compose onto sheet via operators
+sheet += [front, top, iso]
+sheet.export_svg("bracket_algebraic.svg")
+```
+
+---
+
 ## 🔩 Assembly Blueprint & Automated BOM
 
 ```python
