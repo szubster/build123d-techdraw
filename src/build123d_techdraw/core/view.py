@@ -112,6 +112,7 @@ class SheetView:
         self.view_label = view_label
         self.view_label_pos = view_label_pos
         self.scale_label = scale_label
+        self.bottom_annotation_y: float = self.max_y
 
     @property
     def center(self) -> tuple[float, float]:
@@ -190,6 +191,8 @@ class SheetView:
         )
         if self.sheet is not None:
             self.sheet.annotations.append(dim)
+        if offset_y > 0:
+            self.bottom_annotation_y = max(self.bottom_annotation_y, sy + offset_y + 4.0)
         return dim
 
     def dim_vertical(
@@ -270,6 +273,8 @@ class SheetView:
         )
         if self.sheet is not None:
             self.sheet.annotations.append(dim)
+        if offset_y > 0:
+            self.bottom_annotation_y = max(self.bottom_annotation_y, y_ref + offset_y + 4.0)
         return dim
 
     def add_overall_vertical(
@@ -491,9 +496,17 @@ class SheetView:
         datum_a: str | None = None,
         datum_b: str | None = None,
         datum_c: str | None = None,
+        leader_offset: tuple[float, float] | None = None,
     ) -> FeatureControlFrame:
-        """Add a GD&T Feature Control Frame near (model_x, model_y)."""
-        pos = self.to_sheet_coords(model_x, model_y)
+        """Add a GD&T Feature Control Frame near (model_x, model_y), optionally with a leader line."""
+        target_pos = self.to_sheet_coords(model_x, model_y)
+        if leader_offset is not None:
+            pos = (target_pos[0] + leader_offset[0], target_pos[1] + leader_offset[1])
+            leader_target: tuple[float, float] | None = target_pos
+        else:
+            pos = target_pos
+            leader_target = None
+
         fcf = FeatureControlFrame(
             position=pos,
             characteristic=characteristic,
@@ -501,6 +514,7 @@ class SheetView:
             datum_a=datum_a,
             datum_b=datum_b,
             datum_c=datum_c,
+            leader_target=leader_target,
         )
         if self.sheet is not None:
             self.sheet.annotations.append(fcf)
@@ -609,7 +623,24 @@ def project_shape_to_view(
     inner_content = inner_content.replace('id="visible"', 'id="layer_visible" class="line-visible"')
     inner_content = inner_content.replace('id="hidden"', 'id="layer_hidden" class="line-hidden"')
 
+    # Compute exact geometric bounds from projected 2D geometry (pure CAD coordinates, no stroke inflation)
+    geom_shapes: list[Any] = [dwg.visible_lines]
+    if show_hidden and len(dwg.hidden_lines.edges()) > 0:
+        geom_shapes.append(dwg.hidden_lines)
+
+    try:
+        combined_geom = (
+            geom_shapes[0] if len(geom_shapes) == 1 else bd.Compound(children=geom_shapes)
+        )
+        geom_bb = combined_geom.bounding_box()
+        exact_w = float(geom_bb.size.X)
+        exact_h = float(geom_bb.size.Y)
+    except Exception:
+        exact_w = max(0.0, vb_w - 0.35)
+        exact_h = max(0.0, vb_h - 0.35)
+
     rot_str = f" rotate({rotation_angle_deg})" if rotation_angle_deg != 0 else ""
+
     transform = (
         f"translate({center_x:.2f}, {center_y:.2f}) "
         f"scale({scale:.4f}, {scale:.4f}){rot_str} "
@@ -674,8 +705,8 @@ def project_shape_to_view(
         center_x=center_x,
         center_y=center_y,
         scale=scale,
-        width=vb_w * scale,
-        height=vb_h * scale,
+        width=exact_w * scale,
+        height=exact_h * scale,
         model_origin=(orig_u, orig_v),
         projection_origin=proj_origin,
         proj_x=p_x,
@@ -741,6 +772,14 @@ def project_section_to_view(
     inner_content = inner_content.replace('stroke="rgb(0,0,0)"', 'stroke="var(--line-visible)"')
     inner_content = inner_content.replace('fill="none"', 'fill="url(#sectionHatch)"')
 
+    try:
+        geom_bb = sec_2d.bounding_box()
+        exact_w = float(geom_bb.size.X)
+        exact_h = float(geom_bb.size.Y)
+    except Exception:
+        exact_w = max(0.0, vb_w - 0.35)
+        exact_h = max(0.0, vb_h - 0.35)
+
     transform = (
         f"translate({center_x:.2f}, {center_y:.2f}) "
         f"scale({scale:.4f}, {scale:.4f}) "
@@ -768,8 +807,8 @@ def project_section_to_view(
         center_x=center_x,
         center_y=center_y,
         scale=scale,
-        width=vb_w * scale,
-        height=vb_h * scale,
+        width=exact_w * scale,
+        height=exact_h * scale,
         model_origin=(orig_u, orig_v),
         orig_cx=orig_cx,
         orig_cy=orig_cy,

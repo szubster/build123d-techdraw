@@ -440,6 +440,7 @@ class DrawingSheet:
         target: tuple[float, float],
         balloon_center: tuple[float, float],
         radius: float = 4.5,
+        terminator: str = "dot",
     ) -> BOMBalloon:
         """Add an ISO BOM balloon callout circle connected to component via leader."""
         balloon = BOMBalloon(
@@ -447,6 +448,7 @@ class DrawingSheet:
             target=target,
             balloon_center=balloon_center,
             radius=radius,
+            terminator=terminator,
         )
         self.annotations.append(balloon)
         return balloon
@@ -567,20 +569,32 @@ class DrawingSheet:
         """
 
     def render_view_labels(self) -> str:
-        """Render view titles and scale notes."""
+        """Render view titles and scale notes positioned cleanly below annotations."""
         out: list[str] = []
         for v in self.views:
-            if v.view_label and v.view_label_pos and v.scale_label:
-                vx, vy = v.view_label_pos
+            if v.view_label and v.scale_label:
+                vx = v.center_x
+                # Position label dynamically below any bottom annotations with clearance
+                vy = max(
+                    v.bottom_annotation_y + 8.0,
+                    v.view_label_pos[1] if v.view_label_pos else v.max_y + 8.0,
+                )
+                line_w = max(len(v.view_label) * 2.8, 20.0)
                 out.append(f"""
                 <text x="{vx:.2f}" y="{vy:.2f}" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">{v.view_label}</text>
                 <text x="{vx:.2f}" y="{vy + 3.8:.2f}" class="view-scale" text-anchor="middle" font-size="2.8">{v.scale_label}</text>
-                <line x1="{vx - 20:.2f}" y1="{vy + 1.0:.2f}" x2="{vx + 20:.2f}" y2="{vy + 1.0:.2f}" class="border-sub" stroke-width="0.3"/>
+                <line x1="{vx - line_w / 2:.2f}" y1="{vy + 1.0:.2f}" x2="{vx + line_w / 2:.2f}" y2="{vy + 1.0:.2f}" class="border-sub" stroke-width="0.3"/>
                 """)
         return f'<g class="view-labels">{"".join(out)}</g>'
 
-    def to_svg(self, theme: Theme = Theme.DARK_BLUEPRINT) -> str:
+    def to_svg(self, theme: Theme | str = Theme.DARK_BLUEPRINT) -> str:
         """Render the complete drawing sheet to an SVG vector string."""
+        if isinstance(theme, str):
+            theme = (
+                Theme.ISO_WHITE
+                if theme.lower() in ("print", "white", "iso_white")
+                else Theme.DARK_BLUEPRINT
+            )
         w, h = self.width_mm, self.height_mm
         theme_class = "theme-iso-white" if theme == Theme.ISO_WHITE else "theme-dark-blueprint"
 
@@ -588,6 +602,40 @@ class DrawingSheet:
 
         # Annotation SVG rendering (dimensions, leaders, GD&T, etc.)
         annotation_svgs = "".join([a.to_svg() for a in self.annotations if hasattr(a, "to_svg")])
+
+        # Position BOM table stacked above title block per ISO drafting standard
+        tb_y = h - self.bottom_margin - 36.0
+        bom_h = 5.5 + len(self.bom_items) * 5.2
+        bom_top_y = tb_y - bom_h - 1.0
+
+        toggle_btn_svg = f"""
+  <g id="theme-switcher-btn" style="cursor: pointer;" transform="translate({w - self.right_margin - 24.0:.2f}, {self.top_margin - 6.0:.2f})">
+    <rect width="24" height="4.5" rx="2.25" class="title-bg" stroke-width="0.3"/>
+    <circle class="theme-btn-knob" cx="3" cy="2.25" r="1.5" fill="var(--text-accent)"/>
+    <text x="13.5" y="3.1" class="tb-field-label" font-size="1.8" font-weight="bold" text-anchor="middle">THEME ⇄</text>
+  </g>
+  <script type="text/javascript">
+    <![CDATA[
+    document.addEventListener('DOMContentLoaded', function() {{
+      var btn = document.getElementById('theme-switcher-btn');
+      if (btn) {{
+        btn.addEventListener('click', function() {{
+          var svg = document.querySelector('svg');
+          if (svg) {{
+            if (svg.classList.contains('theme-iso-white')) {{
+              svg.classList.remove('theme-iso-white');
+              svg.classList.add('theme-dark-blueprint');
+            }} else {{
+              svg.classList.remove('theme-dark-blueprint');
+              svg.classList.add('theme-iso-white');
+            }}
+          }}
+        }});
+      }}
+    }});
+    ]]>
+  </script>
+        """
 
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg"
@@ -610,9 +658,10 @@ class DrawingSheet:
   </defs>
 
   {self.render_border_and_grid()}
+  {toggle_btn_svg}
   {render_title_block_svg(self.title_info, w, h, self.right_margin, self.bottom_margin)}
   {render_revision_table_svg(self.revision_rows, w, self.right_margin, self.top_margin)}
-  {render_bom_table_svg(self.bom_items, w, self.right_margin, 22.0)}
+  {render_bom_table_svg(self.bom_items, w, self.right_margin, bom_top_y)}
   {self.render_notes()}
 
   <g class="drawing-views">
@@ -627,20 +676,26 @@ class DrawingSheet:
 </svg>
 """
 
-    def export_svg(self, path: str, theme: Theme = Theme.DARK_BLUEPRINT) -> None:
+    def export_svg(self, path: str, theme: Theme | str = Theme.DARK_BLUEPRINT) -> None:
         """Export sheet to an SVG file."""
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         svg = self.to_svg(theme=theme)
         with open(path, "w", encoding="utf-8") as f:
             f.write(svg)
 
-    def export_pdf(self, path: str, theme: Theme = Theme.DARK_BLUEPRINT) -> None:
+    def export_pdf(self, path: str, theme: Theme | str = Theme.DARK_BLUEPRINT) -> None:
         """Export sheet to a vector PDF file."""
         from build123d_techdraw.renderers.pdf import PDFRenderer
 
+        resolved_theme = (
+            Theme.ISO_WHITE
+            if (isinstance(theme, str) and theme.lower() in ("print", "white", "iso_white"))
+            or theme == Theme.ISO_WHITE
+            else Theme.DARK_BLUEPRINT
+        )
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         PDFRenderer.render_sheets_to_pdf(
-            [(self.width_mm, self.height_mm, self.to_svg(theme))], path, theme
+            [(self.width_mm, self.height_mm, self.to_svg(resolved_theme))], path, resolved_theme
         )
 
     def export_dxf(self, path: str, dxfversion: str = "R2010") -> None:

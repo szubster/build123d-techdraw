@@ -60,6 +60,7 @@ def generate_stepped_bracket(output_dir: Path) -> None:
         model_y=-7.5,
         characteristic=GDTCharacteristic.FLATNESS,
         tolerance_value="0.05",
+        leader_offset=(12.0, -10.0),
     )
 
     # 5. Exporting

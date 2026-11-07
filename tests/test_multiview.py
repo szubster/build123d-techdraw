@@ -136,3 +136,31 @@ def test_assembly_bom_generation_and_balloons() -> None:
     assert "Base Plate" in svg
     assert "Guide Pin" in svg
     assert 'class="bom-balloon"' in svg
+
+
+def test_auto_centerlines_and_exact_dimensions() -> None:
+    part = bd.Box(100.0, 50.0, 30.0)
+    pin = bd.Cylinder(radius=5.0, height=30.0).move(bd.Location((20.0, 0.0, 0.0)))
+    assy = bd.Compound(children=[part, pin])
+
+    sheet = DrawingSheet(sheet_size=SheetSize.A3_LANDSCAPE)
+    _layout = add_standard_multiview(
+        sheet=sheet,
+        shape=assy,
+        scale="auto",
+        auto_dimensions=True,
+        auto_centerlines=True,
+    )
+
+    svg = sheet.to_svg()
+    # Check exact dimension values (no stroke-inflation .35 leak)
+    assert ">100<" in svg
+    assert ">100.35<" not in svg
+    assert ">30<" in svg
+    assert ">30.35<" not in svg
+    assert ">50<" in svg
+    assert ">50.35<" not in svg
+
+    # Check centerlines and centermarks
+    assert 'class="centermark"' in svg
+    assert 'stroke-dasharray="10,2,2,2"' in svg

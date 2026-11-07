@@ -14,7 +14,7 @@ from build123d_techdraw.core.scale import (
     format_iso_scale,
 )
 from build123d_techdraw.core.title_block import BOMItem
-from build123d_techdraw.core.view import SheetView, ViewType
+from build123d_techdraw.core.view import VIEW_VECTORS, SheetView, ViewType
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
@@ -73,6 +73,7 @@ def add_standard_multiview(
     show_labels: bool = True,
     show_scale_label: bool = False,
     auto_dimensions: bool = False,
+    auto_centerlines: bool = False,
 ) -> MultiviewLayout:
     """Generate a standard orthographic multi-view layout on a drawing sheet.
 
@@ -206,6 +207,8 @@ def add_standard_multiview(
     )
 
     is_third_angle = layout.lower() != "first_angle"
+    sheet.title_info.third_angle = is_third_angle
+    sheet.title_info.scale = scale_str
 
     # Positioning mapping
     pos_map: dict[ViewType, tuple[float, float]] = {}
@@ -273,6 +276,48 @@ def add_standard_multiview(
     if auto_dimensions:
         layout_obj.add_overall_dimensions()
 
+    if auto_centerlines:
+        # 1. Add centermarks to circular projected holes/bosses on 2D views
+        for v_type, v_obj in layout_obj.views.items():
+            if v_type == ViewType.ISOMETRIC:
+                continue
+            look_from, look_up = VIEW_VECTORS.get(v_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
+            try:
+                dwg_v = bd.Drawing(shape, look_from=look_from, look_up=look_up)
+                for edge in dwg_v.visible_lines.edges():
+                    if edge.geom_type == bd.GeomType.CIRCLE:
+                        c = edge.arc_center
+                        r = float(edge.radius)
+                        v_obj.centermark(float(c.X), float(c.Y), size=max(r * 1.6, 6.0))
+            except Exception:
+                pass
+
+        # 2. Add vertical centerlines to cylindrical features in Front and Right views
+        try:
+            cyl_faces = [f for f in shape.faces() if f.geom_type == bd.GeomType.CYLINDER]
+            for f in cyl_faces:
+                axis = f.axis_of_rotation
+                if axis is None:
+                    continue
+                f_bb = f.bounding_box()
+                if abs(axis.direction.Z) > 0.8:
+                    if layout_obj.front is not None:
+                        layout_obj.front.centerline_vertical(
+                            model_x=float(axis.position.X),
+                            model_y1=float(f_bb.min.Z),
+                            model_y2=float(f_bb.max.Z),
+                            overhang=4.0,
+                        )
+                    if layout_obj.right is not None:
+                        layout_obj.right.centerline_vertical(
+                            model_x=float(axis.position.Y),
+                            model_y1=float(f_bb.min.Z),
+                            model_y2=float(f_bb.max.Z),
+                            overhang=4.0,
+                        )
+        except Exception:
+            pass
+
     return layout_obj
 
 
@@ -310,13 +355,27 @@ def generate_assembly_bom(assembly: bd.Compound | list[Any]) -> list[BOMItem]:
 
     bom_items: list[BOMItem] = []
     for item_idx, (name, items) in enumerate(grouped.items(), start=1):
+        first = items[0]
+        raw_mat = (
+            getattr(first, "material_spec", None)
+            or getattr(first, "material_name", None)
+            or getattr(first, "material", None)
+        )
+        if raw_mat is not None:
+            if hasattr(raw_mat, "name"):
+                comp_mat = str(raw_mat.name).replace("_", " ").upper()
+            else:
+                comp_mat = str(raw_mat)
+        else:
+            comp_mat = "STANDARD"
+        comp_part_no = getattr(first, "part_no", "") or f"PART-{item_idx:03d}"
         bom_items.append(
             BOMItem(
                 item_no=item_idx,
                 qty=len(items),
-                part_no=f"PART-{item_idx:03d}",
+                part_no=comp_part_no,
                 description=name,
-                material="STANDARD",
+                material=comp_mat,
             )
         )
     return bom_items
@@ -328,6 +387,7 @@ def add_assembly_bom_and_balloons(
     target_view: SheetView,
     balloon_distance: float = 30.0,
     balloon_radius: float = 4.5,
+    balloon_terminator: str = "dot",
 ) -> tuple[list[BOMItem], list[BOMBalloon]]:
     """Automatically populate sheet BOM items and place radiating balloon callouts on target view.
 
@@ -343,6 +403,8 @@ def add_assembly_bom_and_balloons(
         Radial offset in paper mm from the component center to the balloon circle.
     balloon_radius:
         Radius of the balloon circle in paper mm.
+    balloon_terminator:
+        Terminator type at target: 'dot' (inside body) or 'arrow' (on edge).
     """
     components = extract_assembly_components(assembly)
     bom_items = generate_assembly_bom(assembly)
@@ -386,6 +448,7 @@ def add_assembly_bom_and_balloons(
             target=target_pt,
             balloon_center=(bx, by),
             radius=balloon_radius,
+            terminator=balloon_terminator,
         )
         balloons.append(balloon)
 
