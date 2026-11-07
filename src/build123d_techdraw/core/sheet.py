@@ -608,35 +608,6 @@ class DrawingSheet:
         bom_h = 5.5 + len(self.bom_items) * 5.2
         bom_top_y = tb_y - bom_h - 1.0
 
-        toggle_btn_svg = f"""
-  <g id="theme-switcher-btn" style="cursor: pointer;" transform="translate({w - self.right_margin - 24.0:.2f}, {self.top_margin - 6.0:.2f})">
-    <rect width="24" height="4.5" rx="2.25" class="title-bg" stroke-width="0.3"/>
-    <circle class="theme-btn-knob" cx="3" cy="2.25" r="1.5" fill="var(--text-accent)"/>
-    <text x="13.5" y="3.1" class="tb-field-label" font-size="1.8" font-weight="bold" text-anchor="middle">THEME ⇄</text>
-  </g>
-  <script type="text/javascript">
-    <![CDATA[
-    document.addEventListener('DOMContentLoaded', function() {{
-      var btn = document.getElementById('theme-switcher-btn');
-      if (btn) {{
-        btn.addEventListener('click', function() {{
-          var svg = document.querySelector('svg');
-          if (svg) {{
-            if (svg.classList.contains('theme-iso-white')) {{
-              svg.classList.remove('theme-iso-white');
-              svg.classList.add('theme-dark-blueprint');
-            }} else {{
-              svg.classList.remove('theme-dark-blueprint');
-              svg.classList.add('theme-iso-white');
-            }}
-          }}
-        }});
-      }}
-    }});
-    ]]>
-  </script>
-        """
-
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg"
      viewBox="0 0 {w} {h}"
@@ -658,7 +629,6 @@ class DrawingSheet:
   </defs>
 
   {self.render_border_and_grid()}
-  {toggle_btn_svg}
   {render_title_block_svg(self.title_info, w, h, self.right_margin, self.bottom_margin)}
   {render_revision_table_svg(self.revision_rows, w, self.right_margin, self.top_margin)}
   {render_bom_table_svg(self.bom_items, w, self.right_margin, bom_top_y)}
