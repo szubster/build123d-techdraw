@@ -164,7 +164,7 @@ def generate_theme_css(default_theme: Theme = Theme.DARK_BLUEPRINT) -> str:
     .notes-text {{ fill: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 2.4px; }}
     .view-title {{ fill: var(--text-main); letter-spacing: 0.5px; }}
     .view-scale {{ fill: var(--text-muted); }}
-    .line-visible, #layer_visible, #layer_visible * {{ stroke: var(--line-visible); fill: none; }}
+    .line-visible, #layer_visible, #layer_visible * {{ stroke: var(--line-visible); stroke-dasharray: none; fill: none; }}
     .line-hidden, #layer_hidden, #layer_hidden * {{ stroke: var(--line-hidden); stroke-dasharray: 2.0, 1.2; fill: none; }}
     .line-center {{ stroke: var(--line-center); fill: none; }}
     .line-section-thick {{ stroke: var(--line-section); fill: none; }}

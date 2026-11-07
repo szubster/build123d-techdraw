@@ -101,6 +101,7 @@ class DrawingSheet:
 
         self.views: list[SheetView] = []
         self.bom_items: list[BOMItem] = []
+        self.bom_position: str = "above_title_block"
         self.revision_rows: list[RevisionEntry] = [
             RevisionEntry(
                 rev="A",
@@ -603,10 +604,14 @@ class DrawingSheet:
         # Annotation SVG rendering (dimensions, leaders, GD&T, etc.)
         annotation_svgs = "".join([a.to_svg() for a in self.annotations if hasattr(a, "to_svg")])
 
-        # Position BOM table stacked above title block per ISO drafting standard
-        tb_y = h - self.bottom_margin - 36.0
-        bom_h = 5.5 + len(self.bom_items) * 5.2
-        bom_top_y = tb_y - bom_h - 1.0
+        # Position BOM table (bottom-up above title block or top-right below revisions)
+        if getattr(self, "bom_position", "above_title_block") == "top_right":
+            rev_h = 10.0 if self.revision_rows else 0.0
+            bom_top_y = self.top_margin + rev_h + 2.0
+        else:
+            tb_y = h - self.bottom_margin - 36.0
+            bom_h = 5.5 + len(self.bom_items) * 5.2
+            bom_top_y = tb_y - bom_h - 1.0
 
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg"

@@ -575,14 +575,41 @@ def project_shape_to_view(
     dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
 
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
+
+    # Filter out hidden lines that coincide with visible edges and render hidden layer first
+    if show_hidden and len(dwg.hidden_lines.edges()) > 0:
+        v_edges = dwg.visible_lines.edges()
+        clean_hidden_edges: list[Any] = []
+        for h_edge in dwg.hidden_lines.edges():
+            h_bb = h_edge.bounding_box()
+            coincides = False
+            for v_edge in v_edges:
+                v_bb = v_edge.bounding_box()
+                if (
+                    abs(h_bb.min.X - v_bb.min.X) < 1e-2
+                    and abs(h_bb.max.X - v_bb.max.X) < 1e-2
+                    and abs(h_bb.min.Y - v_bb.min.Y) < 1e-2
+                    and abs(h_bb.max.Y - v_bb.max.Y) < 1e-2
+                ):
+                    coincides = True
+                    break
+            if not coincides:
+                clean_hidden_edges.append(h_edge)
+
+        if clean_hidden_edges:
+            clean_hidden_compound = (
+                clean_hidden_edges[0]
+                if len(clean_hidden_edges) == 1
+                else bd.Compound(children=clean_hidden_edges)
+            )
+            exporter.add_layer(
+                "hidden", line_color="gray", line_weight=0.18, line_type=bd.LineType.DASHED
+            )
+            exporter.add_shape(clean_hidden_compound, layer="hidden")
+
+    # Visible lines added AFTER hidden lines so visible lines render ON TOP in SVG DOM
     exporter.add_layer("visible", line_color="black", line_weight=0.35)
     exporter.add_shape(dwg.visible_lines, layer="visible")
-
-    if show_hidden and len(dwg.hidden_lines.edges()) > 0:
-        exporter.add_layer(
-            "hidden", line_color="gray", line_weight=0.18, line_type=bd.LineType.DASHED
-        )
-        exporter.add_shape(dwg.hidden_lines, layer="hidden")
 
     with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tf:
         tmp_path = tf.name

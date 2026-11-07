@@ -72,7 +72,7 @@
     .notes-text { fill: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 2.4px; }
     .view-title { fill: var(--text-main); letter-spacing: 0.5px; }
     .view-scale { fill: var(--text-muted); }
-    .line-visible, #layer_visible, #layer_visible * { stroke: var(--line-visible); fill: none; }
+    .line-visible, #layer_visible, #layer_visible * { stroke: var(--line-visible); stroke-dasharray: none; fill: none; }
     .line-hidden, #layer_hidden, #layer_hidden * { stroke: var(--line-hidden); stroke-dasharray: 2.0, 1.2; fill: none; }
     .line-center { stroke: var(--line-center); fill: none; }
     .line-section-thick { stroke: var(--line-section); fill: none; }
@@ -148,7 +148,7 @@
         <g transform="translate(102, 17) scale(0.65)">
             <polygon points="0,-4 8,-7 8,7 0,4" fill="none" class="line-visible" stroke-width="0.35"/>
             <circle cx="-8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="-8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>
-            <line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/><line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>
+            <line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/><line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>
         </g>
 
         <text x="3" y="25.2" class="tb-field-label">MATERIAL</text>
@@ -234,9 +234,15 @@
 
   <g class="drawing-views">
     
-    <!-- View: FRONT at (127.87873429072346, 207.00126570927657) scale=1.0 -->
-    <g id="view_front_127_207" class="sheet-view" transform="translate(127.88, 207.00) scale(1.0000, 1.0000) translate(-0.00, 14.15)">
+    <!-- View: FRONT at (119.93873429072346, 184.0) scale=1.0 -->
+    <g id="view_front_119_184" class="sheet-view" transform="translate(119.94, 184.00) scale(1.0000, 1.0000) translate(-0.00, 14.15)">
         <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <path d="M 36.0,9.146589 L 35.849567,9.146589 L 35.405813,9.146589 L 34.690989,9.146589 L 33.740939,9.146589 L 32.603302,9.146589 L 31.335126,9.146589 L 30.0,9.146589 L 28.664874,9.146589 L 27.396698,9.146589 L 26.259061,9.146589 L 25.309011,9.146589 L 24.594187,9.146589 L 24.150433,9.146589 L 24.0,9.146589" />
+      <path d="M 24.0,9.146589 L 24.150433,9.146589 L 24.594187,9.146589 L 25.309011,9.146589 L 26.259061,9.146589 L 27.396698,9.146589 L 28.664874,9.146589 L 30.0,9.146589 L 31.335126,9.146589 L 32.603302,9.146589 L 33.740939,9.146589 L 34.690989,9.146589 L 35.405813,9.146589 L 35.849567,9.146589 L 36.0,9.146589" />
+      <path d="M -24.0,9.146589 L -24.150433,9.146589 L -24.594187,9.146589 L -25.309011,9.146589 L -26.259061,9.146589 L -27.396698,9.146589 L -28.664874,9.146589 L -30.0,9.146589 L -31.335126,9.146589 L -32.603302,9.146589 L -33.740939,9.146589 L -34.690989,9.146589 L -35.405813,9.146589 L -35.849567,9.146589 L -36.0,9.146589" />
+      <path d="M -36.0,9.146589 L -35.849567,9.146589 L -35.405813,9.146589 L -34.690989,9.146589 L -33.740939,9.146589 L -32.603302,9.146589 L -31.335126,9.146589 L -30.0,9.146589 L -28.664874,9.146589 L -27.396698,9.146589 L -26.259061,9.146589 L -25.309011,9.146589 L -24.594187,9.146589 L -24.150433,9.146589 L -24.0,9.146589" />
+    </g>
     <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
       <line x1="-60.0" y1="-10.853411" x2="-60.0" y2="9.146589" />
       <line x1="60.0" y1="-10.853411" x2="60.0" y2="9.146589" />
@@ -249,23 +255,11 @@
       <line x1="24.0" y1="9.146589" x2="24.0" y2="39.146589" />
       <line x1="-36.0" y1="9.146589" x2="-36.0" y2="39.146589" />
     </g>
-    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
-      <line x1="-60.0" y1="-10.853411" x2="-60.0" y2="9.146589" />
-      <line x1="60.0" y1="-10.853411" x2="60.0" y2="9.146589" />
-      <line x1="-60.0" y1="-10.853411" x2="60.0" y2="-10.853411" />
-      <line x1="-60.0" y1="9.146589" x2="60.0" y2="9.146589" />
-      <path d="M 36.0,39.146589 L 35.849567,39.146589 L 35.405813,39.146589 L 34.690989,39.146589 L 33.740939,39.146589 L 32.603302,39.146589 L 31.335126,39.146589 L 30.0,39.146589 L 28.664874,39.146589 L 27.396698,39.146589 L 26.259061,39.146589 L 25.309011,39.146589 L 24.594187,39.146589 L 24.150433,39.146589 L 24.0,39.146589" />
-      <path d="M 36.0,9.146589 L 35.849567,9.146589 L 35.405813,9.146589 L 34.690989,9.146589 L 33.740939,9.146589 L 32.603302,9.146589 L 31.335126,9.146589 L 30.0,9.146589 L 28.664874,9.146589 L 27.396698,9.146589 L 26.259061,9.146589 L 25.309011,9.146589 L 24.594187,9.146589 L 24.150433,9.146589 L 24.0,9.146589" />
-      <path d="M 24.0,9.146589 L 24.150433,9.146589 L 24.594187,9.146589 L 25.309011,9.146589 L 26.259061,9.146589 L 27.396698,9.146589 L 28.664874,9.146589 L 30.0,9.146589 L 31.335126,9.146589 L 32.603302,9.146589 L 33.740939,9.146589 L 34.690989,9.146589 L 35.405813,9.146589 L 35.849567,9.146589 L 36.0,9.146589" />
-      <path d="M -24.0,39.146589 L -24.150433,39.146589 L -24.594187,39.146589 L -25.309011,39.146589 L -26.259061,39.146589 L -27.396698,39.146589 L -28.664874,39.146589 L -30.0,39.146589 L -31.335126,39.146589 L -32.603302,39.146589 L -33.740939,39.146589 L -34.690989,39.146589 L -35.405813,39.146589 L -35.849567,39.146589 L -36.0,39.146589" />
-      <path d="M -24.0,9.146589 L -24.150433,9.146589 L -24.594187,9.146589 L -25.309011,9.146589 L -26.259061,9.146589 L -27.396698,9.146589 L -28.664874,9.146589 L -30.0,9.146589 L -31.335126,9.146589 L -32.603302,9.146589 L -33.740939,9.146589 L -34.690989,9.146589 L -35.405813,9.146589 L -35.849567,9.146589 L -36.0,9.146589" />
-      <path d="M -36.0,9.146589 L -35.849567,9.146589 L -35.405813,9.146589 L -34.690989,9.146589 L -33.740939,9.146589 L -32.603302,9.146589 L -31.335126,9.146589 L -30.0,9.146589 L -28.664874,9.146589 L -27.396698,9.146589 L -26.259061,9.146589 L -25.309011,9.146589 L -24.594187,9.146589 L -24.150433,9.146589 L -24.0,9.146589" />
-    </g>
   </g>
     </g>
     
-    <!-- View: TOP at (127.87873429072346, 99.76000000000002) scale=1.0 -->
-    <g id="view_top_127_99" class="sheet-view" transform="translate(127.88, 99.76) scale(1.0000, 1.0000) translate(-0.00, -0.00)">
+    <!-- View: TOP at (119.93873429072346, 76.75873429072345) scale=1.0 -->
+    <g id="view_top_119_76" class="sheet-view" transform="translate(119.94, 76.76) scale(1.0000, 1.0000) translate(-0.00, -0.00)">
         <g transform="scale(1,-1)" stroke-linecap="round">
     <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
       <line x1="-60.0" y1="-40.0" x2="-60.0" y2="40.0" />
@@ -275,20 +269,22 @@
       <circle cx="30.0" cy="20.0" r="6.0" />
       <circle cx="-30.0" cy="-20.0" r="6.0" />
     </g>
-    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
-      <line x1="-60.0" y1="-40.0" x2="-60.0" y2="40.0" />
-      <line x1="60.0" y1="-40.0" x2="60.0" y2="40.0" />
-      <line x1="-60.0" y1="-40.0" x2="60.0" y2="-40.0" />
-      <line x1="-60.0" y1="40.0" x2="60.0" y2="40.0" />
-      <circle cx="30.0" cy="20.0" r="6.0" />
-      <circle cx="-30.0" cy="-20.0" r="6.0" />
-    </g>
   </g>
     </g>
     
-    <!-- View: RIGHT at (270.12, 207.00126570927657) scale=1.0 -->
-    <g id="view_right_270_207" class="sheet-view" transform="translate(270.12, 207.00) scale(1.0000, 1.0000) translate(-0.00, 14.15)">
+    <!-- View: RIGHT at (262.18, 184.0) scale=1.0 -->
+    <g id="view_right_262_184" class="sheet-view" transform="translate(262.18, 184.00) scale(1.0000, 1.0000) translate(-0.00, 14.15)">
         <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <path d="M 26.0,39.146589 L 25.849567,39.146589 L 25.405813,39.146589 L 24.690989,39.146589 L 23.740939,39.146589 L 22.603302,39.146589 L 21.335126,39.146589 L 20.0,39.146589 L 18.664874,39.146589 L 17.396698,39.146589 L 16.259061,39.146589 L 15.309011,39.146589 L 14.594187,39.146589 L 14.150433,39.146589 L 14.0,39.146589" />
+      <path d="M 20.0,9.146589 L 20.671787,9.146589 L 21.335126,9.146589 L 21.981674,9.146589 L 22.603302,9.146589 L 23.192192,9.146589 L 23.740939,9.146589 L 24.242641,9.146589 L 24.690989,9.146589 L 25.080345,9.146589 L 25.405813,9.146589 L 25.6633,9.146589 L 25.849567,9.146589 L 25.962273,9.146589 L 26.0,9.146589" />
+      <path d="M 26.0,9.146589 L 25.849567,9.146589 L 25.405813,9.146589 L 24.690989,9.146589 L 23.740939,9.146589 L 22.603302,9.146589 L 21.335126,9.146589 L 20.0,9.146589 L 18.664874,9.146589 L 17.396698,9.146589 L 16.259061,9.146589 L 15.309011,9.146589 L 14.594187,9.146589 L 14.150433,9.146589 L 14.0,9.146589" />
+      <path d="M 14.0,9.146589 L 14.037727,9.146589 L 14.150433,9.146589 L 14.3367,9.146589 L 14.594187,9.146589 L 14.919655,9.146589 L 15.309011,9.146589 L 15.757359,9.146589 L 16.259061,9.146589 L 16.807808,9.146589 L 17.396698,9.146589 L 18.018326,9.146589 L 18.664874,9.146589 L 19.328213,9.146589 L 20.0,9.146589" />
+      <path d="M -14.0,39.146589 L -14.150433,39.146589 L -14.594187,39.146589 L -15.309011,39.146589 L -16.259061,39.146589 L -17.396698,39.146589 L -18.664874,39.146589 L -20.0,39.146589 L -21.335126,39.146589 L -22.603302,39.146589 L -23.740939,39.146589 L -24.690989,39.146589 L -25.405813,39.146589 L -25.849567,39.146589 L -26.0,39.146589" />
+      <path d="M -20.0,9.146589 L -19.328213,9.146589 L -18.664874,9.146589 L -18.018326,9.146589 L -17.396698,9.146589 L -16.807808,9.146589 L -16.259061,9.146589 L -15.757359,9.146589 L -15.309011,9.146589 L -14.919655,9.146589 L -14.594187,9.146589 L -14.3367,9.146589 L -14.150433,9.146589 L -14.037727,9.146589 L -14.0,9.146589" />
+      <path d="M -14.0,9.146589 L -14.150433,9.146589 L -14.594187,9.146589 L -15.309011,9.146589 L -16.259061,9.146589 L -17.396698,9.146589 L -18.664874,9.146589 L -20.0,9.146589 L -21.335126,9.146589 L -22.603302,9.146589 L -23.740939,9.146589 L -24.690989,9.146589 L -25.405813,9.146589 L -25.849567,9.146589 L -26.0,9.146589" />
+      <path d="M -26.0,9.146589 L -25.962273,9.146589 L -25.849567,9.146589 L -25.6633,9.146589 L -25.405813,9.146589 L -25.080345,9.146589 L -24.690989,9.146589 L -24.242641,9.146589 L -23.740939,9.146589 L -23.192192,9.146589 L -22.603302,9.146589 L -21.981674,9.146589 L -21.335126,9.146589 L -20.671787,9.146589 L -20.0,9.146589" />
+    </g>
     <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
       <line x1="-40.0" y1="-10.853411" x2="-40.0" y2="9.146589" />
       <line x1="-40.0" y1="9.146589" x2="40.0" y2="9.146589" />
@@ -303,25 +299,11 @@
       <line x1="-14.0" y1="9.146589" x2="-14.0" y2="39.146589" />
       <line x1="-26.0" y1="9.146589" x2="-26.0" y2="39.146589" />
     </g>
-    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
-      <line x1="-40.0" y1="-10.853411" x2="-40.0" y2="9.146589" />
-      <line x1="-40.0" y1="9.146589" x2="40.0" y2="9.146589" />
-      <line x1="40.0" y1="-10.853411" x2="40.0" y2="9.146589" />
-      <line x1="-40.0" y1="-10.853411" x2="40.0" y2="-10.853411" />
-      <path d="M 26.0,39.146589 L 25.849567,39.146589 L 25.405813,39.146589 L 24.690989,39.146589 L 23.740939,39.146589 L 22.603302,39.146589 L 21.335126,39.146589 L 20.0,39.146589 L 18.664874,39.146589 L 17.396698,39.146589 L 16.259061,39.146589 L 15.309011,39.146589 L 14.594187,39.146589 L 14.150433,39.146589 L 14.0,39.146589" />
-      <path d="M 20.0,9.146589 L 20.671787,9.146589 L 21.335126,9.146589 L 21.981674,9.146589 L 22.603302,9.146589 L 23.192192,9.146589 L 23.740939,9.146589 L 24.242641,9.146589 L 24.690989,9.146589 L 25.080345,9.146589 L 25.405813,9.146589 L 25.6633,9.146589 L 25.849567,9.146589 L 25.962273,9.146589 L 26.0,9.146589" />
-      <path d="M 26.0,9.146589 L 25.849567,9.146589 L 25.405813,9.146589 L 24.690989,9.146589 L 23.740939,9.146589 L 22.603302,9.146589 L 21.335126,9.146589 L 20.0,9.146589 L 18.664874,9.146589 L 17.396698,9.146589 L 16.259061,9.146589 L 15.309011,9.146589 L 14.594187,9.146589 L 14.150433,9.146589 L 14.0,9.146589" />
-      <path d="M 14.0,9.146589 L 14.037727,9.146589 L 14.150433,9.146589 L 14.3367,9.146589 L 14.594187,9.146589 L 14.919655,9.146589 L 15.309011,9.146589 L 15.757359,9.146589 L 16.259061,9.146589 L 16.807808,9.146589 L 17.396698,9.146589 L 18.018326,9.146589 L 18.664874,9.146589 L 19.328213,9.146589 L 20.0,9.146589" />
-      <path d="M -14.0,39.146589 L -14.150433,39.146589 L -14.594187,39.146589 L -15.309011,39.146589 L -16.259061,39.146589 L -17.396698,39.146589 L -18.664874,39.146589 L -20.0,39.146589 L -21.335126,39.146589 L -22.603302,39.146589 L -23.740939,39.146589 L -24.690989,39.146589 L -25.405813,39.146589 L -25.849567,39.146589 L -26.0,39.146589" />
-      <path d="M -20.0,9.146589 L -19.328213,9.146589 L -18.664874,9.146589 L -18.018326,9.146589 L -17.396698,9.146589 L -16.807808,9.146589 L -16.259061,9.146589 L -15.757359,9.146589 L -15.309011,9.146589 L -14.919655,9.146589 L -14.594187,9.146589 L -14.3367,9.146589 L -14.150433,9.146589 L -14.037727,9.146589 L -14.0,9.146589" />
-      <path d="M -14.0,9.146589 L -14.150433,9.146589 L -14.594187,9.146589 L -15.309011,9.146589 L -16.259061,9.146589 L -17.396698,9.146589 L -18.664874,9.146589 L -20.0,9.146589 L -21.335126,9.146589 L -22.603302,9.146589 L -23.740939,9.146589 L -24.690989,9.146589 L -25.405813,9.146589 L -25.849567,9.146589 L -26.0,9.146589" />
-      <path d="M -26.0,9.146589 L -25.962273,9.146589 L -25.849567,9.146589 L -25.6633,9.146589 L -25.405813,9.146589 L -25.080345,9.146589 L -24.690989,9.146589 L -24.242641,9.146589 L -23.740939,9.146589 L -23.192192,9.146589 L -22.603302,9.146589 L -21.981674,9.146589 L -21.335126,9.146589 L -20.671787,9.146589 L -20.0,9.146589" />
-    </g>
   </g>
     </g>
     
-    <!-- View: ISOMETRIC at (270.12, 99.76000000000002) scale=1.0 -->
-    <g id="view_isometric_270_99" class="sheet-view" transform="translate(270.12, 99.76) scale(1.0000, 1.0000) translate(0.00, 5.75)">
+    <!-- View: ISOMETRIC at (262.18, 76.75873429072345) scale=1.0 -->
+    <g id="view_isometric_262_76" class="sheet-view" transform="translate(262.18, 76.76) scale(1.0000, 1.0000) translate(0.00, 5.75)">
         <g transform="scale(1,-1)" stroke-linecap="round">
     <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
       <line x1="27.73501" y1="40.286754" x2="72.111026" y2="7.99846" />
@@ -355,47 +337,47 @@
   </g>
 
   <g class="view-labels">
-                <text x="127.88" y="240.00" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">FRONT</text>
-                <text x="127.88" y="243.80" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="117.88" y1="241.00" x2="137.88" y2="241.00" class="border-sub" stroke-width="0.3"/>
+                <text x="119.94" y="217.00" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">FRONT</text>
+                <text x="119.94" y="220.80" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="109.94" y1="218.00" x2="129.94" y2="218.00" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="127.88" y="147.76" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">TOP</text>
-                <text x="127.88" y="151.56" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="117.88" y1="148.76" x2="137.88" y2="148.76" class="border-sub" stroke-width="0.3"/>
+                <text x="119.94" y="124.76" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">TOP</text>
+                <text x="119.94" y="128.56" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="109.94" y1="125.76" x2="129.94" y2="125.76" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="270.12" y="240.00" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">RIGHT</text>
-                <text x="270.12" y="243.80" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="260.12" y1="241.00" x2="280.12" y2="241.00" class="border-sub" stroke-width="0.3"/>
+                <text x="262.18" y="217.00" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">RIGHT</text>
+                <text x="262.18" y="220.80" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="252.18" y1="218.00" x2="272.18" y2="218.00" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="270.12" y="155.29" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">ISOMETRIC</text>
-                <text x="270.12" y="159.09" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="257.52" y1="156.29" x2="282.72" y2="156.29" class="border-sub" stroke-width="0.3"/>
+                <text x="262.18" y="132.29" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">ISOMETRIC</text>
+                <text x="262.18" y="136.09" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="249.58" y1="133.29" x2="274.78" y2="133.29" class="border-sub" stroke-width="0.3"/>
                 </g>
 
   <g class="annotations">
     
         <g class="centermark">
-            <line x1="153.08" y1="79.76" x2="162.68" y2="79.76" class="line-center" stroke-width="0.25"/>
-            <line x1="157.88" y1="74.96" x2="157.88" y2="84.56" class="line-center" stroke-width="0.25"/>
+            <line x1="141.94" y1="56.76" x2="157.94" y2="56.76" class="line-center" stroke-width="0.25"/>
+            <line x1="149.94" y1="48.76" x2="149.94" y2="64.76" class="line-center" stroke-width="0.25"/>
         </g>
         
         <g class="centermark">
-            <line x1="93.08" y1="119.76" x2="102.68" y2="119.76" class="line-center" stroke-width="0.25"/>
-            <line x1="97.88" y1="114.96" x2="97.88" y2="124.56" class="line-center" stroke-width="0.25"/>
+            <line x1="81.94" y1="96.76" x2="97.94" y2="96.76" class="line-center" stroke-width="0.25"/>
+            <line x1="89.94" y1="88.76" x2="89.94" y2="104.76" class="line-center" stroke-width="0.25"/>
         </g>
-        <line x1="157.88" y1="178.00" x2="157.88" y2="216.00" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="290.12" y1="178.00" x2="290.12" y2="216.00" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="97.88" y1="178.00" x2="97.88" y2="216.00" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="250.12" y1="178.00" x2="250.12" y2="216.00" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/>
+        <line x1="149.94" y1="155.00" x2="149.94" y2="193.00" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="282.18" y1="155.00" x2="282.18" y2="193.00" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="89.94" y1="155.00" x2="89.94" y2="193.00" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="242.18" y1="155.00" x2="242.18" y2="193.00" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/>
         <g class="bom-balloon">
-            <circle cx="270.12" cy="106.17" r="0.8" class="balloon-dot"/>
-            <line x1="270.12" y1="106.17" x2="295.62" y2="106.17" class="balloon-leader" stroke-width="0.3"/>
-            <circle cx="300.12" cy="106.17" r="4.50" class="balloon-circle" stroke-width="0.4"/>
-            <text x="300.12" y="107.37" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">1</text>
+            <circle cx="262.18" cy="83.17" r="0.8" class="balloon-dot"/>
+            <line x1="262.18" y1="83.17" x2="287.68" y2="83.17" class="balloon-leader" stroke-width="0.3"/>
+            <circle cx="292.18" cy="83.17" r="4.50" class="balloon-circle" stroke-width="0.4"/>
+            <text x="292.18" y="84.37" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">1</text>
         </g>
         
         <g class="bom-balloon">
-            <circle cx="257.99" cy="101.17" r="0.8" class="balloon-dot"/>
-            <line x1="257.99" y1="101.17" x2="232.49" y2="101.17" class="balloon-leader" stroke-width="0.3"/>
-            <circle cx="227.99" cy="101.17" r="4.50" class="balloon-circle" stroke-width="0.4"/>
-            <text x="227.99" y="102.37" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">2</text>
+            <circle cx="250.05" cy="78.17" r="0.8" class="balloon-dot"/>
+            <line x1="250.05" y1="78.17" x2="224.55" y2="78.17" class="balloon-leader" stroke-width="0.3"/>
+            <circle cx="220.05" cy="78.17" r="4.50" class="balloon-circle" stroke-width="0.4"/>
+            <text x="220.05" y="79.37" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">2</text>
         </g>
         
   </g>

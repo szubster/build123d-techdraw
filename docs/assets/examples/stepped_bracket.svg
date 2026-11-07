@@ -72,7 +72,7 @@
     .notes-text { fill: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 2.4px; }
     .view-title { fill: var(--text-main); letter-spacing: 0.5px; }
     .view-scale { fill: var(--text-muted); }
-    .line-visible, #layer_visible, #layer_visible * { stroke: var(--line-visible); fill: none; }
+    .line-visible, #layer_visible, #layer_visible * { stroke: var(--line-visible); stroke-dasharray: none; fill: none; }
     .line-hidden, #layer_hidden, #layer_hidden * { stroke: var(--line-hidden); stroke-dasharray: 2.0, 1.2; fill: none; }
     .line-center { stroke: var(--line-center); fill: none; }
     .line-section-thick { stroke: var(--line-section); fill: none; }
@@ -148,7 +148,7 @@
         <g transform="translate(102, 17) scale(0.65)">
             <polygon points="0,-4 8,-7 8,7 0,4" fill="none" class="line-visible" stroke-width="0.35"/>
             <circle cx="-8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="-8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>
-            <line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/><line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="2,1" stroke-width="0.2"/>
+            <line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/><line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>
         </g>
 
         <text x="3" y="25.2" class="tb-field-label">MATERIAL</text>
@@ -202,9 +202,17 @@
 
   <g class="drawing-views">
     
-    <!-- View: FRONT at (145.51131842322948, 189.36868157677054) scale=1.0 -->
-    <g id="view_front_145_189" class="sheet-view" transform="translate(145.51, 189.37) scale(1.0000, 1.0000) translate(-10.61, 5.85)">
+    <!-- View: FRONT at (137.57131842322949, 181.6086815767705) scale=1.0 -->
+    <g id="view_front_137_181" class="sheet-view" transform="translate(137.57, 181.61) scale(1.0000, 1.0000) translate(-10.61, 5.85)">
         <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <path d="M -8.890432,-17.903887 L -9.028329,-17.903887 L -9.435103,-17.903887 L -10.090359,-17.903887 L -10.961238,-17.903887 L -12.004072,-17.903887 L -13.166567,-17.903887 L -14.390432,-17.903887 L -15.614297,-17.903887 L -16.776793,-17.903887 L -17.819626,-17.903887 L -18.690505,-17.903887 L -19.345761,-17.903887 L -19.752536,-17.903887 L -19.890432,-17.903887" />
+      <path d="M -19.890432,-17.903887 L -19.752536,-17.903887 L -19.345761,-17.903887 L -18.690505,-17.903887 L -17.819626,-17.903887 L -16.776793,-17.903887 L -15.614297,-17.903887 L -14.390432,-17.903887 L -13.166567,-17.903887 L -12.004072,-17.903887 L -10.961238,-17.903887 L -10.090359,-17.903887 L -9.435103,-17.903887 L -9.028329,-17.903887 L -8.890432,-17.903887" />
+      <path d="M -8.890432,29.596113 L -9.028329,29.596113 L -9.435103,29.596113 L -10.090359,29.596113 L -10.961238,29.596113 L -12.004072,29.596113 L -13.166567,29.596113 L -14.390432,29.596113 L -15.614297,29.596113 L -16.776793,29.596113 L -17.819626,29.596113 L -18.690505,29.596113 L -19.345761,29.596113 L -19.752536,29.596113 L -19.890432,29.596113" />
+      <path d="M -19.890432,29.596113 L -19.752536,29.596113 L -19.345761,29.596113 L -18.690505,29.596113 L -17.819626,29.596113 L -16.776793,29.596113 L -15.614297,29.596113 L -14.390432,29.596113 L -13.166567,29.596113 L -12.004072,29.596113 L -10.961238,29.596113 L -10.090359,29.596113 L -9.435103,29.596113 L -9.028329,29.596113 L -8.890432,29.596113" />
+      <line x1="-8.890432" y1="-17.903887" x2="-8.890432" y2="29.596113" />
+      <line x1="-19.890432" y1="-17.903887" x2="-19.890432" y2="29.596113" />
+    </g>
     <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
       <line x1="-29.390432" y1="-17.903887" x2="-29.390432" y2="29.596113" />
       <line x1="50.609568" y1="-17.903887" x2="50.609568" y2="-2.903887" />
@@ -213,26 +221,16 @@
       <line x1="0.609568" y1="-2.903887" x2="0.609568" y2="29.596113" />
       <line x1="0.609568" y1="-2.903887" x2="50.609568" y2="-2.903887" />
     </g>
-    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
-      <line x1="-29.390432" y1="29.596113" x2="-29.390432" y2="-17.903887" />
-      <line x1="-29.390432" y1="-17.903887" x2="50.609568" y2="-17.903887" />
-      <path d="M -8.890432,-17.903887 L -9.028329,-17.903887 L -9.435103,-17.903887 L -10.090359,-17.903887 L -10.961238,-17.903887 L -12.004072,-17.903887 L -13.166567,-17.903887 L -14.390432,-17.903887 L -15.614297,-17.903887 L -16.776793,-17.903887 L -17.819626,-17.903887 L -18.690505,-17.903887 L -19.345761,-17.903887 L -19.752536,-17.903887 L -19.890432,-17.903887" />
-      <path d="M -19.890432,-17.903887 L -19.752536,-17.903887 L -19.345761,-17.903887 L -18.690505,-17.903887 L -17.819626,-17.903887 L -16.776793,-17.903887 L -15.614297,-17.903887 L -14.390432,-17.903887 L -13.166567,-17.903887 L -12.004072,-17.903887 L -10.961238,-17.903887 L -10.090359,-17.903887 L -9.435103,-17.903887 L -9.028329,-17.903887 L -8.890432,-17.903887" />
-      <line x1="50.609568" y1="-17.903887" x2="50.609568" y2="-2.903887" />
-      <line x1="-29.390432" y1="29.596113" x2="0.609568" y2="29.596113" />
-      <line x1="0.609568" y1="-2.903887" x2="0.609568" y2="29.596113" />
-      <line x1="0.609568" y1="-2.903887" x2="50.609568" y2="-2.903887" />
-      <path d="M -8.890432,29.596113 L -9.028329,29.596113 L -9.435103,29.596113 L -10.090359,29.596113 L -10.961238,29.596113 L -12.004072,29.596113 L -13.166567,29.596113 L -14.390432,29.596113 L -15.614297,29.596113 L -16.776793,29.596113 L -17.819626,29.596113 L -18.690505,29.596113 L -19.345761,29.596113 L -19.752536,29.596113 L -19.890432,29.596113" />
-      <path d="M -19.890432,29.596113 L -19.752536,29.596113 L -19.345761,29.596113 L -18.690505,29.596113 L -17.819626,29.596113 L -16.776793,29.596113 L -15.614297,29.596113 L -14.390432,29.596113 L -13.166567,29.596113 L -12.004072,29.596113 L -10.961238,29.596113 L -10.090359,29.596113 L -9.435103,29.596113 L -9.028329,29.596113 L -8.890432,29.596113" />
-      <line x1="-8.890432" y1="-17.903887" x2="-8.890432" y2="29.596113" />
-      <line x1="-19.890432" y1="-17.903887" x2="-19.890432" y2="29.596113" />
-    </g>
   </g>
     </g>
     
-    <!-- View: TOP at (145.51131842322948, 101.01000000000002) scale=1.0 -->
-    <g id="view_top_145_101" class="sheet-view" transform="translate(145.51, 101.01) scale(1.0000, 1.0000) translate(-10.61, -0.00)">
+    <!-- View: TOP at (137.57131842322949, 93.25) scale=1.0 -->
+    <g id="view_top_137_93" class="sheet-view" transform="translate(137.57, 93.25) scale(1.0000, 1.0000) translate(-10.61, -0.00)">
         <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <line x1="-29.390432" y1="-25.0" x2="50.609568" y2="-25.0" />
+      <line x1="-29.390432" y1="25.0" x2="50.609568" y2="25.0" />
+    </g>
     <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
       <line x1="-29.390432" y1="-25.0" x2="-29.390432" y2="25.0" />
       <line x1="-29.390432" y1="-25.0" x2="0.609568" y2="-25.0" />
@@ -243,20 +241,24 @@
       <circle cx="-14.390432" cy="0.0" r="5.5" />
       <line x1="50.609568" y1="-25.0" x2="50.609568" y2="25.0" />
     </g>
-    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
-      <line x1="-29.390432" y1="-25.0" x2="-29.390432" y2="25.0" />
-      <line x1="-29.390432" y1="-25.0" x2="50.609568" y2="-25.0" />
-      <line x1="-29.390432" y1="25.0" x2="50.609568" y2="25.0" />
-      <line x1="50.609568" y1="-25.0" x2="50.609568" y2="25.0" />
-      <circle cx="-14.390432" cy="0.0" r="5.5" />
-      <line x1="0.609568" y1="-25.0" x2="0.609568" y2="25.0" />
-    </g>
   </g>
     </g>
     
-    <!-- View: RIGHT at (250.12, 189.36868157677054) scale=1.0 -->
-    <g id="view_right_250_189" class="sheet-view" transform="translate(250.12, 189.37) scale(1.0000, 1.0000) translate(-0.00, 5.85)">
+    <!-- View: RIGHT at (242.18, 181.6086815767705) scale=1.0 -->
+    <g id="view_right_242_181" class="sheet-view" transform="translate(242.18, 181.61) scale(1.0000, 1.0000) translate(-0.00, 5.85)">
         <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <line x1="-25.0" y1="-17.903887" x2="-25.0" y2="29.596113" />
+      <line x1="25.0" y1="29.596113" x2="25.0" y2="-17.903887" />
+      <path d="M 0.0,-17.903887 L 0.615805,-17.903887 L 1.223865,-17.903887 L 1.816535,-17.903887 L 2.386361,-17.903887 L 2.926176,-17.903887 L 3.429194,-17.903887 L 3.889087,-17.903887 L 4.300073,-17.903887 L 4.656983,-17.903887 L 4.955329,-17.903887 L 5.191358,-17.903887 L 5.362104,-17.903887 L 5.465417,-17.903887 L 5.5,-17.903887" />
+      <path d="M 5.5,-17.903887 L 5.362104,-17.903887 L 4.955329,-17.903887 L 4.300073,-17.903887 L 3.429194,-17.903887 L 2.386361,-17.903887 L 1.223865,-17.903887 L 0.0,-17.903887 L -1.223865,-17.903887 L -2.386361,-17.903887 L -3.429194,-17.903887 L -4.300073,-17.903887 L -4.955329,-17.903887 L -5.362104,-17.903887 L -5.5,-17.903887" />
+      <path d="M -5.5,-17.903887 Q -5.482709,-17.903887 -5.465417,-17.903887 Q -5.41376,-17.903887 -5.362104,-17.903887 Q -5.276731,-17.903887 -5.191358,-17.903887 Q -5.073344,-17.903887 -4.955329,-17.903887 Q -4.806156,-17.903887 -4.656983,-17.903887 Q -4.478528,-17.903887 -4.300073,-17.903887 Q -4.09458,-17.903887 -3.889087,-17.903887 Q -3.659141,-17.903887 -3.429194,-17.903887 Q -3.177685,-17.903887 -2.926176,-17.903887 Q -2.656268,-17.903887 -2.386361,-17.903887 Q -2.101448,-17.903887 -1.816535,-17.903887 Q -1.5202,-17.903887 -1.223865,-17.903887 Q -0.617976,-17.903887 -0.0,-17.903887" />
+      <path d="M 0.0,29.596113 L 0.615805,29.596113 L 1.223865,29.596113 L 1.816535,29.596113 L 2.386361,29.596113 L 2.926176,29.596113 L 3.429194,29.596113 L 3.889087,29.596113 L 4.300073,29.596113 L 4.656983,29.596113 L 4.955329,29.596113 L 5.191358,29.596113 L 5.362104,29.596113 L 5.465417,29.596113 L 5.5,29.596113" />
+      <path d="M 5.5,29.596113 L 5.362104,29.596113 L 4.955329,29.596113 L 4.300073,29.596113 L 3.429194,29.596113 L 2.386361,29.596113 L 1.223865,29.596113 L 0.0,29.596113 L -1.223865,29.596113 L -2.386361,29.596113 L -3.429194,29.596113 L -4.300073,29.596113 L -4.955329,29.596113 L -5.362104,29.596113 L -5.5,29.596113" />
+      <path d="M -5.5,29.596113 Q -5.482709,29.596113 -5.465417,29.596113 Q -5.41376,29.596113 -5.362104,29.596113 Q -5.276731,29.596113 -5.191358,29.596113 Q -5.073344,29.596113 -4.955329,29.596113 Q -4.806156,29.596113 -4.656983,29.596113 Q -4.478528,29.596113 -4.300073,29.596113 Q -4.09458,29.596113 -3.889087,29.596113 Q -3.659141,29.596113 -3.429194,29.596113 Q -3.177685,29.596113 -2.926176,29.596113 Q -2.656268,29.596113 -2.386361,29.596113 Q -2.101448,29.596113 -1.816535,29.596113 Q -1.5202,29.596113 -1.223865,29.596113 Q -0.617976,29.596113 -0.0,29.596113" />
+      <line x1="5.5" y1="-17.903887" x2="5.5" y2="29.596113" />
+      <line x1="-5.5" y1="-17.903887" x2="-5.5" y2="29.596113" />
+    </g>
     <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
       <line x1="-25.0" y1="-17.903887" x2="-25.0" y2="-2.903887" />
       <line x1="-25.0" y1="-2.903887" x2="-25.0" y2="29.596113" />
@@ -266,26 +268,11 @@
       <line x1="-25.0" y1="29.596113" x2="25.0" y2="29.596113" />
       <line x1="-25.0" y1="-2.903887" x2="25.0" y2="-2.903887" />
     </g>
-    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
-      <line x1="-25.0" y1="-17.903887" x2="-25.0" y2="29.596113" />
-      <line x1="-25.0" y1="-17.903887" x2="25.0" y2="-17.903887" />
-      <line x1="25.0" y1="29.596113" x2="25.0" y2="-17.903887" />
-      <line x1="-25.0" y1="29.596113" x2="25.0" y2="29.596113" />
-      <path d="M 0.0,-17.903887 L 0.615805,-17.903887 L 1.223865,-17.903887 L 1.816535,-17.903887 L 2.386361,-17.903887 L 2.926176,-17.903887 L 3.429194,-17.903887 L 3.889087,-17.903887 L 4.300073,-17.903887 L 4.656983,-17.903887 L 4.955329,-17.903887 L 5.191358,-17.903887 L 5.362104,-17.903887 L 5.465417,-17.903887 L 5.5,-17.903887" />
-      <path d="M 5.5,-17.903887 L 5.362104,-17.903887 L 4.955329,-17.903887 L 4.300073,-17.903887 L 3.429194,-17.903887 L 2.386361,-17.903887 L 1.223865,-17.903887 L 0.0,-17.903887 L -1.223865,-17.903887 L -2.386361,-17.903887 L -3.429194,-17.903887 L -4.300073,-17.903887 L -4.955329,-17.903887 L -5.362104,-17.903887 L -5.5,-17.903887" />
-      <path d="M -5.5,-17.903887 Q -5.482709,-17.903887 -5.465417,-17.903887 Q -5.41376,-17.903887 -5.362104,-17.903887 Q -5.276731,-17.903887 -5.191358,-17.903887 Q -5.073344,-17.903887 -4.955329,-17.903887 Q -4.806156,-17.903887 -4.656983,-17.903887 Q -4.478528,-17.903887 -4.300073,-17.903887 Q -4.09458,-17.903887 -3.889087,-17.903887 Q -3.659141,-17.903887 -3.429194,-17.903887 Q -3.177685,-17.903887 -2.926176,-17.903887 Q -2.656268,-17.903887 -2.386361,-17.903887 Q -2.101448,-17.903887 -1.816535,-17.903887 Q -1.5202,-17.903887 -1.223865,-17.903887 Q -0.617976,-17.903887 -0.0,-17.903887" />
-      <path d="M 0.0,29.596113 L 0.615805,29.596113 L 1.223865,29.596113 L 1.816535,29.596113 L 2.386361,29.596113 L 2.926176,29.596113 L 3.429194,29.596113 L 3.889087,29.596113 L 4.300073,29.596113 L 4.656983,29.596113 L 4.955329,29.596113 L 5.191358,29.596113 L 5.362104,29.596113 L 5.465417,29.596113 L 5.5,29.596113" />
-      <path d="M 5.5,29.596113 L 5.362104,29.596113 L 4.955329,29.596113 L 4.300073,29.596113 L 3.429194,29.596113 L 2.386361,29.596113 L 1.223865,29.596113 L 0.0,29.596113 L -1.223865,29.596113 L -2.386361,29.596113 L -3.429194,29.596113 L -4.300073,29.596113 L -4.955329,29.596113 L -5.362104,29.596113 L -5.5,29.596113" />
-      <path d="M -5.5,29.596113 Q -5.482709,29.596113 -5.465417,29.596113 Q -5.41376,29.596113 -5.362104,29.596113 Q -5.276731,29.596113 -5.191358,29.596113 Q -5.073344,29.596113 -4.955329,29.596113 Q -4.806156,29.596113 -4.656983,29.596113 Q -4.478528,29.596113 -4.300073,29.596113 Q -4.09458,29.596113 -3.889087,29.596113 Q -3.659141,29.596113 -3.429194,29.596113 Q -3.177685,29.596113 -2.926176,29.596113 Q -2.656268,29.596113 -2.386361,29.596113 Q -2.101448,29.596113 -1.816535,29.596113 Q -1.5202,29.596113 -1.223865,29.596113 Q -0.617976,29.596113 -0.0,29.596113" />
-      <line x1="-25.0" y1="-2.903887" x2="25.0" y2="-2.903887" />
-      <line x1="5.5" y1="-17.903887" x2="5.5" y2="29.596113" />
-      <line x1="-5.5" y1="-17.903887" x2="-5.5" y2="29.596113" />
-    </g>
   </g>
     </g>
     
-    <!-- View: ISOMETRIC at (250.12, 101.01000000000002) scale=1.0 -->
-    <g id="view_isometric_250_101" class="sheet-view" transform="translate(250.12, 101.01) scale(1.0000, 1.0000) translate(8.83, 2.26)">
+    <!-- View: ISOMETRIC at (242.18, 93.25) scale=1.0 -->
+    <g id="view_isometric_242_93" class="sheet-view" transform="translate(242.18, 93.25) scale(1.0000, 1.0000) translate(8.83, 2.26)">
         <g transform="scale(1,-1)" stroke-linecap="round">
     <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
       <line x1="38.321823" y1="23.699016" x2="38.321823" y2="-17.838529" />
@@ -313,32 +300,32 @@
   </g>
 
   <g class="view-labels">
-                <text x="145.51" y="237.12" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">FRONT</text>
-                <text x="145.51" y="240.92" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="135.51" y1="238.12" x2="155.51" y2="238.12" class="border-sub" stroke-width="0.3"/>
+                <text x="137.57" y="229.36" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">FRONT</text>
+                <text x="137.57" y="233.16" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="127.57" y1="230.36" x2="147.57" y2="230.36" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="145.51" y="134.01" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">TOP</text>
-                <text x="145.51" y="137.81" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="135.51" y1="135.01" x2="155.51" y2="135.01" class="border-sub" stroke-width="0.3"/>
+                <text x="137.57" y="126.25" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">TOP</text>
+                <text x="137.57" y="130.05" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="127.57" y1="127.25" x2="147.57" y2="127.25" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="250.12" y="221.12" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">RIGHT</text>
-                <text x="250.12" y="224.92" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="240.12" y1="222.12" x2="260.12" y2="222.12" class="border-sub" stroke-width="0.3"/>
+                <text x="242.18" y="213.36" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">RIGHT</text>
+                <text x="242.18" y="217.16" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="232.18" y1="214.36" x2="252.18" y2="214.36" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="250.12" y="150.63" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">ISOMETRIC</text>
-                <text x="250.12" y="154.43" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="237.52" y1="151.63" x2="262.72" y2="151.63" class="border-sub" stroke-width="0.3"/>
+                <text x="242.18" y="142.87" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">ISOMETRIC</text>
+                <text x="242.18" y="146.67" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="229.58" y1="143.87" x2="254.78" y2="143.87" class="border-sub" stroke-width="0.3"/>
                 </g>
 
   <g class="annotations">
-    <line x1="105.51" y1="214.62" x2="105.51" y2="227.12" class="dim-line" stroke-width="0.25"/><line x1="185.51" y1="214.62" x2="185.51" y2="227.12" class="dim-line" stroke-width="0.25"/><line x1="105.51" y1="225.12" x2="185.51" y2="225.12" class="dim-line" stroke-width="0.3"/><polygon points="105.51,225.12 108.01,224.42 108.01,225.82" class="dim-arrow"/><polygon points="185.51,225.12 183.01,225.82 183.01,224.42" class="dim-arrow"/><text x="145.51" y="223.92" class="dim-text" text-anchor="middle" font-size="3.20">80</text><line x1="104.01" y1="165.62" x2="91.51" y2="165.62" class="dim-line" stroke-width="0.25"/><line x1="104.01" y1="213.12" x2="91.51" y2="213.12" class="dim-line" stroke-width="0.25"/><line x1="93.51" y1="165.62" x2="93.51" y2="213.12" class="dim-line" stroke-width="0.3"/><polygon points="93.51,165.62 94.21,168.12 92.81,168.12" class="dim-arrow"/><polygon points="93.51,213.12 92.81,210.62 94.21,210.62" class="dim-arrow"/><text x="92.11" y="189.37" transform="rotate(-90 92.11 189.37)" class="dim-text" text-anchor="middle" font-size="3.20">47.5</text><line x1="187.01" y1="76.01" x2="199.51" y2="76.01" class="dim-line" stroke-width="0.25"/><line x1="187.01" y1="126.01" x2="199.51" y2="126.01" class="dim-line" stroke-width="0.25"/><line x1="197.51" y1="76.01" x2="197.51" y2="126.01" class="dim-line" stroke-width="0.3"/><polygon points="197.51,76.01 198.21,78.51 196.81,78.51" class="dim-arrow"/><polygon points="197.51,126.01 196.81,123.51 198.21,123.51" class="dim-arrow"/><text x="196.11" y="101.01" transform="rotate(-90 196.11 101.01)" class="dim-text" text-anchor="middle" font-size="3.20">50</text><line x1="119.01" y1="200.12" x2="103.51" y2="200.12" class="dim-line" stroke-width="0.25"/><line x1="119.01" y1="211.12" x2="103.51" y2="211.12" class="dim-line" stroke-width="0.25"/><line x1="105.51" y1="200.12" x2="105.51" y2="211.12" class="dim-line" stroke-width="0.3"/><polygon points="105.51,200.12 106.21,202.62 104.81,202.62" class="dim-arrow"/><polygon points="105.51,211.12 104.81,208.62 106.21,208.62" class="dim-arrow"/><text x="104.11" y="205.62" transform="rotate(-90 104.11 205.62)" class="dim-text" text-anchor="middle" font-size="3.20">⌀11 H11</text>
+    <line x1="97.57" y1="206.86" x2="97.57" y2="219.36" class="dim-line" stroke-width="0.25"/><line x1="177.57" y1="206.86" x2="177.57" y2="219.36" class="dim-line" stroke-width="0.25"/><line x1="97.57" y1="217.36" x2="177.57" y2="217.36" class="dim-line" stroke-width="0.3"/><polygon points="97.57,217.36 100.07,216.66 100.07,218.06" class="dim-arrow"/><polygon points="177.57,217.36 175.07,218.06 175.07,216.66" class="dim-arrow"/><text x="137.57" y="216.16" class="dim-text" text-anchor="middle" font-size="3.20">80</text><line x1="96.07" y1="157.86" x2="83.57" y2="157.86" class="dim-line" stroke-width="0.25"/><line x1="96.07" y1="205.36" x2="83.57" y2="205.36" class="dim-line" stroke-width="0.25"/><line x1="85.57" y1="157.86" x2="85.57" y2="205.36" class="dim-line" stroke-width="0.3"/><polygon points="85.57,157.86 86.27,160.36 84.87,160.36" class="dim-arrow"/><polygon points="85.57,205.36 84.87,202.86 86.27,202.86" class="dim-arrow"/><text x="84.17" y="181.61" transform="rotate(-90 84.17 181.61)" class="dim-text" text-anchor="middle" font-size="3.20">47.5</text><line x1="179.07" y1="68.25" x2="191.57" y2="68.25" class="dim-line" stroke-width="0.25"/><line x1="179.07" y1="118.25" x2="191.57" y2="118.25" class="dim-line" stroke-width="0.25"/><line x1="189.57" y1="68.25" x2="189.57" y2="118.25" class="dim-line" stroke-width="0.3"/><polygon points="189.57,68.25 190.27,70.75 188.87,70.75" class="dim-arrow"/><polygon points="189.57,118.25 188.87,115.75 190.27,115.75" class="dim-arrow"/><text x="188.17" y="93.25" transform="rotate(-90 188.17 93.25)" class="dim-text" text-anchor="middle" font-size="3.20">50</text><line x1="111.07" y1="192.36" x2="95.57" y2="192.36" class="dim-line" stroke-width="0.25"/><line x1="111.07" y1="203.36" x2="95.57" y2="203.36" class="dim-line" stroke-width="0.25"/><line x1="97.57" y1="192.36" x2="97.57" y2="203.36" class="dim-line" stroke-width="0.3"/><polygon points="97.57,192.36 98.27,194.86 96.87,194.86" class="dim-arrow"/><polygon points="97.57,203.36 96.87,200.86 98.27,200.86" class="dim-arrow"/><text x="96.17" y="197.86" transform="rotate(-90 96.17 197.86)" class="dim-text" text-anchor="middle" font-size="3.20">⌀11 H11</text>
         <g class="centermark">
-            <line x1="116.51" y1="205.62" x2="124.51" y2="205.62" class="line-center" stroke-width="0.25"/>
-            <line x1="120.51" y1="201.62" x2="120.51" y2="209.62" class="line-center" stroke-width="0.25"/>
+            <line x1="108.57" y1="197.86" x2="116.57" y2="197.86" class="line-center" stroke-width="0.25"/>
+            <line x1="112.57" y1="193.86" x2="112.57" y2="201.86" class="line-center" stroke-width="0.25"/>
         </g>
         <g class="gdt-fcf">
-            <polygon points="155.51,213.12 157.32,211.25 158.02,212.46" class="dim-arrow"/>
-            <line x1="155.51" y1="213.12" x2="167.51" y2="206.12" class="dim-line" stroke-width="0.3"/>
-            <rect x="167.51" y="203.12" width="21.00" height="6.00" class="title-bg" stroke-width="0.35"/><line x1="174.51" y1="203.12" x2="174.51" y2="209.12" class="border-sub" stroke-width="0.3"/><text x="171.01" y="207.20" class="tb-title" text-anchor="middle" font-size="3.60">⏥</text><text x="181.51" y="207.20" class="dim-text" text-anchor="middle" font-size="3.00">0.05</text></g>
+            <polygon points="147.57,205.36 149.38,203.49 150.08,204.70" class="dim-arrow"/>
+            <line x1="147.57" y1="205.36" x2="159.57" y2="198.36" class="dim-line" stroke-width="0.3"/>
+            <rect x="159.57" y="195.36" width="21.00" height="6.00" class="title-bg" stroke-width="0.35"/><line x1="166.57" y1="195.36" x2="166.57" y2="201.36" class="border-sub" stroke-width="0.3"/><text x="163.07" y="199.44" class="tb-title" text-anchor="middle" font-size="3.60">⏥</text><text x="173.57" y="199.44" class="dim-text" text-anchor="middle" font-size="3.00">0.05</text></g>
   </g>
 </svg>

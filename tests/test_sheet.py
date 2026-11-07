@@ -129,6 +129,7 @@ def test_iso_projection_symbols() -> None:
     svg_third = render_title_block_svg(ti_third, 100.0, 100.0)
     assert 'cx="-8"' in svg_third
     assert 'points="0,-4 8,-7 8,7 0,4"' in svg_third
+    assert 'stroke-dasharray="8,1.5,1.5,1.5"' in svg_third
 
     # First angle (ISO-E): frustum on left, circle on right (cx="8")
     ti_first = TitleBlockInfo(drawing_title="TITLE", drawing_no="DWG-001", third_angle=False)
