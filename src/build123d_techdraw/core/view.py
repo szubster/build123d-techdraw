@@ -148,6 +148,12 @@ class SheetView:
         self.bottom_annotation_y: float = self.max_y
         self.annotations: list[Any] = []
         self._ctx_token: Any = None
+        self.hatch: str | None = None
+        self.hatch_pitch: float | None = None
+        self.hatch_angle: float | None = None
+        self.hatch_id: str | None = None
+        self.parent_view: SheetView | None = None
+        self.detail_shape: str | None = None
 
     def __enter__(self) -> Self:
         self._ctx_token = CURRENT_VIEW.set(self)
@@ -321,7 +327,7 @@ class SheetView:
                 {self.inner_svg_content}
             </g>
         </g>
-        {''.join(break_lines)}
+        {"".join(break_lines)}
     </g>
     """
 
@@ -338,7 +344,7 @@ class SheetView:
         from build123d_techdraw.recognizers.features import recognize_holes
 
         os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
-        doc = ezdxf.new(dxfversion=dxfversion)
+        doc = ezdxf.new(dxfversion=dxfversion)  # type: ignore[attr-defined]
         msp = doc.modelspace()
 
         layer_map = {
@@ -366,9 +372,7 @@ class SheetView:
             doc.saveas(filepath)
             return
 
-        look_from, look_up = VIEW_VECTORS.get(
-            self.view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0))
-        )
+        look_from, look_up = VIEW_VECTORS.get(self.view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
         dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=False)
         edges = dwg.visible_lines.edges()
 
@@ -404,7 +408,10 @@ class SheetView:
             circle_wires: list[tuple[int, tuple[float, float], float]] = []
             for idx, iw in enumerate(inner_wires):
                 cw_edges = iw.edges()
-                if len(cw_edges) == 1 and getattr(cw_edges[0], "geom_type", None) == bd.GeomType.CIRCLE:
+                if (
+                    len(cw_edges) == 1
+                    and getattr(cw_edges[0], "geom_type", None) == bd.GeomType.CIRCLE
+                ):
                     c = cw_edges[0].arc_center
                     circle_wires.append((idx, (float(c.X), float(c.Y)), float(cw_edges[0].radius)))
 
@@ -412,7 +419,9 @@ class SheetView:
                 for j in range(i + 1, len(circle_wires)):
                     idx_i, center_i, r_i = circle_wires[i]
                     idx_j, center_j, r_j = circle_wires[j]
-                    dist = ((center_i[0] - center_j[0]) ** 2 + (center_i[1] - center_j[1]) ** 2) ** 0.5
+                    dist = (
+                        (center_i[0] - center_j[0]) ** 2 + (center_i[1] - center_j[1]) ** 2
+                    ) ** 0.5
                     if dist < 0.5:
                         if r_i > r_j:
                             concentric_csinks.add(idx_i)
@@ -1598,9 +1607,7 @@ def project_detail_to_view(
     focus_sheet = resolve_point_to_sheet(actual_target, parent_view)
 
     effective_letter = label if label is not None else label_letter
-    effective_label = (
-        view_label if view_label is not None else f"DETAIL {effective_letter}"
-    )
+    effective_label = view_label if view_label is not None else f"DETAIL {effective_letter}"
     shape_type = str(shape).lower()
 
     # Detail callout indicator on parent view
@@ -1630,14 +1637,8 @@ def project_detail_to_view(
     view_id = f"detail_{effective_letter}_{int(center_x)}_{int(center_y)}"
     clip_id = f"clip_{view_id}"
 
-    focus_svg_x = (
-        (focus_sheet[0] - parent_view.center_x) / parent_view.scale
-        + parent_view.orig_cx
-    )
-    focus_svg_y = (
-        (focus_sheet[1] - parent_view.center_y) / parent_view.scale
-        + parent_view.orig_cy
-    )
+    focus_svg_x = (focus_sheet[0] - parent_view.center_x) / parent_view.scale + parent_view.orig_cx
+    focus_svg_y = (focus_sheet[1] - parent_view.center_y) / parent_view.scale + parent_view.orig_cy
 
     inner_content = parent_view.inner_svg_content
 
@@ -1669,11 +1670,7 @@ def project_detail_to_view(
     {boundary_svg}
     """
 
-    lbl_y = (
-        view_label_y
-        if view_label_y is not None
-        else (center_y + paper_r + view_label_offset_y)
-    )
+    lbl_y = view_label_y if view_label_y is not None else (center_y + paper_r + view_label_offset_y)
     scale_str = format_iso_scale(scale)
 
     view_res = SheetView(

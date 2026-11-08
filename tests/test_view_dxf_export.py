@@ -15,7 +15,9 @@ def test_view_export_dxf_1to1_layers(tmp_path: Path) -> None:
     through_hole = bd.Cylinder(radius=6.0, height=20.0).locate(bd.Location((-25.0, 0.0, 0.0)))
     csink = (
         bd.Cylinder(radius=4.0, height=20.0)
-        + bd.Cone(bottom_radius=4.0, top_radius=8.0, height=4.0).locate(bd.Location((0.0, 0.0, 3.0)))
+        + bd.Cone(bottom_radius=4.0, top_radius=8.0, height=4.0).locate(
+            bd.Location((0.0, 0.0, 3.0))
+        )
     ).locate(bd.Location((25.0, 0.0, 0.0)))
     part = plate - through_hole - csink
 

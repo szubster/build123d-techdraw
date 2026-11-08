@@ -13,7 +13,10 @@ def test_ordinate_dimension_set_x_direction() -> None:
     """Verify OrdinateDimensionSet along X axis renders datum 0 and coordinates with baseline offset."""
     plate = bd.Box(150.0, 80.0, 10.0)
 
-    with BuildSheet(sheet_size="A3") as sheet, FrontView(plate, center=(120.0, 100.0), scale=1.0) as fv:
+    with (
+        BuildSheet(sheet_size="A3") as sheet,
+        FrontView(plate, center=(120.0, 100.0), scale=1.0) as fv,
+    ):
         ords = OrdinateDimensionSet(
             datum_origin=(0.0, 0.0),
             direction="X",

@@ -80,11 +80,7 @@ class DrawingBooklet:
         sheet_titles = []
         for i, s in enumerate(self.sheets):
             t_info = getattr(s, "title_info", None)
-            d_title = (
-                getattr(t_info, "drawing_title", None)
-                or getattr(t_info, "title", None)
-                or ""
-            )
+            d_title = getattr(t_info, "drawing_title", None) or getattr(t_info, "title", None) or ""
             d_no = getattr(t_info, "drawing_no", "")
             if d_no and d_title:
                 sheet_titles.append(f"{d_no} - {d_title}")

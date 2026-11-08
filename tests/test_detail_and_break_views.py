@@ -216,4 +216,3 @@ def test_section_view_iso_hatch_patterns(tmp_path) -> None:
     sheet.sheet.export_pdf(pdf_path)
     assert Path(pdf_path).exists()
     assert Path(pdf_path).stat().st_size > 0
-

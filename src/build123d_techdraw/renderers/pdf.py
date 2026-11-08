@@ -48,15 +48,11 @@ class BookmarkedPdfPages(PdfPages):
                 child_objs = [pdf.reserveObject(f"outline_child_{i}") for i in range(n)]
 
                 for i in range(n):
-                    title = (
-                        self.sheet_titles[i]
-                        if i < len(self.sheet_titles)
-                        else f"Sheet {i + 1}"
-                    )
+                    title = self.sheet_titles[i] if i < len(self.sheet_titles) else f"Sheet {i + 1}"
                     child_dict: dict[str, Any] = {
                         "Title": title,
                         "Parent": top_obj,
-                        "Dest": [pdf.pageList[i], Name("Fit")],
+                        "Dest": [pdf.pageList[i], Name("Fit")],  # type: ignore[no-untyped-call]
                     }
                     if i > 0:
                         child_dict["Prev"] = child_objs[i - 1]
@@ -68,7 +64,7 @@ class BookmarkedPdfPages(PdfPages):
                     "Title": self.booklet_title,
                     "Parent": outlines_obj,
                     "Count": n,
-                    "Dest": [pdf.pageList[0], Name("Fit")],
+                    "Dest": [pdf.pageList[0], Name("Fit")],  # type: ignore[no-untyped-call]
                 }
                 if child_objs:
                     top_dict["First"] = child_objs[0]
@@ -76,7 +72,7 @@ class BookmarkedPdfPages(PdfPages):
                 pdf.writeObject(top_obj, top_dict)
 
                 outlines_dict: dict[str, Any] = {
-                    "Type": Name("Outlines"),
+                    "Type": Name("Outlines"),  # type: ignore[no-untyped-call]
                     "First": top_obj,
                     "Last": top_obj,
                     "Count": n + 1,
@@ -84,13 +80,13 @@ class BookmarkedPdfPages(PdfPages):
                 pdf.writeObject(outlines_obj, outlines_dict)
 
                 catalog_dict: dict[str, Any] = {
-                    "Type": Name("Catalog"),
+                    "Type": Name("Catalog"),  # type: ignore[no-untyped-call]
                     "Pages": pdf.pagesObject,
                     "Outlines": outlines_obj,
                 }
                 pdf.writeObject(pdf.rootObject, catalog_dict)
 
-        super().close()
+        super().close()  # type: ignore[no-untyped-call]
 
 
 class PDFRenderer:
