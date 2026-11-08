@@ -103,6 +103,28 @@
     <pattern id="sectionHatch" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
       <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
     </pattern>
+    <pattern id="hatch_steel" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_aluminum" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="1.2" y1="0" x2="1.2" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_brass" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="2" y1="0" x2="2" y2="4" stroke="var(--hatch-color)" stroke-width="0.35" stroke-dasharray="1.5,1.5"/>
+    </pattern>
+    <pattern id="hatch_plastic" width="4" height="4" patternTransform="rotate(60 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="0" y1="0" x2="4" y2="0" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_rubber" width="4" height="4" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="0" cy="0" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="4" cy="0" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="0" cy="4" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="4" cy="4" r="0.45" fill="var(--hatch-color)"/>
+    </pattern>
   </defs>
 
   
@@ -121,6 +143,7 @@
         
   
     <g class="title-block" transform="translate(267.00, 253.00)">
+        
         <rect x="0" y="0" width="145.00" height="36.00" class="title-bg" stroke-width="0.6"/>
         <line x1="0" y1="8" x2="145.0" y2="8" class="border-sub" stroke-width="0.3"/>
         <line x1="0" y1="22" x2="145.0" y2="22" class="border-sub" stroke-width="0.3"/>
