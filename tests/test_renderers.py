@@ -133,3 +133,47 @@ def test_pdf_lineweight_calibration_stroke_guard_and_dim_knockout() -> None:
         assert title_txt.get_bbox_patch() is None
     finally:
         plt.close(fig)
+
+
+def test_pdf_coordinate_scaling_one_to_one() -> None:
+    """Verify that SVG millimeters map 1:1 to Matplotlib paper coordinates without clipping."""
+    # A3 dimensions: 420 x 297 mm
+    width_mm = 420.0
+    height_mm = 297.0
+    svg_snippet = f"""<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width_mm} {height_mm}" width="{width_mm}mm" height="{height_mm}mm">
+  <circle cx="300" cy="200" r="10" class="line-visible" />
+  <text x="350" y="250" class="notes-text">A3 element</text>
+</svg>"""
+
+    fig, ax = plt.subplots()
+    colors = THEME_COLORS[Theme.ISO_WHITE]
+    try:
+        PDFRenderer._render_svg_to_ax(ax, svg_snippet, width_mm, height_mm, colors)
+
+        # ax.patches[0] is background rectangle [0, 420] x [0, 297]
+        # ax.patches[1] is the circle patch
+        circle_patch = ax.patches[1]
+        bbox = circle_patch.get_path().get_extents()
+
+        # Center should be at (300 mm, height_mm - 200 mm = 97 mm) with radius 10 mm
+        assert bbox.x0 == pytest.approx(290.0, rel=1e-3)
+        assert bbox.x1 == pytest.approx(310.0, rel=1e-3)
+        assert bbox.y0 == pytest.approx(87.0, rel=1e-3)
+        assert bbox.y1 == pytest.approx(107.0, rel=1e-3)
+
+        # Verify element is strictly within canvas limits [0, 420] x [0, 297]
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        assert bbox.x1 <= xlim[1]
+        assert bbox.y1 <= ylim[1]
+
+        # Verify text position is at (350 mm, height_mm - 250 mm = 47 mm)
+        txt = next(t for t in ax.texts if t.get_text() == "A3 element")
+        pos = txt.get_position()
+        assert pos[0] == pytest.approx(350.0, rel=1e-3)
+        assert pos[1] == pytest.approx(47.0, rel=1e-3)
+        assert pos[0] <= xlim[1]
+        assert pos[1] <= ylim[1]
+    finally:
+        plt.close(fig)
