@@ -45,7 +45,12 @@ class PDFRenderer:
             patches.Rectangle((0, 0), width_mm, height_mm, facecolor=colors.bg, edgecolor="none")
         )
 
-        doc = se.SVG.parse(io.BytesIO(svg_code.encode("utf-8")))
+        doc = se.SVG.parse(
+            io.BytesIO(svg_code.encode("utf-8")),
+            ppi=25.4,
+            width=width_mm,
+            height=height_mm,
+        )
         for el in doc.elements():
             cls_str = el.values.get("class", "")
             cls_list = cls_str.split() if cls_str else []
