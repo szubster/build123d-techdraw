@@ -57,6 +57,14 @@ class TitleBlockInfo:
     total_sheets: str | None = None
     fields: dict[str, str] = field(default_factory=dict)
 
+    @property
+    def title(self) -> str:
+        return self.drawing_title
+
+    @title.setter
+    def title(self, value: str) -> None:
+        self.drawing_title = value
+
     def __post_init__(self) -> None:
         if self.fields:
             self.apply_custom_fields(self.fields)

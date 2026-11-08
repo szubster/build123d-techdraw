@@ -59,8 +59,13 @@ class DrawingBooklet:
             paths.append(path)
         return paths
 
-    def export_pdf(self, output_path: str, theme: Theme | str = Theme.DARK_BLUEPRINT) -> None:
-        """Compile all sheets into a single multi-page vector PDF file with auto-pagination."""
+    def export_pdf(
+        self,
+        output_path: str,
+        theme: Theme | str = Theme.DARK_BLUEPRINT,
+        bookmarks: bool = True,
+    ) -> None:
+        """Compile all sheets into a single multi-page vector PDF file with auto-pagination and document outline bookmarks."""
         self._paginate()
         resolved_theme = (
             Theme.ISO_WHITE
@@ -72,4 +77,28 @@ class DrawingBooklet:
         sheet_data = [
             (sheet.width_mm, sheet.height_mm, sheet.to_svg(resolved_theme)) for sheet in self.sheets
         ]
-        PDFRenderer.render_sheets_to_pdf(sheet_data, output_path, resolved_theme)
+        sheet_titles = []
+        for i, s in enumerate(self.sheets):
+            t_info = getattr(s, "title_info", None)
+            d_title = (
+                getattr(t_info, "drawing_title", None)
+                or getattr(t_info, "title", None)
+                or ""
+            )
+            d_no = getattr(t_info, "drawing_no", "")
+            if d_no and d_title:
+                sheet_titles.append(f"{d_no} - {d_title}")
+            elif d_title:
+                sheet_titles.append(d_title)
+            elif d_no:
+                sheet_titles.append(d_no)
+            else:
+                sheet_titles.append(f"Sheet {i + 1}")
+        PDFRenderer.render_sheets_to_pdf(
+            sheet_data,
+            output_path,
+            resolved_theme,
+            bookmarks=bookmarks,
+            booklet_title=self.title,
+            sheet_titles=sheet_titles,
+        )
