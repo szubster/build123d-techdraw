@@ -1,8 +1,10 @@
 """SheetView representations, view projection mathematics, and coordinate transformations."""
 
+import contextlib
 import os
 import re
 import tempfile
+from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Self
 
@@ -38,6 +40,16 @@ from build123d_techdraw.core.scale import format_iso_scale
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
+
+
+@dataclass
+class BreakInfo:
+    """Represents a broken-out region exclusion along an axis."""
+
+    interval: tuple[float, float]
+    axis: str = "X"
+    style: str = "zigzag"
+    gap: float = 10.0
 
 
 class ViewType(Enum):
@@ -109,6 +121,9 @@ class SheetView:
         self.scale = scale
         self.width = width
         self.height = height
+        self.unbroken_width = width
+        self.unbroken_height = height
+        self.breaks: list[BreakInfo] = []
         self.min_x = center_x - width / 2.0
         self.max_x = center_x + width / 2.0
         self.min_y = center_y - height / 2.0
@@ -133,6 +148,12 @@ class SheetView:
         self.bottom_annotation_y: float = self.max_y
         self.annotations: list[Any] = []
         self._ctx_token: Any = None
+        self.hatch: str | None = None
+        self.hatch_pitch: float | None = None
+        self.hatch_angle: float | None = None
+        self.hatch_id: str | None = None
+        self.parent_view: SheetView | None = None
+        self.detail_shape: str | None = None
 
     def __enter__(self) -> Self:
         self._ctx_token = CURRENT_VIEW.set(self)
@@ -195,6 +216,319 @@ class SheetView:
         {self.inner_svg_content}
     </g>
     """
+        if self.breaks:
+            self._apply_breaks()
+
+    def add_break(
+        self,
+        interval: tuple[float, float],
+        axis: str = "X",
+        style: str = "zigzag",
+        gap: float = 10.0,
+    ) -> Self:
+        """Add a break line to cut out a uniform span of the view."""
+        b_info = BreakInfo(
+            interval=(min(interval[0], interval[1]), max(interval[0], interval[1])),
+            axis=axis.upper(),
+            style=style.lower(),
+            gap=gap,
+        )
+        self.breaks.append(b_info)
+        self._apply_breaks()
+        return self
+
+    def _apply_breaks(self) -> None:
+        """Regenerate SVG and geometry bounds with break cuts and symbols."""
+        if not self.breaks or not self.inner_svg_content:
+            return
+
+        b = self.breaks[0]
+        x0, x1 = min(b.interval), max(b.interval)
+        model_span = x1 - x0
+        paper_span = model_span * self.scale
+        shift = paper_span - b.gap
+
+        if b.axis == "X":
+            self.width = max(b.gap + 10.0, self.unbroken_width - shift)
+            self.min_x = self.center_x - self.width / 2.0
+            self.max_x = self.center_x + self.width / 2.0
+
+            m_min_x = self.origin_x - (self.unbroken_width / (2.0 * self.scale))
+            l1 = max(5.0, (x0 - m_min_x) * self.scale)
+            bx1 = self.min_x + l1
+            bx2 = bx1 + b.gap
+
+            view_id = f"view_{self.view_type.value}_{int(self.center_x)}_{int(self.center_y)}"
+            clip1_id = f"clip1_{view_id}"
+            clip2_id = f"clip2_{view_id}"
+
+            rot_str = (
+                f" rotate({self.rotation_angle_deg:.1f}, {self.orig_cx:.2f}, {self.orig_cy:.2f})"
+                if self.rotation_angle_deg != 0.0
+                else ""
+            )
+
+            break_lines = []
+            for bx in [bx1, bx2]:
+                y_top = self.min_y - 2.0
+                y_bot = self.max_y + 2.0
+                ym = (y_top + y_bot) / 2.0
+                if b.style == "zigzag":
+                    pts = (
+                        f"{bx:.2f},{y_top:.2f} "
+                        f"{bx:.2f},{ym - 4.0:.2f} "
+                        f"{bx + 2.5:.2f},{ym - 1.5:.2f} "
+                        f"{bx - 2.5:.2f},{ym + 1.5:.2f} "
+                        f"{bx:.2f},{ym + 4.0:.2f} "
+                        f"{bx:.2f},{y_bot:.2f}"
+                    )
+                    break_lines.append(
+                        f'<polyline points="{pts}" class="break-line dim-line" stroke-width="0.35" fill="none"/>'
+                    )
+                else:
+                    d = (
+                        f"M {bx:.2f} {y_top:.2f} "
+                        f"Q {bx + 3.0:.2f} {(y_top * 3.0 + y_bot) / 4.0:.2f} {bx:.2f} {ym:.2f} "
+                        f"Q {bx - 3.0:.2f} {(y_top + y_bot * 3.0) / 4.0:.2f} {bx:.2f} {y_bot:.2f}"
+                    )
+                    break_lines.append(
+                        f'<path d="{d}" class="break-line dim-line" stroke-width="0.35" fill="none"/>'
+                    )
+
+            t1 = (
+                f"translate({self.center_x + shift / 2.0:.2f}, {self.center_y:.2f}) "
+                f"scale({self.scale:.4f}, {self.scale:.4f}){rot_str} "
+                f"translate({-self.orig_cx:.2f}, {-self.orig_cy:.2f})"
+            )
+            t2 = (
+                f"translate({self.center_x - shift / 2.0:.2f}, {self.center_y:.2f}) "
+                f"scale({self.scale:.4f}, {self.scale:.4f}){rot_str} "
+                f"translate({-self.orig_cx:.2f}, {-self.orig_cy:.2f})"
+            )
+
+            self.svg_content = f"""
+    <!-- View: {self.view_type.value.upper()} (Broken View) at ({self.center_x}, {self.center_y}) scale={self.scale} -->
+    <defs>
+        <clipPath id="{clip1_id}">
+            <rect x="{self.min_x - 10:.2f}" y="{self.min_y - 10:.2f}" width="{l1 + 10:.2f}" height="{self.height + 20:.2f}"/>
+        </clipPath>
+        <clipPath id="{clip2_id}">
+            <rect x="{bx2:.2f}" y="{self.min_y - 10:.2f}" width="{self.max_x - bx2 + 10:.2f}" height="{self.height + 20:.2f}"/>
+        </clipPath>
+    </defs>
+    <g id="{view_id}" class="sheet-view broken-view">
+        <g clip-path="url(#{clip1_id})">
+            <g transform="{t1}">
+                {self.inner_svg_content}
+            </g>
+        </g>
+        <g clip-path="url(#{clip2_id})">
+            <g transform="{t2}">
+                {self.inner_svg_content}
+            </g>
+        </g>
+        {"".join(break_lines)}
+    </g>
+    """
+
+    def export_dxf(
+        self,
+        filepath: str,
+        layers: dict[str, str] | None = None,
+        scale: float = 1.0,
+        dxfversion: str = "R2010",
+    ) -> None:
+        """Export 1:1 CAM manufacturing DXF from this 2D view (outer profile, holes, centerlines)."""
+        import ezdxf
+
+        from build123d_techdraw.recognizers.features import recognize_holes
+
+        os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
+        doc = ezdxf.new(dxfversion=dxfversion)  # type: ignore[attr-defined]
+        msp = doc.modelspace()
+
+        layer_map = {
+            "outer_profile": "CUT_OUTER",
+            "inner_holes": "CUT_INNER",
+            "centerlines": "MARK",
+            "countersinks": "ETCH",
+        }
+        if layers:
+            layer_map.update(layers)
+
+        layer_colors = {
+            layer_map["outer_profile"]: 7,
+            layer_map["inner_holes"]: 1,
+            layer_map["centerlines"]: 4,
+            layer_map["countersinks"]: 2,
+        }
+        for lname in set(layer_map.values()):
+            color = layer_colors.get(lname, 7)
+            with contextlib.suppress(Exception):
+                doc.layers.new(name=lname, dxfattribs={"color": color})
+
+        shape = self.shape
+        if shape is None:
+            doc.saveas(filepath)
+            return
+
+        look_from, look_up = VIEW_VECTORS.get(self.view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
+        dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=False)
+        edges = dwg.visible_lines.edges()
+
+        # Identify holes/countersinks via feature recognizer
+        rec_holes = recognize_holes(shape)
+        csink_radii: list[float] = []
+        for rh in rec_holes:
+            if rh.countersink_dia:
+                csink_radii.append(round(rh.countersink_dia / 2.0, 2))
+            if rh.counterbore_dia:
+                csink_radii.append(round(rh.counterbore_dia / 2.0, 2))
+
+        # Combine edges into closed wires
+        wires: list[Any] = []
+        try:
+            wires = bd.Wire.combine(edges)
+        except Exception:
+            wires = []
+
+        if wires:
+            wires.sort(
+                key=lambda w: bd.Face(w).area if getattr(w, "is_closed", False) else 0.0,
+                reverse=True,
+            )
+            outer_wire = wires[0]
+            inner_wires = wires[1:]
+
+            for edge in outer_wire.edges():
+                self._add_edge_to_dxf(msp, edge, layer_map["outer_profile"], scale)
+
+            # Detect concentric circular wires where outer step is countersink/counterbore
+            concentric_csinks: set[int] = set()
+            circle_wires: list[tuple[int, tuple[float, float], float]] = []
+            for idx, iw in enumerate(inner_wires):
+                cw_edges = iw.edges()
+                if (
+                    len(cw_edges) == 1
+                    and getattr(cw_edges[0], "geom_type", None) == bd.GeomType.CIRCLE
+                ):
+                    c = cw_edges[0].arc_center
+                    circle_wires.append((idx, (float(c.X), float(c.Y)), float(cw_edges[0].radius)))
+
+            for i in range(len(circle_wires)):
+                for j in range(i + 1, len(circle_wires)):
+                    idx_i, center_i, r_i = circle_wires[i]
+                    idx_j, center_j, r_j = circle_wires[j]
+                    dist = (
+                        (center_i[0] - center_j[0]) ** 2 + (center_i[1] - center_j[1]) ** 2
+                    ) ** 0.5
+                    if dist < 0.5:
+                        if r_i > r_j:
+                            concentric_csinks.add(idx_i)
+                        else:
+                            concentric_csinks.add(idx_j)
+
+            for idx, iw in enumerate(inner_wires):
+                is_csink = idx in concentric_csinks
+                if not is_csink:
+                    for edge in iw.edges():
+                        if getattr(edge, "geom_type", None) == bd.GeomType.CIRCLE:
+                            r = round(float(edge.radius), 2)
+                            if any(abs(r - cr) < 0.5 for cr in csink_radii):
+                                is_csink = True
+                                break
+                target_l = layer_map["countersinks"] if is_csink else layer_map["inner_holes"]
+                for edge in iw.edges():
+                    self._add_edge_to_dxf(msp, edge, target_l, scale)
+        else:
+            for edge in edges:
+                self._add_edge_to_dxf(msp, edge, layer_map["outer_profile"], scale)
+
+        center_layer = layer_map["centerlines"]
+        has_ann_centerlines = False
+        for ann in getattr(self, "annotations", []):
+            if hasattr(ann, "line_segments"):
+                has_ann_centerlines = True
+                for p0, p1 in ann.line_segments:
+                    msp.add_line(
+                        (p0[0] * scale, p0[1] * scale),
+                        (p1[0] * scale, p1[1] * scale),
+                        dxfattribs={"layer": center_layer},
+                    )
+            elif hasattr(ann, "center"):
+                has_ann_centerlines = True
+                cx, cy = ann.center
+                r = getattr(ann, "radius", 5.0)
+                msp.add_line(
+                    ((cx - r - 2.0) * scale, cy * scale),
+                    ((cx + r + 2.0) * scale, cy * scale),
+                    dxfattribs={"layer": center_layer},
+                )
+                msp.add_line(
+                    (cx * scale, (cy - r - 2.0) * scale),
+                    (cx * scale, (cy + r + 2.0) * scale),
+                    dxfattribs={"layer": center_layer},
+                )
+
+        if not has_ann_centerlines and rec_holes:
+            for rh in rec_holes:
+                c3d = rh.center_3d
+                if self.projection_origin and self.proj_x and self.proj_y:
+                    p = bd.Vector(c3d[0], c3d[1], c3d[2]) - self.projection_origin
+                    cx2d = float(p.dot(self.proj_x))
+                    cy2d = float(p.dot(self.proj_y))
+                else:
+                    cx2d, cy2d = float(c3d[0]), float(c3d[1])
+                r = float(rh.diameter) / 2.0
+                msp.add_line(
+                    ((cx2d - r - 2.0) * scale, cy2d * scale),
+                    ((cx2d + r + 2.0) * scale, cy2d * scale),
+                    dxfattribs={"layer": center_layer},
+                )
+                msp.add_line(
+                    (cx2d * scale, (cy2d - r - 2.0) * scale),
+                    (cx2d * scale, (cy2d + r + 2.0) * scale),
+                    dxfattribs={"layer": center_layer},
+                )
+
+        doc.saveas(filepath)
+
+    @staticmethod
+    def _add_edge_to_dxf(msp: Any, edge: Any, layer: str, scale: float) -> None:
+        gtype = getattr(edge, "geom_type", None)
+        if gtype == bd.GeomType.LINE:
+            v0 = edge.start_point()
+            v1 = edge.end_point()
+            msp.add_line(
+                (float(v0.X) * scale, float(v0.Y) * scale),
+                (float(v1.X) * scale, float(v1.Y) * scale),
+                dxfattribs={"layer": layer},
+            )
+        elif gtype == bd.GeomType.CIRCLE:
+            c = edge.arc_center
+            r = float(edge.radius) * scale
+            if getattr(edge, "is_closed", False):
+                msp.add_circle(
+                    (float(c.X) * scale, float(c.Y) * scale),
+                    r,
+                    dxfattribs={"layer": layer},
+                )
+            else:
+                msp.add_arc(
+                    (float(c.X) * scale, float(c.Y) * scale),
+                    r,
+                    start_angle=float(edge.start_angle),
+                    end_angle=float(edge.end_angle),
+                    dxfattribs={"layer": layer},
+                )
+        else:
+            pts = [edge.position_at(i / 20.0) for i in range(21)]
+            for i in range(len(pts) - 1):
+                msp.add_line(
+                    (float(pts[i].X) * scale, float(pts[i].Y) * scale),
+                    (float(pts[i + 1].X) * scale, float(pts[i + 1].Y) * scale),
+                    dxfattribs={"layer": layer},
+                )
 
     def locate(self, center: tuple[float, float]) -> Self:
         """Reposition the view center on the sheet (in paper mm)."""
@@ -284,11 +618,31 @@ class SheetView:
 
     def to_sheet_x(self, model_x: float) -> float:
         """Transform 2D model X coordinate to sheet paper coordinate (mm)."""
-        return self.center_x + ((model_x - self.origin_x) * self.scale)
+        raw_x = self.center_x + ((model_x - self.origin_x) * self.scale)
+        if self.breaks:
+            for b in self.breaks:
+                if b.axis == "X":
+                    x0, x1 = min(b.interval), max(b.interval)
+                    shift = (x1 - x0) * self.scale - b.gap
+                    if model_x <= x0:
+                        raw_x += shift / 2.0
+                    elif model_x >= x1:
+                        raw_x -= shift / 2.0
+        return raw_x
 
     def to_sheet_y(self, model_y: float) -> float:
         """Transform 2D model Y coordinate to sheet paper coordinate (mm)."""
-        return self.center_y - ((model_y - self.origin_y) * self.scale)
+        raw_y = self.center_y - ((model_y - self.origin_y) * self.scale)
+        if self.breaks:
+            for b in self.breaks:
+                if b.axis == "Y":
+                    y0, y1 = min(b.interval), max(b.interval)
+                    shift = (y1 - y0) * self.scale - b.gap
+                    if model_y <= y0:
+                        raw_y += shift / 2.0
+                    elif model_y >= y1:
+                        raw_y -= shift / 2.0
+        return raw_y
 
     def to_sheet_coords(self, model_x: float, model_y: float) -> tuple[float, float]:
         """Transform 2D model (X, Y) to sheet paper (X, Y) coordinates (mm)."""
@@ -305,6 +659,24 @@ class SheetView:
         svg_y = -y2d
         sx = self.center_x + (svg_x - self.orig_cx) * self.scale
         sy = self.center_y + (svg_y - self.orig_cy) * self.scale
+        if self.breaks:
+            for b in self.breaks:
+                if b.axis == "X":
+                    x0, x1 = min(b.interval), max(b.interval)
+                    shift = (x1 - x0) * self.scale - b.gap
+                    m_x = x if abs(self.proj_x.X) > 0.9 else (y if abs(self.proj_x.Y) > 0.9 else z)
+                    if m_x <= x0:
+                        sx += shift / 2.0
+                    elif m_x >= x1:
+                        sx -= shift / 2.0
+                elif b.axis == "Y":
+                    y0, y1 = min(b.interval), max(b.interval)
+                    shift = (y1 - y0) * self.scale - b.gap
+                    m_y = z if abs(self.proj_y.Z) > 0.9 else (y if abs(self.proj_y.Y) > 0.9 else x)
+                    if m_y <= y0:
+                        sy += shift / 2.0
+                    elif m_y >= y1:
+                        sy -= shift / 2.0
         return (sx, sy)
 
     def dim_horizontal(
@@ -1085,8 +1457,11 @@ def project_section_to_view(
     view_label_offset_y: float = 7.0,
     model_origin: tuple[float, float] | None = None,
     show_background: bool = True,
+    hatch: str = "steel",
+    hatch_pitch: float = 4.0,
+    hatch_angle: float = 45.0,
 ) -> SheetView:
-    """Project a 2D section slice through 3D shape with 45-degree engineering cross-hatching and background visible lines."""
+    """Project a 2D section slice through 3D shape with ISO/ANSI material hatching and background visible lines."""
     sec = bd.section(shape, section_by=cutting_plane)
     sec_2d = cutting_plane.to_local_coords(sec)
 
@@ -1141,7 +1516,15 @@ def project_section_to_view(
     inner_content = inner_content.replace(
         'stroke="rgb(128,128,128)"', 'stroke="var(--line-visible)"'
     )
-    inner_content = inner_content.replace('fill="none"', 'fill="url(#sectionHatch)"')
+
+    h_mat = hatch.lower().strip()
+    if hatch_pitch == 4.0 and hatch_angle == 45.0 and h_mat in ("steel", "ansi31"):
+        hatch_id = "sectionHatch"
+    else:
+        hatch_id = f"hatch_{h_mat}_{int(hatch_pitch)}_{int(hatch_angle)}"
+    inner_content = inner_content.replace(
+        'fill="none"', f'fill="url(#{hatch_id})" class="section-hatch-fill"'
+    )
 
     try:
         geom_bb = sec_2d.bounding_box()
@@ -1190,42 +1573,68 @@ def project_section_to_view(
         shape=shape,
     )
     view_res.inner_svg_content = inner_content
+    view_res.hatch = h_mat
+    view_res.hatch_pitch = hatch_pitch
+    view_res.hatch_angle = hatch_angle
+    view_res.hatch_id = hatch_id
     return view_res
 
 
 def project_detail_to_view(
     parent_view: SheetView,
-    focus_target: Any,
-    radius: float,
-    scale: float,
-    center_x: float,
-    center_y: float,
-    view_label: str = "DETAIL A",
+    focus_target: Any = None,
+    radius: float = 12.0,
+    scale: float = 2.0,
+    center_x: float = 150.0,
+    center_y: float = 150.0,
+    view_label: str | None = None,
     label_letter: str = "A",
     view_label_y: float | None = None,
     view_label_offset_y: float = 7.0,
+    shape: str = "circle",
+    region_center: Any = None,
+    label: str | None = None,
 ) -> SheetView:
-    """Project a magnified detail view of a circular region from parent view."""
+    """Project a magnified detail view of a circular or rectangular region from parent view."""
     import html
 
     from build123d_techdraw.annotations.resolver import resolve_point_to_sheet
 
-    focus_sheet = resolve_point_to_sheet(focus_target, parent_view)
+    actual_target = region_center if region_center is not None else focus_target
+    if actual_target is None:
+        actual_target = (parent_view.center_x, parent_view.center_y)
+
+    focus_sheet = resolve_point_to_sheet(actual_target, parent_view)
+
+    effective_letter = label if label is not None else label_letter
+    effective_label = view_label if view_label is not None else f"DETAIL {effective_letter}"
+    shape_type = str(shape).lower()
 
     # Detail callout indicator on parent view
     parent_callout_r = radius * parent_view.scale
-    callout_tag_x = focus_sheet[0] + parent_callout_r * 0.707
-    callout_tag_y = focus_sheet[1] - parent_callout_r * 0.707
+    if shape_type == "rect":
+        callout_tag_x = focus_sheet[0] + parent_callout_r
+        callout_tag_y = focus_sheet[1] - parent_callout_r
+        rw = parent_callout_r * 2.0
+        rh = parent_callout_r * 2.0
+        rx = focus_sheet[0] - parent_callout_r
+        ry = focus_sheet[1] - parent_callout_r
+        callout_shape_svg = f'<rect x="{rx:.2f}" y="{ry:.2f}" width="{rw:.2f}" height="{rh:.2f}" class="dim-line detail-callout-circle" stroke-width="0.3" stroke-dasharray="3,2" fill="none"/>'
+    else:
+        callout_tag_x = focus_sheet[0] + parent_callout_r * 0.707
+        callout_tag_y = focus_sheet[1] - parent_callout_r * 0.707
+        callout_shape_svg = f'<circle cx="{focus_sheet[0]:.2f}" cy="{focus_sheet[1]:.2f}" r="{parent_callout_r:.2f}" class="dim-line detail-callout-circle" stroke-width="0.3" stroke-dasharray="3,2" fill="none"/>'
+
     callout_svg = f"""<g class="detail-callout">
-        <circle cx="{focus_sheet[0]:.2f}" cy="{focus_sheet[1]:.2f}" r="{parent_callout_r:.2f}" class="dim-line" stroke-width="0.3" stroke-dasharray="3,2" fill="none"/>
+        {callout_shape_svg}
         <line x1="{callout_tag_x:.2f}" y1="{callout_tag_y:.2f}" x2="{callout_tag_x + 5.0:.2f}" y2="{callout_tag_y - 5.0:.2f}" class="dim-line" stroke-width="0.3"/>
         <circle cx="{callout_tag_x + 8.0:.2f}" cy="{callout_tag_y - 8.0:.2f}" r="3.0" class="border-sub" fill="none"/>
-        <text x="{callout_tag_x + 8.0:.2f}" y="{callout_tag_y - 6.8:.2f}" class="tb-title" text-anchor="middle" font-size="3.2">{html.escape(label_letter)}</text>
+        <text x="{callout_tag_x + 8.0:.2f}" y="{callout_tag_y - 6.8:.2f}" class="tb-title" text-anchor="middle" font-size="3.2">{html.escape(effective_letter)}</text>
     </g>"""
     parent_view.svg_content += f"\n    {callout_svg}"
 
     paper_r = radius * scale
-    view_id = f"detail_{label_letter}_{int(center_x)}_{int(center_y)}"
+    view_id = f"detail_{effective_letter}_{int(center_x)}_{int(center_y)}"
     clip_id = f"clip_{view_id}"
 
     focus_svg_x = (focus_sheet[0] - parent_view.center_x) / parent_view.scale + parent_view.orig_cx
@@ -1239,11 +1648,18 @@ def project_detail_to_view(
         f"translate({-focus_svg_x:.2f}, {-focus_svg_y:.2f})"
     )
 
+    if shape_type == "rect":
+        clip_def = f'<rect x="{center_x - paper_r:.2f}" y="{center_y - paper_r:.2f}" width="{paper_r * 2.0:.2f}" height="{paper_r * 2.0:.2f}"/>'
+        boundary_svg = f'<rect x="{center_x - paper_r:.2f}" y="{center_y - paper_r:.2f}" width="{paper_r * 2.0:.2f}" height="{paper_r * 2.0:.2f}" class="border-main" stroke-width="0.5" fill="none"/>'
+    else:
+        clip_def = f'<circle cx="{center_x:.2f}" cy="{center_y:.2f}" r="{paper_r:.2f}"/>'
+        boundary_svg = f'<circle cx="{center_x:.2f}" cy="{center_y:.2f}" r="{paper_r:.2f}" class="border-main" stroke-width="0.5" fill="none"/>'
+
     svg_view_group = f"""
-    <!-- Detail View: {label_letter} at ({center_x}, {center_y}) scale={scale} -->
+    <!-- Detail View: {effective_letter} at ({center_x}, {center_y}) scale={scale} -->
     <defs>
         <clipPath id="{clip_id}">
-            <circle cx="{center_x:.2f}" cy="{center_y:.2f}" r="{paper_r:.2f}"/>
+            {clip_def}
         </clipPath>
     </defs>
     <g id="{view_id}" class="sheet-view detail-view" clip-path="url(#{clip_id})">
@@ -1251,7 +1667,7 @@ def project_detail_to_view(
             {inner_content}
         </g>
     </g>
-    <circle cx="{center_x:.2f}" cy="{center_y:.2f}" r="{paper_r:.2f}" class="border-main" stroke-width="0.5" fill="none"/>
+    {boundary_svg}
     """
 
     lbl_y = view_label_y if view_label_y is not None else (center_y + paper_r + view_label_offset_y)
@@ -1271,12 +1687,14 @@ def project_detail_to_view(
         orig_cx=focus_svg_x,
         orig_cy=focus_svg_y,
         svg_content=svg_view_group,
-        view_label=view_label,
+        view_label=effective_label,
         view_label_pos=(center_x, lbl_y),
         scale_label=scale_str,
         shape=parent_view.shape,
     )
     view_res.inner_svg_content = inner_content
+    view_res.parent_view = parent_view
+    view_res.detail_shape = shape_type
     return view_res
 
 

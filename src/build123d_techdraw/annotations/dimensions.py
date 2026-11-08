@@ -168,6 +168,7 @@ class LinearDimension:
         self.target: Any = None
         self.target2: Any = None
         self.resolved = False
+        self.has_break = False
 
         if start is not None and end is not None:
             self.start = (float(start[0]), float(start[1]))
@@ -250,12 +251,16 @@ class LinearDimension:
                     self.text = format_dimension_value(float(model_dist))
             self.resolved = True
         elif not self.resolved and self.target is None:
+            unbroken_w = getattr(view, "unbroken_width", view.width)
+            unbroken_h = getattr(view, "unbroken_height", view.height)
             if self.dim_type == DimensionType.VERTICAL:
                 x_ref = view.min_x if self.offset < 0 else view.max_x
                 self.start = (x_ref, view.min_y)
                 self.end = (x_ref, view.max_y)
                 if self.text is None:
-                    model_h = view.height / view.scale if view.scale else view.height
+                    model_h = unbroken_h / view.scale if view.scale else unbroken_h
+                    if self.nominal is None:
+                        self.nominal = float(model_h)
                     self.text = format_dimension_value(float(model_h))
             else:
                 self.dim_type = DimensionType.HORIZONTAL
@@ -263,12 +268,16 @@ class LinearDimension:
                 self.start = (view.min_x, y_ref)
                 self.end = (view.max_x, y_ref)
                 if self.text is None:
-                    model_w = view.width / view.scale if view.scale else view.width
+                    model_w = unbroken_w / view.scale if view.scale else view.width
+                    if self.nominal is None:
+                        self.nominal = float(model_w)
                     self.text = format_dimension_value(float(model_w))
                 if self.offset > 0:
                     view.bottom_annotation_y = max(
                         view.bottom_annotation_y, y_ref + self.offset + 4.0
                     )
+            if getattr(view, "breaks", None):
+                self.has_break = True
             self.resolved = True
 
         if hasattr(view, "annotations") and self not in view.annotations:
@@ -318,12 +327,24 @@ class LinearDimension:
                 ]
                 text_elem = f'<text x="{(left_x + right_x) / 2.0:.2f}" y="{dim_y - 1.2:.2f}" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>'
 
+            # Dimension line
+            if getattr(self, "has_break", False):
+                jog_x = (left_x + right_x) / 2.0
+                jw, jh = 3.5, 2.5
+                dim_line_elem = (
+                    f'<line x1="{left_x:.2f}" y1="{dim_y:.2f}" x2="{jog_x - jw:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+                    f'<polyline points="{jog_x - jw:.2f},{dim_y:.2f} {jog_x - jw / 3.0:.2f},{dim_y - jh:.2f} {jog_x + jw / 3.0:.2f},{dim_y + jh:.2f} {jog_x + jw:.2f},{dim_y:.2f}" class="dim-line break-jog" stroke-width="0.3" fill="none"/>'
+                    f'<line x1="{jog_x + jw:.2f}" y1="{dim_y:.2f}" x2="{right_x:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+                )
+            else:
+                dim_line_elem = f'<line x1="{left_x:.2f}" y1="{dim_y:.2f}" x2="{right_x:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+
             elements = [
                 # Extension lines
                 f'<line x1="{left_x:.2f}" y1="{ext_y_start:.2f}" x2="{left_x:.2f}" y2="{ext_y_end:.2f}" class="dim-line" stroke-width="0.25"/>',
                 f'<line x1="{right_x:.2f}" y1="{ext_y_start:.2f}" x2="{right_x:.2f}" y2="{ext_y_end:.2f}" class="dim-line" stroke-width="0.25"/>',
                 # Dimension line
-                f'<line x1="{left_x:.2f}" y1="{dim_y:.2f}" x2="{right_x:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>',
+                dim_line_elem,
                 *arrow_elems,
                 text_elem,
             ]
@@ -361,12 +382,23 @@ class LinearDimension:
                     render_arrowhead(dim_x, bottom_y, 0.0, 1.0, length=self.arrow_size),
                 ]
 
+            if getattr(self, "has_break", False):
+                jog_y = (top_y + bottom_y) / 2.0
+                jw, jh = 2.5, 3.5
+                dim_line_elem = (
+                    f'<line x1="{dim_x:.2f}" y1="{top_y:.2f}" x2="{dim_x:.2f}" y2="{jog_y - jh:.2f}" class="dim-line" stroke-width="0.3"/>'
+                    f'<polyline points="{dim_x:.2f},{jog_y - jh:.2f} {dim_x - jw:.2f},{jog_y - jh / 3.0:.2f} {dim_x + jw:.2f},{jog_y + jh / 3.0:.2f} {dim_x:.2f},{jog_y + jh:.2f}" class="dim-line break-jog" stroke-width="0.3" fill="none"/>'
+                    f'<line x1="{dim_x:.2f}" y1="{jog_y + jh:.2f}" x2="{dim_x:.2f}" y2="{bottom_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+                )
+            else:
+                dim_line_elem = f'<line x1="{dim_x:.2f}" y1="{top_y:.2f}" x2="{dim_x:.2f}" y2="{bottom_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+
             elements = [
                 # Extension lines
                 f'<line x1="{ext_x_start:.2f}" y1="{top_y:.2f}" x2="{ext_x_end:.2f}" y2="{top_y:.2f}" class="dim-line" stroke-width="0.25"/>',
                 f'<line x1="{ext_x_start:.2f}" y1="{bottom_y:.2f}" x2="{ext_x_end:.2f}" y2="{bottom_y:.2f}" class="dim-line" stroke-width="0.25"/>',
                 # Dimension line
-                f'<line x1="{dim_x:.2f}" y1="{top_y:.2f}" x2="{dim_x:.2f}" y2="{bottom_y:.2f}" class="dim-line" stroke-width="0.3"/>',
+                dim_line_elem,
                 *arrow_elems,
                 # Rotated dimension text
                 f'<text x="{dim_x - 1.4:.2f}" y="{mid_y:.2f}" transform="rotate(-90 {dim_x - 1.4:.2f} {mid_y:.2f})" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>',
@@ -963,6 +995,168 @@ class OrdinateDimensionGroup:
 
     def to_svg(self) -> str:
         return "".join(o.to_svg() for o in self.ordinates)
+
+
+class OrdinateDimensionSet:
+    """A set of datum ordinate dimensions along an axis (X or Y) with auto-jogging for tightly-spaced values."""
+
+    def __init__(
+        self,
+        datum_origin: tuple[float, float] | Any = (0.0, 0.0),
+        direction: str = "X",
+        coordinates: list[float] | list[Any] | None = None,
+        baseline_offset: float = -16.0,
+        jog: bool = True,
+        font_size: float = 3.2,
+        prefix: str = "",
+        suffix: str = "",
+        view: Any | None = None,
+    ):
+        self.datum_origin = datum_origin
+        self.direction = direction.upper()
+        self.coordinates = list(coordinates) if coordinates is not None else [0.0]
+        self.baseline_offset = baseline_offset
+        self.jog = jog
+        self.font_size = font_size
+        self.prefix = prefix
+        self.suffix = suffix
+        self.view = view
+        self.datum_sheet: tuple[float, float] = (0.0, 0.0)
+        self.resolved = False
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if is_topological_entity(self.datum_origin):
+            self.datum_sheet = resolve_point_to_sheet(self.datum_origin, view)
+        elif isinstance(self.datum_origin, (tuple, list)):
+            if len(self.datum_origin) == 3:
+                self.datum_sheet = view.to_sheet_3d(*self.datum_origin)
+            else:
+                self.datum_sheet = view.to_sheet_coords(
+                    float(self.datum_origin[0]), float(self.datum_origin[1])
+                )
+        else:
+            self.datum_sheet = (view.min_x, view.min_y)
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
+        self.resolved = True
+
+    def to_svg(self) -> str:
+        if not self.view and not self.datum_sheet:
+            return ""
+
+        scale = self.view.scale if self.view and self.view.scale else 1.0
+        is_x = self.direction in ("X", "HORIZONTAL")
+        items_svg = []
+
+        # Sort coordinates numerically
+        sorted_coords = sorted(
+            self.coordinates,
+            key=lambda c: float(c) if isinstance(c, (int, float)) else 0.0,
+        )
+
+        # Compute paper locations and auto-jogging
+        paper_locs: list[float] = []
+        for c in sorted_coords:
+            val = float(c) if isinstance(c, (int, float)) else 0.0
+            if is_x:
+                p_coord = (
+                    self.view.to_sheet_x(float(self.datum_origin[0]) + val)
+                    if self.view
+                    else (self.datum_sheet[0] + val * scale)
+                )
+            else:
+                p_coord = (
+                    self.view.to_sheet_y(float(self.datum_origin[1]) + val)
+                    if self.view
+                    else (self.datum_sheet[1] - val * scale)
+                )
+            paper_locs.append(p_coord)
+
+        jog_offsets: list[float] = [0.0] * len(sorted_coords)
+        if self.jog:
+            for i in range(1, len(sorted_coords)):
+                gap = abs(paper_locs[i] - paper_locs[i - 1])
+                if gap < 5.0:
+                    jog_dir = 1.0 if (i % 2 == 1) else -1.0
+                    jog_offsets[i] = jog_dir * max(3.5, 6.0 - gap)
+
+        feature_baseline = (
+            (self.view.min_y if self.baseline_offset < 0 else self.view.max_y)
+            if (self.view and is_x)
+            else (
+                (self.view.min_x if self.baseline_offset < 0 else self.view.max_x)
+                if (self.view and not is_x)
+                else (self.datum_sheet[1] if is_x else self.datum_sheet[0])
+            )
+        )
+        baseline_pos = feature_baseline + self.baseline_offset
+
+        for i, c in enumerate(sorted_coords):
+            val = float(c) if isinstance(c, (int, float)) else 0.0
+            p_loc = paper_locs[i]
+            jog = jog_offsets[i]
+
+            disp_str = "0" if abs(val) < 1e-4 else format_dimension_value(val)
+            full_str = f"{self.prefix}{disp_str}{self.suffix}"
+
+            if is_x:
+                feat_y = feature_baseline
+                end_y = baseline_pos
+                if jog != 0.0:
+                    mid_y = (feat_y + end_y) / 2.0
+                    pts = (
+                        f"{p_loc:.2f},{feat_y:.2f} "
+                        f"{p_loc:.2f},{mid_y:.2f} "
+                        f"{p_loc + jog:.2f},{mid_y:.2f} "
+                        f"{p_loc + jog:.2f},{end_y:.2f}"
+                    )
+                    text_x = p_loc + jog
+                else:
+                    pts = f"{p_loc:.2f},{feat_y:.2f} {p_loc:.2f},{end_y:.2f}"
+                    text_x = p_loc
+                text_y = end_y - 1.2 if self.baseline_offset < 0 else end_y + 3.0
+                items_svg.append(f"""
+                <g class="ordinate-dim">
+                    <polyline points="{pts}" class="dim-line" stroke-width="0.25" fill="none"/>
+                    <text x="{text_x:.2f}" y="{text_y:.2f}" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>
+                </g>""")
+            else:
+                feat_x = feature_baseline
+                end_x = baseline_pos
+                if jog != 0.0:
+                    mid_x = (feat_x + end_x) / 2.0
+                    pts = (
+                        f"{feat_x:.2f},{p_loc:.2f} "
+                        f"{mid_x:.2f},{p_loc:.2f} "
+                        f"{mid_x:.2f},{p_loc + jog:.2f} "
+                        f"{end_x:.2f},{p_loc + jog:.2f}"
+                    )
+                    text_y = p_loc + jog
+                else:
+                    pts = f"{feat_x:.2f},{p_loc:.2f} {end_x:.2f},{p_loc:.2f}"
+                    text_y = p_loc
+                text_x = end_x - 1.5 if self.baseline_offset < 0 else end_x + 1.5
+                anchor = "end" if self.baseline_offset < 0 else "start"
+                items_svg.append(f"""
+                <g class="ordinate-dim">
+                    <polyline points="{pts}" class="dim-line" stroke-width="0.25" fill="none"/>
+                    <text x="{text_x:.2f}" y="{text_y + 1.0:.2f}" class="dim-text" text-anchor="{anchor}" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>
+                </g>""")
+
+        return f'<g class="ordinate-dim-set">{"".join(items_svg)}</g>'
 
 
 class BaselineDimensionGroup:

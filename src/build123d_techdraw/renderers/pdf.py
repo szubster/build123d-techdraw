@@ -14,7 +14,7 @@ import matplotlib.patches as patches
 import matplotlib.path as mpath
 import matplotlib.pyplot as plt
 import svgelements as se
-from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.backends.backend_pdf import Name, PdfPages
 
 from build123d_techdraw.renderers.theme import THEME_COLORS, Theme, ThemeColors
 
@@ -22,6 +22,71 @@ MM_TO_PT: float = 72.0 / 25.4
 # Contours (ISO 128 Type A): 0.50mm -> 1.42pt
 # Dimensions/Leaders (ISO 128 Type B): 0.25mm -> 0.71pt
 # Borders: 0.70mm -> 1.98pt
+
+
+class BookmarkedPdfPages(PdfPages):
+    """PdfPages subclass supporting native PDF document outline bookmarks."""
+
+    def __init__(
+        self,
+        filename: str,
+        booklet_title: str = "ENGINEERING DRAWINGS",
+        sheet_titles: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        super().__init__(filename, metadata=metadata)
+        self.booklet_title = booklet_title
+        self.sheet_titles = sheet_titles or []
+
+    def close(self) -> None:
+        if self._file is not None and self.sheet_titles:
+            pdf = self._file
+            n = len(pdf.pageList)
+            if n > 0:
+                outlines_obj = pdf.reserveObject("outlines")
+                top_obj = pdf.reserveObject("outline_top")
+                child_objs = [pdf.reserveObject(f"outline_child_{i}") for i in range(n)]
+
+                for i in range(n):
+                    title = self.sheet_titles[i] if i < len(self.sheet_titles) else f"Sheet {i + 1}"
+                    child_dict: dict[str, Any] = {
+                        "Title": title,
+                        "Parent": top_obj,
+                        "Dest": [pdf.pageList[i], Name("Fit")],  # type: ignore[no-untyped-call]
+                    }
+                    if i > 0:
+                        child_dict["Prev"] = child_objs[i - 1]
+                    if i < n - 1:
+                        child_dict["Next"] = child_objs[i + 1]
+                    pdf.writeObject(child_objs[i], child_dict)
+
+                top_dict: dict[str, Any] = {
+                    "Title": self.booklet_title,
+                    "Parent": outlines_obj,
+                    "Count": n,
+                    "Dest": [pdf.pageList[0], Name("Fit")],  # type: ignore[no-untyped-call]
+                }
+                if child_objs:
+                    top_dict["First"] = child_objs[0]
+                    top_dict["Last"] = child_objs[-1]
+                pdf.writeObject(top_obj, top_dict)
+
+                outlines_dict: dict[str, Any] = {
+                    "Type": Name("Outlines"),  # type: ignore[no-untyped-call]
+                    "First": top_obj,
+                    "Last": top_obj,
+                    "Count": n + 1,
+                }
+                pdf.writeObject(outlines_obj, outlines_dict)
+
+                catalog_dict: dict[str, Any] = {
+                    "Type": Name("Catalog"),  # type: ignore[no-untyped-call]
+                    "Pages": pdf.pagesObject,
+                    "Outlines": outlines_obj,
+                }
+                pdf.writeObject(pdf.rootObject, catalog_dict)
+
+        super().close()  # type: ignore[no-untyped-call]
 
 
 class PDFRenderer:
@@ -120,10 +185,11 @@ class PDFRenderer:
                             parent = getattr(parent, "parent", None)
 
                     # Check for section hatch
+                    fill_str = str(getattr(el, "fill", "")) + " " + str(el.values.get("fill", ""))
                     is_hatch = (
                         "section-hatch-fill" in cls_list
-                        or "sectionHatch" in str(getattr(el, "fill", ""))
-                        or "sectionHatch" in str(el.values.get("fill", ""))
+                        or "sectionHatch" in fill_str
+                        or "hatch_" in fill_str
                     )
 
                     if is_hidden:
@@ -134,7 +200,17 @@ class PDFRenderer:
                         fill = colors.table_header_bg
                         stroke = colors.line_visible
                         lw = 0.35 * MM_TO_PT
-                        hatch = "//"
+                        fill_lower = fill_str.lower()
+                        if "aluminum" in fill_lower or "ansi38" in fill_lower:
+                            hatch = "//"
+                        elif "brass" in fill_lower or "ansi32" in fill_lower:
+                            hatch = "/."
+                        elif "plastic" in fill_lower:
+                            hatch = "xx"
+                        elif "rubber" in fill_lower:
+                            hatch = ".."
+                        else:
+                            hatch = "/"
                     elif (
                         "stroke-visible" in cls_list
                         or "line-visible" in cls_list
@@ -272,12 +348,20 @@ class PDFRenderer:
         sheets_data: list[tuple[float, float, str]],
         output_path: str,
         theme: Theme = Theme.DARK_BLUEPRINT,
+        bookmarks: bool = False,
+        booklet_title: str = "ENGINEERING DRAWINGS",
+        sheet_titles: list[str] | None = None,
     ) -> None:
         """Render multiple sheets to a multi-page PDF document."""
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         colors = THEME_COLORS[theme]
 
-        with PdfPages(output_path) as pdf:
+        pages_cls = BookmarkedPdfPages if bookmarks else PdfPages
+        kwargs: dict[str, Any] = {}
+        if bookmarks:
+            kwargs = {"booklet_title": booklet_title, "sheet_titles": sheet_titles}
+
+        with pages_cls(output_path, **kwargs) as pdf:
             for width_mm, height_mm, svg_code in sheets_data:
                 w_in = width_mm / 25.4
                 h_in = height_mm / 25.4

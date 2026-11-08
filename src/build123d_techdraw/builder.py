@@ -527,7 +527,7 @@ class IsometricView(View):
 
 
 class SectionView(View):
-    """2D planar section cut slice with 45-degree cross-hatching."""
+    """2D planar section cut slice with engineering hatching."""
 
     def __new__(
         cls,
@@ -542,6 +542,9 @@ class SectionView(View):
         align_to: Any = None,
         show_background: bool = True,
         enforce_iso_scale: bool = True,
+        hatch: str = "steel",
+        hatch_pitch: float = 4.0,
+        hatch_angle: float = 45.0,
     ) -> SectionView:
         calc_scale = _resolve_view_scale(
             shape=shape,
@@ -560,6 +563,9 @@ class SectionView(View):
             view_label_y=view_label_y,
             model_origin=model_origin,
             show_background=show_background,
+            hatch=hatch,
+            hatch_pitch=hatch_pitch,
+            hatch_angle=hatch_angle,
         )
         view.__class__ = cls
         view.shape = shape
@@ -579,34 +585,43 @@ class SectionView(View):
 
 
 class DetailView(View):
-    """Magnified circular detail view."""
+    """Magnified circular or rectangular detail view."""
 
     def __new__(
         cls,
         parent_view: SheetView,
-        focus_target: Any,
-        radius: float = 15.0,
-        center: tuple[float, float] = (150.0, 150.0),
+        region_center: Any = None,
+        focus_target: Any = None,
+        radius: float = 12.0,
         scale: float | str = 2.0,
-        view_label: str = "DETAIL A",
+        label: str | None = None,
+        center: tuple[float, float] = (150.0, 150.0),
+        shape: str = "circle",
+        view_label: str | None = None,
         label_letter: str = "A",
         view_label_y: float | None = None,
         sheet: DrawingSheet | None = None,
         align_to: Any = None,
         enforce_iso_scale: bool = True,
     ) -> DetailView:
+        target = region_center if region_center is not None else focus_target
+        eff_letter = label if label is not None else label_letter
+        eff_label = view_label if view_label is not None else f"DETAIL {eff_letter}"
         raw_scale = 2.0 if scale == "auto" else float(scale)
         calc_scale = find_closest_iso_scale(raw_scale) if enforce_iso_scale else raw_scale
         view = project_detail_to_view(
             parent_view=parent_view,
-            focus_target=focus_target,
+            focus_target=target,
             radius=radius,
             scale=calc_scale,
             center_x=center[0],
             center_y=center[1],
-            view_label=view_label,
-            label_letter=label_letter,
+            view_label=eff_label,
+            label_letter=eff_letter,
             view_label_y=view_label_y,
+            shape=shape,
+            region_center=region_center,
+            label=label,
         )
         view.__class__ = cls
         view.enforce_iso_scale = enforce_iso_scale
@@ -617,6 +632,50 @@ class DetailView(View):
         if target_sheet is not None and view not in target_sheet.views:
             target_sheet.add_view(view)
 
+        return view  # type: ignore[return-value]
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+
+class BreakView(View):
+    """Orthographic projection view with one or more broken spans."""
+
+    def __new__(
+        cls,
+        shape: Any,
+        interval: tuple[float, float],
+        axis: str = "X",
+        style: str = "zigzag",
+        gap: float = 10.0,
+        view_type: ViewType = ViewType.FRONT,
+        center: tuple[float, float] = (150.0, 150.0),
+        scale: float | str = 1.0,
+        show_hidden: bool = True,
+        view_label: str | None = None,
+        rotation_angle_deg: float = 0.0,
+        view_label_y: float | None = None,
+        model_origin: tuple[float, float] | None = None,
+        sheet: DrawingSheet | None = None,
+        align_to: Any = None,
+        enforce_iso_scale: bool = True,
+    ) -> BreakView:
+        view = super().__new__(
+            cls,
+            shape=shape,
+            view_type=view_type,
+            center=center,
+            scale=scale,
+            show_hidden=show_hidden,
+            view_label=view_label,
+            rotation_angle_deg=rotation_angle_deg,
+            view_label_y=view_label_y,
+            model_origin=model_origin,
+            sheet=sheet,
+            align_to=align_to,
+            enforce_iso_scale=enforce_iso_scale,
+        )
+        view.add_break(interval=interval, axis=axis, style=style, gap=gap)
         return view  # type: ignore[return-value]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

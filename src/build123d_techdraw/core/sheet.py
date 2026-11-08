@@ -378,8 +378,11 @@ class DrawingSheet:
         model_origin: tuple[float, float] | None = None,
         align_to: Any = None,
         show_background: bool = True,
+        hatch: str = "steel",
+        hatch_pitch: float = 4.0,
+        hatch_angle: float = 45.0,
     ) -> SheetView:
-        """Add a 2D section slice view with 45-degree cross-hatching to the sheet."""
+        """Add a 2D section slice view with material hatching to the sheet."""
         view = project_section_to_view(
             shape=shape,
             cutting_plane=cutting_plane,
@@ -390,6 +393,9 @@ class DrawingSheet:
             view_label_y=view_label_y,
             model_origin=model_origin,
             show_background=show_background,
+            hatch=hatch,
+            hatch_pitch=hatch_pitch,
+            hatch_angle=hatch_angle,
         )
         if align_to is not None:
             _apply_align_to(view, align_to)
@@ -404,16 +410,19 @@ class DrawingSheet:
     def add_detail_view(
         self,
         parent_view: SheetView,
-        focus_target: Any,
-        radius: float = 15.0,
+        focus_target: Any = None,
+        radius: float = 12.0,
         scale: float = 2.0,
         center: tuple[float, float] = (150.0, 150.0),
-        view_label: str = "DETAIL A",
+        view_label: str | None = None,
         label_letter: str = "A",
         view_label_y: float | None = None,
         align_to: Any = None,
+        shape: str = "circle",
+        region_center: Any = None,
+        label: str | None = None,
     ) -> SheetView:
-        """Add a magnified circular detail view to the sheet."""
+        """Add a magnified circular or rectangular detail view to the sheet."""
         view = project_detail_to_view(
             parent_view=parent_view,
             focus_target=focus_target,
@@ -424,6 +433,9 @@ class DrawingSheet:
             view_label=view_label,
             label_letter=label_letter,
             view_label_y=view_label_y,
+            shape=shape,
+            region_center=region_center,
+            label=label,
         )
         if align_to is not None:
             _apply_align_to(view, align_to)
@@ -1015,6 +1027,63 @@ class DrawingSheet:
                 """)
         return f'<g class="view-labels">{"".join(out)}</g>'
 
+    def render_hatch_defs(self) -> str:
+        """Render standard ISO 128 / ANSI hatch patterns in SVG defs."""
+        patterns = [
+            """<pattern id="sectionHatch" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>""",
+            """<pattern id="hatch_steel" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>""",
+            """<pattern id="hatch_aluminum" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="1.2" y1="0" x2="1.2" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>""",
+            """<pattern id="hatch_brass" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="2" y1="0" x2="2" y2="4" stroke="var(--hatch-color)" stroke-width="0.35" stroke-dasharray="1.5,1.5"/>
+    </pattern>""",
+            """<pattern id="hatch_plastic" width="4" height="4" patternTransform="rotate(60 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="0" y1="0" x2="4" y2="0" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>""",
+            """<pattern id="hatch_rubber" width="4" height="4" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="0" cy="0" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="4" cy="0" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="0" cy="4" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="4" cy="4" r="0.45" fill="var(--hatch-color)"/>
+    </pattern>""",
+        ]
+        for v in self.views:
+            h_id = getattr(v, "hatch_id", None)
+            if h_id and not any(f'id="{h_id}"' in p for p in patterns):
+                mat = getattr(v, "hatch", "steel")
+                pitch = getattr(v, "hatch_pitch", 4.0)
+                angle = getattr(v, "hatch_angle", 45.0)
+                if mat in ("aluminum", "ansi38"):
+                    p_svg = f"""<pattern id="{h_id}" width="{pitch:.2f}" height="{pitch:.2f}" patternTransform="rotate({angle:.1f} 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="{pitch:.2f}" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="{pitch * 0.3:.2f}" y1="0" x2="{pitch * 0.3:.2f}" y2="{pitch:.2f}" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>"""
+                elif mat in ("brass", "ansi32"):
+                    p_svg = f"""<pattern id="{h_id}" width="{pitch:.2f}" height="{pitch:.2f}" patternTransform="rotate({angle:.1f} 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="{pitch:.2f}" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="{pitch * 0.5:.2f}" y1="0" x2="{pitch * 0.5:.2f}" y2="{pitch:.2f}" stroke="var(--hatch-color)" stroke-width="0.35" stroke-dasharray="1.5,1.5"/>
+    </pattern>"""
+                elif mat in ("plastic", "rubber"):
+                    p_svg = f"""<pattern id="{h_id}" width="{pitch:.2f}" height="{pitch:.2f}" patternTransform="rotate({angle:.1f} 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="{pitch:.2f}" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="0" y1="0" x2="{pitch:.2f}" y2="0" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>"""
+                else:
+                    p_svg = f"""<pattern id="{h_id}" width="{pitch:.2f}" height="{pitch:.2f}" patternTransform="rotate({angle:.1f} 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="{pitch:.2f}" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>"""
+                patterns.append(p_svg)
+        return "\n    ".join(patterns)
+
     def to_svg(self, theme: Theme | str = Theme.DARK_BLUEPRINT) -> str:
         """Render the complete drawing sheet to an SVG vector string."""
         if isinstance(theme, str):
@@ -1061,9 +1130,7 @@ class DrawingSheet:
       <path d="M 10 0 L 0 0 0 10" fill="none" stroke="var(--grid-color)" stroke-width="0.15"/>
       <circle cx="0" cy="0" r="0.3" fill="var(--grid-color)"/>
     </pattern>
-    <pattern id="sectionHatch" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
-      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
-    </pattern>
+    {self.render_hatch_defs()}
   </defs>
 
   {self.render_border_and_grid()}
