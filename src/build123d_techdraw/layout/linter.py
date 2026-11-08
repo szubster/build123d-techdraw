@@ -207,6 +207,9 @@ def run_sheet_lint(sheet: DrawingSheet) -> list[LintIssue]:
         ann1, b1 = ann_bboxes[i]
         for j in range(i + 1, len(ann_bboxes)):
             ann2, b2 = ann_bboxes[j]
+            # Discard if same instance compared against itself
+            if ann1 is ann2:
+                continue
             # Discard pairs if both are in a group or centermark on hole
             if type(ann1).__name__ == "CenterMark" or type(ann2).__name__ == "CenterMark":
                 continue

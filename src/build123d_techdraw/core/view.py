@@ -703,9 +703,9 @@ class SheetView:
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(dim)
+        self.add(dim)
         if offset_y > 0:
             self.bottom_annotation_y = max(self.bottom_annotation_y, sy + offset_y + 4.0)
         return dim
@@ -734,9 +734,9 @@ class SheetView:
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(dim)
+        self.add(dim)
         return dim
 
     def dim_aligned(
@@ -761,9 +761,9 @@ class SheetView:
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(dim)
+        self.add(dim)
         return dim
 
     def add_overall_horizontal(
@@ -785,9 +785,9 @@ class SheetView:
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(dim)
+        self.add(dim)
         if offset_y > 0:
             self.bottom_annotation_y = max(self.bottom_annotation_y, y_ref + offset_y + 4.0)
         return dim
@@ -811,9 +811,9 @@ class SheetView:
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(dim)
+        self.add(dim)
         return dim
 
     def dim_radial(
@@ -832,9 +832,9 @@ class SheetView:
             angle_deg=angle_deg,
             text=text,
             tolerance=tolerance,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(dim)
+        self.add(dim)
         return dim
 
     def dim_diameter(
@@ -853,9 +853,9 @@ class SheetView:
             angle_deg=angle_deg,
             text=text,
             tolerance=tolerance,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(dim)
+        self.add(dim)
         return dim
 
     def dim_angular(
@@ -964,9 +964,8 @@ class SheetView:
     ) -> CenterMark:
         """Add a centermark crosshair at (model_x, model_y)."""
         sc = self.to_sheet_coords(model_x, model_y)
-        cm = CenterMark(center=sc, size=size)
-        if self.sheet is not None:
-            self.sheet.annotations.append(cm)
+        cm = CenterMark(center=sc, size=size, view=self)
+        self.add(cm)
         return cm
 
     def centerline_horizontal(
@@ -984,9 +983,8 @@ class SheetView:
         sx2 = (
             self.to_sheet_x(model_x2) + overhang if model_x2 is not None else self.max_x + overhang
         )
-        cl = Centerline(start=(sx1, sy), end=(sx2, sy))
-        if self.sheet is not None:
-            self.sheet.annotations.append(cl)
+        cl = Centerline(start=(sx1, sy), end=(sx2, sy), view=self)
+        self.add(cl)
         return cl
 
     def centerline_vertical(
@@ -1004,9 +1002,8 @@ class SheetView:
         sy2 = (
             self.to_sheet_y(model_y2) - overhang if model_y2 is not None else self.min_y - overhang
         )
-        cl = Centerline(start=(sx, min(sy1, sy2)), end=(sx, max(sy1, sy2)))
-        if self.sheet is not None:
-            self.sheet.annotations.append(cl)
+        cl = Centerline(start=(sx, min(sy1, sy2)), end=(sx, max(sy1, sy2)), view=self)
+        self.add(cl)
         return cl
 
     def bolt_circle(
@@ -1023,9 +1020,9 @@ class SheetView:
             diameter=diameter_model * self.scale,
             num_holes=num_holes,
             start_angle_deg=start_angle_deg,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(bc)
+        self.add(bc)
         return bc
 
     def leader(
@@ -1049,9 +1046,9 @@ class SheetView:
             shelf_length=shelf_length,
             align_right=align_right,
             terminator=terminator,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(note)
+        self.add(note)
         return note
 
     def leader_3d(
@@ -1076,9 +1073,9 @@ class SheetView:
             shelf_length=shelf_length,
             align_right=align_right,
             terminator=terminator,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(note)
+        self.add(note)
         return note
 
     def balloon(
@@ -1095,9 +1092,9 @@ class SheetView:
             item_no=item_no,
             target=target,
             balloon_center=(balloon_x, balloon_y),
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(balloon)
+        self.add(balloon)
         return balloon
 
     def add_gdt_frame(
@@ -1128,9 +1125,9 @@ class SheetView:
             datum_b=datum_b,
             datum_c=datum_c,
             leader_target=leader_target,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(fcf)
+        self.add(fcf)
         return fcf
 
     def add_datum_symbol(
@@ -1142,9 +1139,8 @@ class SheetView:
     ) -> DatumFeatureSymbol:
         """Add an ISO datum feature identifier symbol at (model_x, model_y)."""
         target = self.to_sheet_coords(model_x, model_y)
-        sym = DatumFeatureSymbol(target=target, label=label, direction=direction)
-        if self.sheet is not None:
-            self.sheet.annotations.append(sym)
+        sym = DatumFeatureSymbol(target=target, label=label, direction=direction, view=self)
+        self.add(sym)
         return sym
 
     def add_surface_finish(
@@ -1162,9 +1158,9 @@ class SheetView:
             ra_value=ra_value,
             material_removal=material_removal,
             process=process,
+            view=self,
         )
-        if self.sheet is not None:
-            self.sheet.annotations.append(sym)
+        self.add(sym)
         return sym
 
     def hole_callout(
