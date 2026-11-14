@@ -83,6 +83,7 @@ def generate_algebraic_mode_drawing(output_dir: Path) -> None:
     sheet.export_svg(str(output_dir / "algebraic_mode_bracket.svg"), theme=Theme.DARK_BLUEPRINT)
     sheet.export_svg(str(output_dir / "algebraic_mode_bracket_white.svg"), theme=Theme.ISO_WHITE)
     sheet.export_pdf(str(output_dir / "algebraic_mode_bracket.pdf"))
+    sheet.export_dxf(str(output_dir / "algebraic_mode_bracket.dxf"))
     print("Generated Algebraic Mode outputs.")
 
 

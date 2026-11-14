@@ -42,7 +42,40 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups
       - name: Run mypy
-        run: uv run mypy src
+        run: uv run mypy src examples
+
+  examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install system dependencies for OCP / OpenGL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1 libxrender1 libxcursor1 libxft2 libxinerama1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --all-groups
+      - name: Record pre-generation timestamp
+        run: python3 -c "import time; open('/tmp/examples_ts', 'w').write(str(time.time_ns()))"
+      - name: Regenerate all example outputs
+        run: uv run python examples/generate_all.py
+      - name: Verify SVG outputs match committed files and PDF/DXF were regenerated
+        run: |
+          git diff --exit-code examples/output/*.svg docs/assets/examples/*.svg
+          test -z "$(git status --porcelain examples/output/*.svg docs/assets/examples/*.svg)"
+          python3 -c "
+          from pathlib import Path
+          ts = int(Path('/tmp/examples_ts').read_text())
+          files = list(Path('examples/output').glob('*.pdf')) + list(Path('examples/output').glob('*.dxf'))
+          assert files, 'No PDF or DXF outputs found'
+          stale = [str(f) for f in files if f.stat().st_mtime_ns <= ts]
+          assert not stale, f'Stale PDF/DXF outputs not regenerated: {stale}'
+          "
 
   test:
     runs-on: ubuntu-latest

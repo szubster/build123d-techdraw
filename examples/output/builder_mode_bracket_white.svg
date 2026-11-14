@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 420.0 297.0"
+     width="420.0mm"
+     height="297.0mm"
+     class="theme-iso-white"
+     id="sheet_BRK-BUILDER-01">
+  <defs>
+    <style type="text/css">
+      
+    :root, .theme-iso-white {
+        --bg-color: #FFFFFF;
+        --grid-color: #00000008;
+        --border-main: #0F172A;
+        --border-sub: #CBD5E1;
+        --title-bg: #F8FAFC;
+        --title-border: #0F172A;
+        --text-main: #0F172A;
+        --text-muted: #475569;
+        --text-accent: #0284C7;
+        --line-visible: #000000;
+        --line-hidden: #94A3B8;
+        --line-center: #2563EB;
+        --line-section: #DC2626;
+        --hatch-color: #64748B;
+        --dim-color: #DC2626;
+        --dim-text: #DC2626;
+        --balloon-bg: #FFFFFF;
+        --balloon-border: #DC2626;
+        --balloon-text: #0F172A;
+        --table-header-bg: #E2E8F0;
+        --table-row-alt: #F1F5F9;
+    }
+    .theme-dark-blueprint {
+        --bg-color: #0B192C;
+        --grid-color: #38BDF812;
+        --border-main: #38BDF8;
+        --border-sub: #1E3A5F;
+        --title-bg: #0F172AE6;
+        --title-border: #38BDF8;
+        --text-main: #F8FAFC;
+        --text-muted: #94A3B8;
+        --text-accent: #38BDF8;
+        --line-visible: #FFFFFF;
+        --line-hidden: #475569;
+        --line-center: #38BDF8;
+        --line-section: #F43F5E;
+        --hatch-color: #0284C7;
+        --dim-color: #38BDF8;
+        --dim-text: #38BDF8;
+        --balloon-bg: #0F172A;
+        --balloon-border: #F43F5E;
+        --balloon-text: #FFFFFF;
+        --table-header-bg: #1E293B;
+        --table-row-alt: #1E293B99;
+    }
+    svg {
+        font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Liberation Sans', sans-serif;
+        background-color: var(--bg-color);
+    }
+    .sheet-bg { fill: var(--bg-color); }
+    .border-main { stroke: var(--border-main); fill: none; }
+    .border-sub { stroke: var(--border-sub); fill: none; }
+    .title-bg { fill: var(--title-bg); stroke: var(--border-main); }
+    .table-header-bg { fill: var(--table-header-bg); }
+    .table-row-alt { fill: var(--table-row-alt); }
+    .zone-text { fill: var(--text-muted); font-size: 2.8px; font-weight: bold; text-anchor: middle; }
+    .tb-field-label { fill: var(--text-muted); font-size: 2.1px; font-weight: 600; letter-spacing: 0.2px; }
+    .tb-field-val-sm { fill: var(--text-main); font-size: 2.6px; font-weight: 500; }
+    .tb-field-val-bold { fill: var(--text-main); font-size: 3.4px; font-weight: 700; }
+    .tb-title { fill: var(--text-accent); font-size: 3.0px; font-weight: 700; letter-spacing: 0.2px; }
+    .notes-text { fill: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 2.4px; }
+    .view-title { fill: var(--text-main); letter-spacing: 0.5px; }
+    .view-scale { fill: var(--text-muted); }
+    .line-visible, #layer_visible, #layer_visible * { stroke: var(--line-visible); stroke-dasharray: none; fill: none; }
+    .line-hidden, #layer_hidden, #layer_hidden * { stroke: var(--line-hidden); stroke-dasharray: 2.0, 1.2; fill: none; }
+    .line-center { stroke: var(--line-center); fill: none; }
+    .line-section-thick { stroke: var(--line-section); fill: none; }
+    .section-arrow-head { fill: var(--line-section); }
+    .section-label-text { fill: var(--line-section); }
+    .dim-line { stroke: var(--dim-color); fill: none; }
+    .dim-arrow { fill: var(--dim-color); }
+    .dim-text { fill: var(--dim-text); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .leader-dot { fill: var(--dim-color); }
+    .leader-text { fill: var(--text-main); font-family: 'JetBrains Mono', monospace; font-size: 2.7px; font-weight: 500; }
+    .balloon-dot { fill: var(--balloon-border); }
+    .balloon-leader { stroke: var(--balloon-border); fill: none; }
+    .balloon-circle { fill: var(--balloon-bg); stroke: var(--balloon-border); }
+    .balloon-text { fill: var(--balloon-text); }
+    .theme-iso-white .blueprint-grid { display: none; }
+    .theme-iso-white .line-visible, .theme-iso-white #layer_visible, .theme-iso-white #layer_visible * { stroke: #000000; stroke-width: 0.5px; }
+    .theme-iso-white .line-hidden, .theme-iso-white #layer_hidden, .theme-iso-white #layer_hidden * { stroke: #64748B; stroke-width: 0.25px; stroke-dasharray: 2.0, 1.2; }
+    .theme-iso-white .line-center { stroke: #0F172A; stroke-width: 0.25px; stroke-dasharray: 8.0, 1.5, 1.5, 1.5; }
+    .theme-iso-white .dim-line { stroke: #000000; stroke-width: 0.25px; }
+    .theme-iso-white .dim-arrow { fill: #000000; }
+    .theme-iso-white .dim-text { fill: #000000; }
+    
+    </style>
+    <pattern id="techGrid" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M 10 0 L 0 0 0 10" fill="none" stroke="var(--grid-color)" stroke-width="0.15"/>
+      <circle cx="0" cy="0" r="0.3" fill="var(--grid-color)"/>
+    </pattern>
+    <pattern id="sectionHatch" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_steel" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_aluminum" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="1.2" y1="0" x2="1.2" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_brass" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="2" y1="0" x2="2" y2="4" stroke="var(--hatch-color)" stroke-width="0.35" stroke-dasharray="1.5,1.5"/>
+    </pattern>
+    <pattern id="hatch_plastic" width="4" height="4" patternTransform="rotate(60 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="0" y1="0" x2="4" y2="0" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_rubber" width="4" height="4" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="0" cy="0" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="4" cy="0" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="0" cy="4" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="4" cy="4" r="0.45" fill="var(--hatch-color)"/>
+    </pattern>
+  </defs>
+
+  
+        <rect x="0" y="0" width="420.0" height="297.0" class="sheet-bg"/>
+        <rect x="0" y="0" width="420.0" height="297.0" class="blueprint-grid" fill="url(#techGrid)"/>
+        <rect x="2" y="2" width="416.0" height="293.0" class="border-sub" stroke-width="0.25" fill="none"/>
+        <rect x="15.00" y="8.00" width="397.00" height="281.00" class="border-main" stroke-width="0.7" fill="none"/>
+        
+        <line x1="213.50" y1="0" x2="213.50" y2="5.0" class="border-main" stroke-width="0.7"/>
+        <line x1="213.50" y1="292.00" x2="213.50" y2="297.00" class="border-main" stroke-width="0.7"/>
+        <line x1="0" y1="148.50" x2="5.0" y2="148.50" class="border-main" stroke-width="0.7"/>
+        <line x1="415.00" y1="148.50" x2="420.00" y2="148.50" class="border-main" stroke-width="0.7"/>
+        
+        <g class="grid-ticks"><line x1="15.00" y1="5.00" x2="15.00" y2="8.00" class="border-sub"/><line x1="15.00" y1="289.00" x2="15.00" y2="292.00" class="border-sub"/><line x1="64.62" y1="5.00" x2="64.62" y2="8.00" class="border-sub"/><line x1="64.62" y1="289.00" x2="64.62" y2="292.00" class="border-sub"/><line x1="114.25" y1="5.00" x2="114.25" y2="8.00" class="border-sub"/><line x1="114.25" y1="289.00" x2="114.25" y2="292.00" class="border-sub"/><line x1="163.88" y1="5.00" x2="163.88" y2="8.00" class="border-sub"/><line x1="163.88" y1="289.00" x2="163.88" y2="292.00" class="border-sub"/><line x1="213.50" y1="5.00" x2="213.50" y2="8.00" class="border-sub"/><line x1="213.50" y1="289.00" x2="213.50" y2="292.00" class="border-sub"/><line x1="263.12" y1="5.00" x2="263.12" y2="8.00" class="border-sub"/><line x1="263.12" y1="289.00" x2="263.12" y2="292.00" class="border-sub"/><line x1="312.75" y1="5.00" x2="312.75" y2="8.00" class="border-sub"/><line x1="312.75" y1="289.00" x2="312.75" y2="292.00" class="border-sub"/><line x1="362.38" y1="5.00" x2="362.38" y2="8.00" class="border-sub"/><line x1="362.38" y1="289.00" x2="362.38" y2="292.00" class="border-sub"/><line x1="412.00" y1="5.00" x2="412.00" y2="8.00" class="border-sub"/><line x1="412.00" y1="289.00" x2="412.00" y2="292.00" class="border-sub"/><line x1="12.00" y1="8.00" x2="15.00" y2="8.00" class="border-sub"/><line x1="412.00" y1="8.00" x2="415.00" y2="8.00" class="border-sub"/><line x1="12.00" y1="54.83" x2="15.00" y2="54.83" class="border-sub"/><line x1="412.00" y1="54.83" x2="415.00" y2="54.83" class="border-sub"/><line x1="12.00" y1="101.67" x2="15.00" y2="101.67" class="border-sub"/><line x1="412.00" y1="101.67" x2="415.00" y2="101.67" class="border-sub"/><line x1="12.00" y1="148.50" x2="15.00" y2="148.50" class="border-sub"/><line x1="412.00" y1="148.50" x2="415.00" y2="148.50" class="border-sub"/><line x1="12.00" y1="195.33" x2="15.00" y2="195.33" class="border-sub"/><line x1="412.00" y1="195.33" x2="415.00" y2="195.33" class="border-sub"/><line x1="12.00" y1="242.17" x2="15.00" y2="242.17" class="border-sub"/><line x1="412.00" y1="242.17" x2="415.00" y2="242.17" class="border-sub"/><line x1="12.00" y1="289.00" x2="15.00" y2="289.00" class="border-sub"/><line x1="412.00" y1="289.00" x2="415.00" y2="289.00" class="border-sub"/></g>
+        <g class="zone-labels"><text x="39.81" y="7.00" class="zone-text">8</text><text x="39.81" y="293.50" class="zone-text">8</text><text x="89.44" y="7.00" class="zone-text">7</text><text x="89.44" y="293.50" class="zone-text">7</text><text x="139.06" y="7.00" class="zone-text">6</text><text x="139.06" y="293.50" class="zone-text">6</text><text x="188.69" y="7.00" class="zone-text">5</text><text x="188.69" y="293.50" class="zone-text">5</text><text x="238.31" y="7.00" class="zone-text">4</text><text x="238.31" y="293.50" class="zone-text">4</text><text x="287.94" y="7.00" class="zone-text">3</text><text x="287.94" y="293.50" class="zone-text">3</text><text x="337.56" y="7.00" class="zone-text">2</text><text x="337.56" y="293.50" class="zone-text">2</text><text x="387.19" y="7.00" class="zone-text">1</text><text x="387.19" y="293.50" class="zone-text">1</text><text x="13.20" y="32.62" class="zone-text">A</text><text x="413.80" y="32.62" class="zone-text">A</text><text x="13.20" y="79.45" class="zone-text">B</text><text x="413.80" y="79.45" class="zone-text">B</text><text x="13.20" y="126.28" class="zone-text">C</text><text x="413.80" y="126.28" class="zone-text">C</text><text x="13.20" y="173.12" class="zone-text">D</text><text x="413.80" y="173.12" class="zone-text">D</text><text x="13.20" y="219.95" class="zone-text">E</text><text x="413.80" y="219.95" class="zone-text">E</text><text x="13.20" y="266.78" class="zone-text">F</text><text x="413.80" y="266.78" class="zone-text">F</text></g>
+        
+  
+    <g class="title-block" transform="translate(267.00, 253.00)">
+        
+        <rect x="0" y="0" width="145.00" height="36.00" class="title-bg" stroke-width="0.6"/>
+        <line x1="0" y1="8" x2="145.0" y2="8" class="border-sub" stroke-width="0.3"/>
+        <line x1="0" y1="22" x2="145.0" y2="22" class="border-sub" stroke-width="0.3"/>
+        <line x1="0" y1="29" x2="145.0" y2="29" class="border-sub" stroke-width="0.25"/>
+
+        <line x1="88" y1="0" x2="88" y2="22" class="border-sub" stroke-width="0.3"/>
+        <line x1="116" y1="0" x2="116" y2="8" class="border-sub" stroke-width="0.3"/>
+        <line x1="38" y1="22" x2="38" y2="36" class="border-sub" stroke-width="0.3"/>
+        <line x1="76" y1="22" x2="76" y2="36" class="border-sub" stroke-width="0.3"/>
+        <line x1="110" y1="22" x2="110" y2="36" class="border-sub" stroke-width="0.3"/>
+
+        <text x="3" y="3.2" class="tb-field-label">PROJECT</text>
+        <text x="3" y="6.8" class="tb-field-val-sm">MECHANICAL PROJECT</text>
+
+        <text x="91" y="3.2" class="tb-field-label">DRAWING NO.</text>
+        <text x="91" y="7.0" class="tb-field-val-bold">BRK-BUILDER-01</text>
+
+        <text x="119" y="3.2" class="tb-field-label">REV</text>
+        <text x="127" y="7.0" class="tb-field-val-bold" text-anchor="middle">REV A</text>
+
+        <text x="3" y="11.5" class="tb-field-label">TITLE</text>
+        <text x="3" y="15.2" class="tb-title" font-size="2.8">STEPPED BRACKET</text><text x="3" y="19.0" class="tb-title" font-size="2.8">(BUILDER MODE)</text>
+
+        <text x="91" y="11.5" class="tb-field-label">PROJECTION</text>
+        <g transform="translate(102, 17) scale(0.65)">
+            <polygon points="0,-4 8,-7 8,7 0,4" fill="none" class="line-visible" stroke-width="0.35"/>
+            <circle cx="-8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="-8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>
+            <line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/><line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>
+        </g>
+
+        <text x="3" y="25.2" class="tb-field-label">MATERIAL</text>
+        <text x="3" y="28.2" class="tb-field-val-sm" font-size="2.5">AL 6061-T6</text>
+        <text x="3" y="32.0" class="tb-field-label">FINISH</text>
+        <text x="3" y="35.0" class="tb-field-val-sm" font-size="2.1">ANODIZED CLEAR</text>
+
+        <text x="41" y="25.2" class="tb-field-label">SCALE</text>
+        <text x="41" y="28.2" class="tb-field-val-sm">1:1</text>
+        <text x="41" y="32.0" class="tb-field-label">SHEET</text>
+        <text x="41" y="35.0" class="tb-field-val-sm">1 OF 1</text>
+
+        <text x="79" y="25.2" class="tb-field-label">DATE</text>
+        <text x="79" y="28.2" class="tb-field-val-sm">2026-11-06</text>
+        <text x="79" y="32.0" class="tb-field-label">DRAWN BY</text>
+        <text x="79" y="35.0" class="tb-field-val-sm">SZUBA</text>
+
+        <text x="113" y="25.2" class="tb-field-label">STATUS</text>
+        <text x="113" y="28.2" class="tb-field-val-sm" fill="#10B981" font-weight="bold">APPROVED</text>
+        <text x="113" y="32.0" class="tb-field-label">UNITS</text>
+        <text x="113" y="35.0" class="tb-field-val-sm">METRIC (mm)</text>
+    </g>
+    
+  
+    <g class="rev-table" transform="translate(302.00, 8.00)">
+        <rect x="0" y="0" width="110.00" height="15.00" class="title-bg" stroke-width="0.5"/>
+        <line x1="0" y1="5.0" x2="110.0" y2="5.0" class="border-sub" stroke-width="0.3"/>
+        <line x1="8" y1="0" x2="8" y2="15.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="72" y1="0" x2="72" y2="15.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="92" y1="0" x2="92" y2="15.0" class="border-sub" stroke-width="0.25"/>
+
+        <text x="4" y="3.6" class="tb-field-label" text-anchor="middle">REV</text>
+        <text x="12" y="3.6" class="tb-field-label">DESCRIPTION</text>
+        <text x="82" y="3.6" class="tb-field-label" text-anchor="middle">DATE</text>
+        <text x="100" y="3.6" class="tb-field-label" text-anchor="middle">APPR</text>
+        
+        <line x1="0" y1="10.0" x2="110.0" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <text x="4" y="8.80" class="tb-field-val-sm" text-anchor="middle">A</text>
+        <text x="12" y="8.80" class="tb-field-val-sm">INITIAL ENGINEERING RELEASE</text>
+        <text x="82" y="8.80" class="tb-field-val-sm" text-anchor="middle">2026-11-06</text>
+        <text x="100" y="8.80" class="tb-field-val-sm" text-anchor="middle">APPROVED</text>
+        
+        <line x1="0" y1="15.0" x2="110.0" y2="15.0" class="border-sub" stroke-width="0.25"/>
+        <text x="4" y="13.80" class="tb-field-val-sm" text-anchor="middle">A</text>
+        <text x="12" y="13.80" class="tb-field-val-sm">INITIAL ENGINEERING RELEASE</text>
+        <text x="82" y="13.80" class="tb-field-val-sm" text-anchor="middle">2026-11-06</text>
+        <text x="100" y="13.80" class="tb-field-val-sm" text-anchor="middle">SZUBA</text>
+        
+    </g>
+    
+  
+  
+        <g class="sheet-notes" transform="translate(20.00, 259.00)">
+            <text x="0" y="0" class="tb-field-label" font-weight="bold">GENERAL NOTES:</text><text x="0" y="4.50" class="notes-text">1. ALL DIMENSIONS IN MILLIMETERS (mm) UNLESS NOTED.</text><text x="0" y="8.70" class="notes-text">2. GENERAL TOLERANCES ACCORDING TO ISO 2768-mK.</text><text x="0" y="12.90" class="notes-text">3. 100% CAD MODEL CONFORMANCE; DO NOT SCALE DRAWING.</text>
+        </g>
+        
+
+  <g class="drawing-views">
+    
+    <!-- View: FRONT at (130.0, 150.0) scale=1.0 -->
+    <g id="view_front_130_150" class="sheet-view" transform="translate(130.00, 150.00) scale(1.0000, 1.0000) translate(-10.61, 5.85)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <path d="M -8.890432,-17.903887 L -9.028329,-17.903887 L -9.435103,-17.903887 L -10.090359,-17.903887 L -10.961238,-17.903887 L -12.004072,-17.903887 L -13.166567,-17.903887 L -14.390432,-17.903887 L -15.614297,-17.903887 L -16.776793,-17.903887 L -17.819626,-17.903887 L -18.690505,-17.903887 L -19.345761,-17.903887 L -19.752536,-17.903887 L -19.890432,-17.903887" />
+      <path d="M -19.890432,-17.903887 L -19.752536,-17.903887 L -19.345761,-17.903887 L -18.690505,-17.903887 L -17.819626,-17.903887 L -16.776793,-17.903887 L -15.614297,-17.903887 L -14.390432,-17.903887 L -13.166567,-17.903887 L -12.004072,-17.903887 L -10.961238,-17.903887 L -10.090359,-17.903887 L -9.435103,-17.903887 L -9.028329,-17.903887 L -8.890432,-17.903887" />
+      <path d="M -8.890432,29.596113 L -9.028329,29.596113 L -9.435103,29.596113 L -10.090359,29.596113 L -10.961238,29.596113 L -12.004072,29.596113 L -13.166567,29.596113 L -14.390432,29.596113 L -15.614297,29.596113 L -16.776793,29.596113 L -17.819626,29.596113 L -18.690505,29.596113 L -19.345761,29.596113 L -19.752536,29.596113 L -19.890432,29.596113" />
+      <path d="M -19.890432,29.596113 L -19.752536,29.596113 L -19.345761,29.596113 L -18.690505,29.596113 L -17.819626,29.596113 L -16.776793,29.596113 L -15.614297,29.596113 L -14.390432,29.596113 L -13.166567,29.596113 L -12.004072,29.596113 L -10.961238,29.596113 L -10.090359,29.596113 L -9.435103,29.596113 L -9.028329,29.596113 L -8.890432,29.596113" />
+      <line x1="-8.890432" y1="-17.903887" x2="-8.890432" y2="29.596113" />
+      <line x1="-19.890432" y1="-17.903887" x2="-19.890432" y2="29.596113" />
+    </g>
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="-29.390432" y1="-17.903887" x2="-29.390432" y2="29.596113" />
+      <line x1="50.609568" y1="-17.903887" x2="50.609568" y2="-2.903887" />
+      <line x1="-29.390432" y1="-17.903887" x2="50.609568" y2="-17.903887" />
+      <line x1="-29.390432" y1="29.596113" x2="0.609568" y2="29.596113" />
+      <line x1="0.609568" y1="-2.903887" x2="0.609568" y2="29.596113" />
+      <line x1="0.609568" y1="-2.903887" x2="50.609568" y2="-2.903887" />
+    </g>
+  </g>
+    </g>
+    
+    <!-- View: TOP at (130.0, 230.0) scale=1.0 -->
+    <g id="view_top_130_230" class="sheet-view" transform="translate(130.00, 230.00) scale(1.0000, 1.0000) translate(-10.61, -0.00)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <line x1="-29.390432" y1="-25.0" x2="50.609568" y2="-25.0" />
+      <line x1="-29.390432" y1="25.0" x2="50.609568" y2="25.0" />
+    </g>
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="-29.390432" y1="-25.0" x2="-29.390432" y2="25.0" />
+      <line x1="-29.390432" y1="-25.0" x2="0.609568" y2="-25.0" />
+      <line x1="0.609568" y1="-25.0" x2="50.609568" y2="-25.0" />
+      <line x1="-29.390432" y1="25.0" x2="0.609568" y2="25.0" />
+      <line x1="0.609568" y1="25.0" x2="50.609568" y2="25.0" />
+      <line x1="0.609568" y1="-25.0" x2="0.609568" y2="25.0" />
+      <circle cx="-14.390432" cy="0.0" r="5.5" />
+      <line x1="50.609568" y1="-25.0" x2="50.609568" y2="25.0" />
+    </g>
+  </g>
+    </g>
+    
+    <!-- View: ISOMETRIC at (320.0, 190.0) scale=0.5 -->
+    <g id="view_isometric_320_190" class="sheet-view" transform="translate(320.00, 190.00) scale(0.5000, 0.5000) translate(8.83, 2.26)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="38.321823" y1="23.699016" x2="38.321823" y2="-17.838529" />
+      <line x1="10.586813" y1="43.8792" x2="38.321823" y2="23.699016" />
+      <line x1="-55.977211" y1="-19.183875" x2="-55.977211" y2="-6.066755" />
+      <line x1="10.586813" y1="43.8792" x2="-14.374696" y2="35.807126" />
+      <line x1="-14.374696" y1="7.386701" x2="-14.374696" y2="35.807126" />
+      <line x1="-14.374696" y1="7.386701" x2="-55.977211" y2="-6.066755" />
+      <line x1="38.321823" y1="-17.838529" x2="-28.242201" y2="-39.364059" />
+      <line x1="-55.977211" y1="-19.183875" x2="-28.242201" y2="-39.364059" />
+      <line x1="-28.242201" y1="-39.364059" x2="-28.242201" y2="-26.246939" />
+      <line x1="38.321823" y1="23.699016" x2="13.360314" y2="15.626942" />
+      <line x1="13.360314" y1="-12.793483" x2="13.360314" y2="15.626942" />
+      <line x1="13.360314" y1="-12.793483" x2="-28.242201" y2="-26.246939" />
+      <line x1="-14.374696" y1="35.807126" x2="13.360314" y2="15.626942" />
+      <path d="M 7.397287,28.273191 A 5.5,2.6678918753996625 -1.8185517134323977e-15 0,1 17.473563,29.753071" />
+      <path d="M 17.473563,29.753071 A 5.5,2.6678918753996625 -1.8185517134323977e-15 1,1 6.473563,29.753071" />
+      <path d="M 6.473563,29.753071 A 5.5,2.6678918753996625 -1.8185517134323977e-15 0,1 7.397287,28.273191" />
+      <line x1="-55.977211" y1="-6.066755" x2="-28.242201" y2="-26.246939" />
+      <line x1="-14.374696" y1="7.386701" x2="13.360314" y2="-12.793483" />
+    </g>
+  </g>
+    </g>
+    
+  </g>
+
+  <g class="view-labels"></g>
+
+  <g class="annotations">
+    
+        <g class="centermark">
+            <line x1="97.50" y1="176.25" x2="112.50" y2="176.25" class="line-center" stroke-width="0.25"/>
+            <line x1="105.00" y1="168.75" x2="105.00" y2="183.75" class="line-center" stroke-width="0.25"/>
+        </g>
+        <line x1="88.50" y1="126.25" x2="73.00" y2="126.25" class="dim-line" stroke-width="0.25"/><line x1="88.50" y1="173.75" x2="73.00" y2="173.75" class="dim-line" stroke-width="0.25"/><line x1="75.00" y1="126.25" x2="75.00" y2="173.75" class="dim-line" stroke-width="0.3"/><polygon points="75.00,126.25 75.70,128.75 74.30,128.75" class="dim-arrow"/><polygon points="75.00,173.75 74.30,171.25 75.70,171.25" class="dim-arrow"/><text x="73.60" y="150.00" transform="rotate(-90 73.60 150.00)" class="dim-text" text-anchor="middle" font-size="3.20">47.5 h9</text><g class="datum-symbol"><polygon points="129.99999978014498,173.7499999106839 127.59999978014497,170.1499999106839 132.39999978014498,170.1499999106839" class="dim-arrow"/><line x1="130.00" y1="173.75" x2="130.00" y2="166.75" class="dim-line" stroke-width="0.35"/><rect x="127.25" y="161.25" width="5.50" height="5.50" class="title-bg" stroke-width="0.4"/><text x="130.00" y="165.21" class="tb-field-val-bold" text-anchor="middle" font-size="3.4">A</text></g><g class="gdt-fcf">
+            <polygon points="105.00,126.25 106.97,124.56 107.56,125.83" class="dim-arrow"/>
+            <line x1="105.00" y1="126.25" x2="120.00" y2="119.25" class="dim-line" stroke-width="0.3"/>
+            <rect x="120.00" y="116.25" width="28.00" height="6.00" class="title-bg" stroke-width="0.35"/><line x1="127.00" y1="116.25" x2="127.00" y2="122.25" class="border-sub" stroke-width="0.3"/><text x="123.50" y="120.33" class="tb-title" text-anchor="middle" font-size="3.60">⏥</text><text x="134.00" y="120.33" class="dim-text" text-anchor="middle" font-size="3.00">0.05</text><line x1="141.00" y1="116.25" x2="141.00" y2="122.25" class="border-sub" stroke-width="0.3"/><text x="144.50" y="120.33" class="tb-field-val-bold" text-anchor="middle" font-size="3.00">A</text></g><line x1="90.00" y1="231.50" x2="90.00" y2="247.00" class="dim-line" stroke-width="0.25"/><line x1="170.00" y1="231.50" x2="170.00" y2="247.00" class="dim-line" stroke-width="0.25"/><line x1="90.00" y1="245.00" x2="170.00" y2="245.00" class="dim-line" stroke-width="0.3"/><polygon points="90.00,245.00 92.50,244.30 92.50,245.70" class="dim-arrow"/><polygon points="170.00,245.00 167.50,245.70 167.50,244.30" class="dim-arrow"/><text x="130.00" y="243.80" class="dim-text" text-anchor="middle" font-size="3.20">80</text>
+  </g>
+</svg>

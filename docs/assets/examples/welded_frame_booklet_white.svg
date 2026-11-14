@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 420.0 297.0"
+     width="420.0mm"
+     height="297.0mm"
+     class="theme-iso-white"
+     id="sheet_WLD-001">
+  <defs>
+    <style type="text/css">
+      
+    :root, .theme-iso-white {
+        --bg-color: #FFFFFF;
+        --grid-color: #00000008;
+        --border-main: #0F172A;
+        --border-sub: #CBD5E1;
+        --title-bg: #F8FAFC;
+        --title-border: #0F172A;
+        --text-main: #0F172A;
+        --text-muted: #475569;
+        --text-accent: #0284C7;
+        --line-visible: #000000;
+        --line-hidden: #94A3B8;
+        --line-center: #2563EB;
+        --line-section: #DC2626;
+        --hatch-color: #64748B;
+        --dim-color: #DC2626;
+        --dim-text: #DC2626;
+        --balloon-bg: #FFFFFF;
+        --balloon-border: #DC2626;
+        --balloon-text: #0F172A;
+        --table-header-bg: #E2E8F0;
+        --table-row-alt: #F1F5F9;
+    }
+    .theme-dark-blueprint {
+        --bg-color: #0B192C;
+        --grid-color: #38BDF812;
+        --border-main: #38BDF8;
+        --border-sub: #1E3A5F;
+        --title-bg: #0F172AE6;
+        --title-border: #38BDF8;
+        --text-main: #F8FAFC;
+        --text-muted: #94A3B8;
+        --text-accent: #38BDF8;
+        --line-visible: #FFFFFF;
+        --line-hidden: #475569;
+        --line-center: #38BDF8;
+        --line-section: #F43F5E;
+        --hatch-color: #0284C7;
+        --dim-color: #38BDF8;
+        --dim-text: #38BDF8;
+        --balloon-bg: #0F172A;
+        --balloon-border: #F43F5E;
+        --balloon-text: #FFFFFF;
+        --table-header-bg: #1E293B;
+        --table-row-alt: #1E293B99;
+    }
+    svg {
+        font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Liberation Sans', sans-serif;
+        background-color: var(--bg-color);
+    }
+    .sheet-bg { fill: var(--bg-color); }
+    .border-main { stroke: var(--border-main); fill: none; }
+    .border-sub { stroke: var(--border-sub); fill: none; }
+    .title-bg { fill: var(--title-bg); stroke: var(--border-main); }
+    .table-header-bg { fill: var(--table-header-bg); }
+    .table-row-alt { fill: var(--table-row-alt); }
+    .zone-text { fill: var(--text-muted); font-size: 2.8px; font-weight: bold; text-anchor: middle; }
+    .tb-field-label { fill: var(--text-muted); font-size: 2.1px; font-weight: 600; letter-spacing: 0.2px; }
+    .tb-field-val-sm { fill: var(--text-main); font-size: 2.6px; font-weight: 500; }
+    .tb-field-val-bold { fill: var(--text-main); font-size: 3.4px; font-weight: 700; }
+    .tb-title { fill: var(--text-accent); font-size: 3.0px; font-weight: 700; letter-spacing: 0.2px; }
+    .notes-text { fill: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 2.4px; }
+    .view-title { fill: var(--text-main); letter-spacing: 0.5px; }
+    .view-scale { fill: var(--text-muted); }
+    .line-visible, #layer_visible, #layer_visible * { stroke: var(--line-visible); stroke-dasharray: none; fill: none; }
+    .line-hidden, #layer_hidden, #layer_hidden * { stroke: var(--line-hidden); stroke-dasharray: 2.0, 1.2; fill: none; }
+    .line-center { stroke: var(--line-center); fill: none; }
+    .line-section-thick { stroke: var(--line-section); fill: none; }
+    .section-arrow-head { fill: var(--line-section); }
+    .section-label-text { fill: var(--line-section); }
+    .dim-line { stroke: var(--dim-color); fill: none; }
+    .dim-arrow { fill: var(--dim-color); }
+    .dim-text { fill: var(--dim-text); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .leader-dot { fill: var(--dim-color); }
+    .leader-text { fill: var(--text-main); font-family: 'JetBrains Mono', monospace; font-size: 2.7px; font-weight: 500; }
+    .balloon-dot { fill: var(--balloon-border); }
+    .balloon-leader { stroke: var(--balloon-border); fill: none; }
+    .balloon-circle { fill: var(--balloon-bg); stroke: var(--balloon-border); }
+    .balloon-text { fill: var(--balloon-text); }
+    .theme-iso-white .blueprint-grid { display: none; }
+    .theme-iso-white .line-visible, .theme-iso-white #layer_visible, .theme-iso-white #layer_visible * { stroke: #000000; stroke-width: 0.5px; }
+    .theme-iso-white .line-hidden, .theme-iso-white #layer_hidden, .theme-iso-white #layer_hidden * { stroke: #64748B; stroke-width: 0.25px; stroke-dasharray: 2.0, 1.2; }
+    .theme-iso-white .line-center { stroke: #0F172A; stroke-width: 0.25px; stroke-dasharray: 8.0, 1.5, 1.5, 1.5; }
+    .theme-iso-white .dim-line { stroke: #000000; stroke-width: 0.25px; }
+    .theme-iso-white .dim-arrow { fill: #000000; }
+    .theme-iso-white .dim-text { fill: #000000; }
+    
+    </style>
+    <pattern id="techGrid" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M 10 0 L 0 0 0 10" fill="none" stroke="var(--grid-color)" stroke-width="0.15"/>
+      <circle cx="0" cy="0" r="0.3" fill="var(--grid-color)"/>
+    </pattern>
+    <pattern id="sectionHatch" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_steel" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_aluminum" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="1.2" y1="0" x2="1.2" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_brass" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="2" y1="0" x2="2" y2="4" stroke="var(--hatch-color)" stroke-width="0.35" stroke-dasharray="1.5,1.5"/>
+    </pattern>
+    <pattern id="hatch_plastic" width="4" height="4" patternTransform="rotate(60 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="0" y1="0" x2="4" y2="0" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_rubber" width="4" height="4" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="0" cy="0" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="4" cy="0" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="0" cy="4" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="4" cy="4" r="0.45" fill="var(--hatch-color)"/>
+    </pattern>
+  </defs>
+
+  
+        <rect x="0" y="0" width="420.0" height="297.0" class="sheet-bg"/>
+        <rect x="0" y="0" width="420.0" height="297.0" class="blueprint-grid" fill="url(#techGrid)"/>
+        <rect x="2" y="2" width="416.0" height="293.0" class="border-sub" stroke-width="0.25" fill="none"/>
+        <rect x="15.00" y="8.00" width="397.00" height="281.00" class="border-main" stroke-width="0.7" fill="none"/>
+        
+        <line x1="213.50" y1="0" x2="213.50" y2="5.0" class="border-main" stroke-width="0.7"/>
+        <line x1="213.50" y1="292.00" x2="213.50" y2="297.00" class="border-main" stroke-width="0.7"/>
+        <line x1="0" y1="148.50" x2="5.0" y2="148.50" class="border-main" stroke-width="0.7"/>
+        <line x1="415.00" y1="148.50" x2="420.00" y2="148.50" class="border-main" stroke-width="0.7"/>
+        
+        <g class="grid-ticks"><line x1="15.00" y1="5.00" x2="15.00" y2="8.00" class="border-sub"/><line x1="15.00" y1="289.00" x2="15.00" y2="292.00" class="border-sub"/><line x1="64.62" y1="5.00" x2="64.62" y2="8.00" class="border-sub"/><line x1="64.62" y1="289.00" x2="64.62" y2="292.00" class="border-sub"/><line x1="114.25" y1="5.00" x2="114.25" y2="8.00" class="border-sub"/><line x1="114.25" y1="289.00" x2="114.25" y2="292.00" class="border-sub"/><line x1="163.88" y1="5.00" x2="163.88" y2="8.00" class="border-sub"/><line x1="163.88" y1="289.00" x2="163.88" y2="292.00" class="border-sub"/><line x1="213.50" y1="5.00" x2="213.50" y2="8.00" class="border-sub"/><line x1="213.50" y1="289.00" x2="213.50" y2="292.00" class="border-sub"/><line x1="263.12" y1="5.00" x2="263.12" y2="8.00" class="border-sub"/><line x1="263.12" y1="289.00" x2="263.12" y2="292.00" class="border-sub"/><line x1="312.75" y1="5.00" x2="312.75" y2="8.00" class="border-sub"/><line x1="312.75" y1="289.00" x2="312.75" y2="292.00" class="border-sub"/><line x1="362.38" y1="5.00" x2="362.38" y2="8.00" class="border-sub"/><line x1="362.38" y1="289.00" x2="362.38" y2="292.00" class="border-sub"/><line x1="412.00" y1="5.00" x2="412.00" y2="8.00" class="border-sub"/><line x1="412.00" y1="289.00" x2="412.00" y2="292.00" class="border-sub"/><line x1="12.00" y1="8.00" x2="15.00" y2="8.00" class="border-sub"/><line x1="412.00" y1="8.00" x2="415.00" y2="8.00" class="border-sub"/><line x1="12.00" y1="54.83" x2="15.00" y2="54.83" class="border-sub"/><line x1="412.00" y1="54.83" x2="415.00" y2="54.83" class="border-sub"/><line x1="12.00" y1="101.67" x2="15.00" y2="101.67" class="border-sub"/><line x1="412.00" y1="101.67" x2="415.00" y2="101.67" class="border-sub"/><line x1="12.00" y1="148.50" x2="15.00" y2="148.50" class="border-sub"/><line x1="412.00" y1="148.50" x2="415.00" y2="148.50" class="border-sub"/><line x1="12.00" y1="195.33" x2="15.00" y2="195.33" class="border-sub"/><line x1="412.00" y1="195.33" x2="415.00" y2="195.33" class="border-sub"/><line x1="12.00" y1="242.17" x2="15.00" y2="242.17" class="border-sub"/><line x1="412.00" y1="242.17" x2="415.00" y2="242.17" class="border-sub"/><line x1="12.00" y1="289.00" x2="15.00" y2="289.00" class="border-sub"/><line x1="412.00" y1="289.00" x2="415.00" y2="289.00" class="border-sub"/></g>
+        <g class="zone-labels"><text x="39.81" y="7.00" class="zone-text">8</text><text x="39.81" y="293.50" class="zone-text">8</text><text x="89.44" y="7.00" class="zone-text">7</text><text x="89.44" y="293.50" class="zone-text">7</text><text x="139.06" y="7.00" class="zone-text">6</text><text x="139.06" y="293.50" class="zone-text">6</text><text x="188.69" y="7.00" class="zone-text">5</text><text x="188.69" y="293.50" class="zone-text">5</text><text x="238.31" y="7.00" class="zone-text">4</text><text x="238.31" y="293.50" class="zone-text">4</text><text x="287.94" y="7.00" class="zone-text">3</text><text x="287.94" y="293.50" class="zone-text">3</text><text x="337.56" y="7.00" class="zone-text">2</text><text x="337.56" y="293.50" class="zone-text">2</text><text x="387.19" y="7.00" class="zone-text">1</text><text x="387.19" y="293.50" class="zone-text">1</text><text x="13.20" y="32.62" class="zone-text">A</text><text x="413.80" y="32.62" class="zone-text">A</text><text x="13.20" y="79.45" class="zone-text">B</text><text x="413.80" y="79.45" class="zone-text">B</text><text x="13.20" y="126.28" class="zone-text">C</text><text x="413.80" y="126.28" class="zone-text">C</text><text x="13.20" y="173.12" class="zone-text">D</text><text x="413.80" y="173.12" class="zone-text">D</text><text x="13.20" y="219.95" class="zone-text">E</text><text x="413.80" y="219.95" class="zone-text">E</text><text x="13.20" y="266.78" class="zone-text">F</text><text x="413.80" y="266.78" class="zone-text">F</text></g>
+        
+  
+    <g class="title-block" transform="translate(267.00, 253.00)">
+        
+        <rect x="0" y="0" width="145.00" height="36.00" class="title-bg" stroke-width="0.6"/>
+        <line x1="0" y1="8" x2="145.0" y2="8" class="border-sub" stroke-width="0.3"/>
+        <line x1="0" y1="22" x2="145.0" y2="22" class="border-sub" stroke-width="0.3"/>
+        <line x1="0" y1="29" x2="145.0" y2="29" class="border-sub" stroke-width="0.25"/>
+
+        <line x1="88" y1="0" x2="88" y2="22" class="border-sub" stroke-width="0.3"/>
+        <line x1="116" y1="0" x2="116" y2="8" class="border-sub" stroke-width="0.3"/>
+        <line x1="38" y1="22" x2="38" y2="36" class="border-sub" stroke-width="0.3"/>
+        <line x1="76" y1="22" x2="76" y2="36" class="border-sub" stroke-width="0.3"/>
+        <line x1="110" y1="22" x2="110" y2="36" class="border-sub" stroke-width="0.3"/>
+
+        <text x="3" y="3.2" class="tb-field-label">PROJECT</text>
+        <text x="3" y="6.8" class="tb-field-val-sm">MECHANICAL PROJECT</text>
+
+        <text x="91" y="3.2" class="tb-field-label">DRAWING NO.</text>
+        <text x="91" y="7.0" class="tb-field-val-bold">WLD-001</text>
+
+        <text x="119" y="3.2" class="tb-field-label">REV</text>
+        <text x="127" y="7.0" class="tb-field-val-bold" text-anchor="middle">REV A</text>
+
+        <text x="3" y="11.5" class="tb-field-label">TITLE</text>
+        <text x="3" y="15.2" class="tb-title" font-size="2.8">WELDED GUSSET FRAME</text><text x="3" y="19.0" class="tb-title" font-size="2.8">- ASSEMBLY</text>
+
+        <text x="91" y="11.5" class="tb-field-label">PROJECTION</text>
+        <g transform="translate(102, 17) scale(0.65)">
+            <polygon points="0,-4 8,-7 8,7 0,4" fill="none" class="line-visible" stroke-width="0.35"/>
+            <circle cx="-8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="-8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>
+            <line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/><line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>
+        </g>
+
+        <text x="3" y="25.2" class="tb-field-label">MATERIAL</text>
+        <text x="3" y="28.2" class="tb-field-val-sm" font-size="2.5">S355J2+N</text>
+        <text x="3" y="32.0" class="tb-field-label">FINISH</text>
+        <text x="3" y="35.0" class="tb-field-val-sm" font-size="2.5">SHOT BLASTED</text>
+
+        <text x="41" y="25.2" class="tb-field-label">SCALE</text>
+        <text x="41" y="28.2" class="tb-field-val-sm">1:1</text>
+        <text x="41" y="32.0" class="tb-field-label">SHEET</text>
+        <text x="41" y="35.0" class="tb-field-val-sm">1 OF 2</text>
+
+        <text x="79" y="25.2" class="tb-field-label">DATE</text>
+        <text x="79" y="28.2" class="tb-field-val-sm">2026-11-06</text>
+        <text x="79" y="32.0" class="tb-field-label">DRAWN BY</text>
+        <text x="79" y="35.0" class="tb-field-val-sm">SZUBA</text>
+
+        <text x="113" y="25.2" class="tb-field-label">STATUS</text>
+        <text x="113" y="28.2" class="tb-field-val-sm" fill="#10B981" font-weight="bold">APPROVED</text>
+        <text x="113" y="32.0" class="tb-field-label">UNITS</text>
+        <text x="113" y="35.0" class="tb-field-val-sm">METRIC (mm)</text>
+    </g>
+    
+  
+    <g class="rev-table" transform="translate(302.00, 8.00)">
+        <rect x="0" y="0" width="110.00" height="10.00" class="title-bg" stroke-width="0.5"/>
+        <line x1="0" y1="5.0" x2="110.0" y2="5.0" class="border-sub" stroke-width="0.3"/>
+        <line x1="8" y1="0" x2="8" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="72" y1="0" x2="72" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="92" y1="0" x2="92" y2="10.0" class="border-sub" stroke-width="0.25"/>
+
+        <text x="4" y="3.6" class="tb-field-label" text-anchor="middle">REV</text>
+        <text x="12" y="3.6" class="tb-field-label">DESCRIPTION</text>
+        <text x="82" y="3.6" class="tb-field-label" text-anchor="middle">DATE</text>
+        <text x="100" y="3.6" class="tb-field-label" text-anchor="middle">APPR</text>
+        
+        <line x1="0" y1="10.0" x2="110.0" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <text x="4" y="8.80" class="tb-field-val-sm" text-anchor="middle">A</text>
+        <text x="12" y="8.80" class="tb-field-val-sm">INITIAL ENGINEERING RELEASE</text>
+        <text x="82" y="8.80" class="tb-field-val-sm" text-anchor="middle">2026-11-06</text>
+        <text x="100" y="8.80" class="tb-field-val-sm" text-anchor="middle">APPROVED</text>
+        
+    </g>
+    
+  
+  
+        <g class="sheet-notes" transform="translate(20.00, 259.00)">
+            <text x="0" y="0" class="tb-field-label" font-weight="bold">GENERAL NOTES:</text><text x="0" y="4.50" class="notes-text">1. ALL DIMENSIONS IN MILLIMETERS (mm) UNLESS NOTED.</text><text x="0" y="8.70" class="notes-text">2. GENERAL TOLERANCES ACCORDING TO ISO 2768-mK.</text><text x="0" y="12.90" class="notes-text">3. DEBURR AND BREAK ALL SHARP EDGES 0.2mm x 45°.</text><text x="0" y="17.10" class="notes-text">4. 100% CAD MODEL CONFORMANCE; DO NOT SCALE DRAWING.</text>
+        </g>
+        
+
+  <g class="drawing-views">
+    
+    <!-- View: FRONT at (130.0, 150.0) scale=1.0 -->
+    <g id="view_front_130_150" class="sheet-view" transform="translate(130.00, 150.00) scale(1.0000, 1.0000) translate(-16.43, 19.76)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <line x1="-23.571429" y1="-10.238095" x2="-23.571429" y2="19.761905" />
+      <line x1="-23.571429" y1="-10.238095" x2="-23.571429" y2="19.761905" />
+      <line x1="-23.571429" y1="-10.238095" x2="26.428571" y2="-10.238095" />
+      <line x1="-23.571429" y1="-10.238095" x2="26.428571" y2="-10.238095" />
+    </g>
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="-43.571429" y1="-20.238095" x2="-43.571429" y2="-10.238095" />
+      <line x1="76.428571" y1="-20.238095" x2="76.428571" y2="-10.238095" />
+      <line x1="-43.571429" y1="-20.238095" x2="76.428571" y2="-20.238095" />
+      <line x1="-43.571429" y1="-10.238095" x2="76.428571" y2="-10.238095" />
+      <line x1="-33.571429" y1="-10.238095" x2="-33.571429" y2="59.761905" />
+      <line x1="-23.571429" y1="-10.238095" x2="-23.571429" y2="59.761905" />
+      <line x1="-33.571429" y1="-10.238095" x2="-23.571429" y2="-10.238095" />
+      <line x1="-33.571429" y1="59.761905" x2="-23.571429" y2="59.761905" />
+      <line x1="26.428571" y1="-10.238095" x2="26.428571" y2="19.761905" />
+      <line x1="-23.571429" y1="19.761905" x2="26.428571" y2="19.761905" />
+    </g>
+  </g>
+    </g>
+    
+    <!-- View: ISOMETRIC at (310.0, 110.0) scale=0.5 -->
+    <g id="view_isometric_310_110" class="sheet-view" transform="translate(310.00, 110.00) scale(0.5000, 0.5000) translate(13.67, 11.52)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="44.574123" y1="-3.283284" x2="52.894626" y2="-9.337339" />
+      <line x1="52.894626" y1="-18.082085" x2="52.894626" y2="-9.337339" />
+      <line x1="-80.233421" y1="-26.154159" x2="-80.233421" y2="-17.409413" />
+      <line x1="-80.233421" y1="-17.409413" x2="-46.951409" y2="-41.625633" />
+      <line x1="-46.951409" y1="-50.370379" x2="-46.951409" y2="-41.625633" />
+      <line x1="-80.233421" y1="-26.154159" x2="-46.951409" y2="-50.370379" />
+      <line x1="-24.208701" y1="0.707908" x2="-80.233421" y2="-17.409413" />
+      <line x1="52.894626" y1="-18.082085" x2="-46.951409" y2="-50.370379" />
+      <line x1="52.894626" y1="-9.337339" x2="-46.951409" y2="-41.625633" />
+      <line x1="11.292111" y1="73.401415" x2="44.574123" y2="49.185194" />
+      <line x1="44.574123" y1="-12.02803" x2="44.574123" y2="49.185194" />
+      <line x1="2.971608" y1="20.574178" x2="2.971608" y2="70.710723" />
+      <line x1="2.971608" y1="70.710723" x2="36.25362" y2="46.494503" />
+      <line x1="36.25362" y1="-14.718721" x2="36.25362" y2="46.494503" />
+      <line x1="21.831415" y1="-4.225026" x2="36.25362" y2="-14.718721" />
+      <line x1="11.292111" y1="73.401415" x2="2.971608" y2="70.710723" />
+      <line x1="44.574123" y1="-12.02803" x2="36.25362" y2="-14.718721" />
+      <line x1="44.574123" y1="49.185194" x2="36.25362" y2="46.494503" />
+      <line x1="17.393813" y1="25.238043" x2="21.831415" y2="22.009213" />
+      <line x1="21.831415" y1="-4.225026" x2="21.831415" y2="22.009213" />
+      <line x1="-24.208701" y1="-14.449652" x2="-24.208701" y2="11.784587" />
+      <line x1="-24.208701" y1="11.784587" x2="-19.7711" y2="8.555757" />
+      <line x1="-19.7711" y1="-17.678482" x2="-19.7711" y2="8.555757" />
+      <line x1="-24.208701" y1="-14.449652" x2="-19.7711" y2="-17.678482" />
+      <line x1="17.393813" y1="25.238043" x2="-24.208701" y2="11.784587" />
+      <line x1="21.831415" y1="-4.225026" x2="-19.7711" y2="-17.678482" />
+      <line x1="21.831415" y1="22.009213" x2="-19.7711" y2="8.555757" />
+    </g>
+  </g>
+    </g>
+    
+  </g>
+
+  <g class="view-labels"></g>
+
+  <g class="annotations">
+    <g class="step-badge"><circle cx="60.00" cy="105.00" r="6.00" class="balloon-circle" stroke-width="0.6" fill="currentColor" fill-opacity="0.12"/><text x="60.00" y="106.40" class="balloon-text" text-anchor="middle" font-size="4.00" font-weight="bold">1</text><text x="69.00" y="106.20" class="tb-title" text-anchor="start" font-size="3.40">TACK</text></g><g class="step-badge"><circle cx="60.00" cy="130.00" r="6.00" class="balloon-circle" stroke-width="0.6" fill="currentColor" fill-opacity="0.12"/><text x="60.00" y="131.40" class="balloon-text" text-anchor="middle" font-size="4.00" font-weight="bold">2</text><text x="69.00" y="131.20" class="tb-title" text-anchor="start" font-size="3.40">WELD</text></g><g class="welding-symbol"><polygon points="92.00,180.00 93.27,177.74 94.26,178.73" class="dim-arrow"/><line x1="92.00" y1="180.00" x2="114.00" y2="158.00" class="dim-line" stroke-width="0.3"/><line x1="114.00" y1="158.00" x2="138.00" y2="158.00" class="dim-line" stroke-width="0.35"/><circle cx="114.00" cy="158.00" r="2.2" class="dim-line weld-all-around" stroke-width="0.3" fill="none"/><text x="126.00" y="156.80" class="tb-title" text-anchor="middle" font-size="3.08">△</text><text x="122.50" y="156.80" class="dim-text" text-anchor="end" font-size="2.80">a5</text><text x="129.50" y="156.80" class="dim-text" text-anchor="start" font-size="2.80">60</text><polyline points="138.00,156.00 141.00,158.00 138.00,160.00" class="dim-line" stroke-width="0.3" fill="none"/><text x="142.50" y="159.00" class="tb-field-val" text-anchor="start" font-size="2.80">GMAW 135</text></g><g class="welding-symbol"><polygon points="115.00,175.00 117.33,176.15 116.39,177.19" class="dim-arrow"/><line x1="115.00" y1="175.00" x2="135.00" y2="193.00" class="dim-line" stroke-width="0.3"/><line x1="135.00" y1="193.00" x2="159.00" y2="193.00" class="dim-line" stroke-width="0.35"/><path d="M 135.00 193.00 L 135.00 188.50 L 138.50 189.80 L 135.00 191.00" class="dim-line weld-flag" stroke-width="0.3" fill="currentColor"/><line x1="135.00" y1="195.00" x2="159.00" y2="195.00" class="dim-line weld-ref-dashed" stroke-width="0.25" stroke-dasharray="2,1.5"/><text x="147.00" y="196.20" class="tb-title" text-anchor="middle" font-size="3.08">△</text><text x="143.50" y="196.20" class="dim-text" text-anchor="end" font-size="2.80">a4</text></g><g class="schedule-table" transform="translate(235.00, 175.00)"><rect x="0" y="0" width="124.00" height="22.12" class="title-bg" stroke-width="0.5"/><rect x="0" y="0" width="124.00" height="6.00" class="table-header-bg"/><line x1="0" y1="6.00" x2="124.00" y2="6.00" class="border-sub" stroke-width="0.4"/><text x="62.00" y="4.20" class="tb-title" text-anchor="middle" font-size="2.80">WELD SCHEDULE (ISO 2553)</text><rect x="0" y="6.00" width="124.00" height="5.50" class="table-header-bg"/><line x1="0" y1="11.50" x2="124.00" y2="11.50" class="border-sub" stroke-width="0.4"/><text x="2.50" y="9.96" class="tb-field-label" text-anchor="start" font-size="2.10">ID</text><text x="16.50" y="9.96" class="tb-field-label" text-anchor="start" font-size="2.10">TYPE</text><text x="60.50" y="9.96" class="tb-field-label" text-anchor="start" font-size="2.10">SIZE</text><text x="76.50" y="9.96" class="tb-field-label" text-anchor="start" font-size="2.10">PROCESS</text><text x="102.50" y="9.96" class="tb-field-label" text-anchor="start" font-size="2.10">NDT</text><line x1="0" y1="16.81" x2="124.00" y2="16.81" class="border-sub" stroke-width="0.2"/><text x="2.50" y="14.36" class="tb-field-val-sm" text-anchor="start" font-size="2.60">W1</text><text x="16.50" y="14.36" class="tb-field-val-sm" text-anchor="start" font-size="2.60">FILLET (ALL AROUND)</text><text x="60.50" y="14.36" class="tb-field-val-sm" text-anchor="start" font-size="2.60">a5</text><text x="76.50" y="14.36" class="tb-field-val-sm" text-anchor="start" font-size="2.60">GMAW 135</text><text x="102.50" y="14.36" class="tb-field-val-sm" text-anchor="start" font-size="2.60">VT 100%</text><rect x="0" y="16.81" width="124.00" height="5.31" class="table-row-alt"/><text x="2.50" y="19.67" class="tb-field-val-sm" text-anchor="start" font-size="2.60">W2</text><text x="16.50" y="19.67" class="tb-field-val-sm" text-anchor="start" font-size="2.60">FILLET (FIELD)</text><text x="60.50" y="19.67" class="tb-field-val-sm" text-anchor="start" font-size="2.60">a4</text><text x="76.50" y="19.67" class="tb-field-val-sm" text-anchor="start" font-size="2.60">SMAW 111</text><text x="102.50" y="19.67" class="tb-field-val-sm" text-anchor="start" font-size="2.60">MT 20%</text><line x1="14.00" y1="6.00" x2="14.00" y2="22.12" class="border-sub" stroke-width="0.25"/><line x1="58.00" y1="6.00" x2="58.00" y2="22.12" class="border-sub" stroke-width="0.25"/><line x1="74.00" y1="6.00" x2="74.00" y2="22.12" class="border-sub" stroke-width="0.25"/><line x1="100.00" y1="6.00" x2="100.00" y2="22.12" class="border-sub" stroke-width="0.25"/></g>
+  </g>
+</svg>
