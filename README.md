@@ -250,7 +250,7 @@ Exported SVGs include dynamic CSS variables and an embedded client-side theme sw
 - **Build Backend:** `hatchling` + `hatch-vcs` for dynamic Git-tag versioning.
 - **Linter & Formatter:** `ruff` with line length 100.
 - **Type Checker:** `mypy` in **strict mode** (100% typed public APIs).
-- **Test Matrix:** `pytest` + `pytest-cov` across Python 3.11, 3.12, 3.13.
+- **Test Matrix:** `pytest` + `pytest-cov` across Python 3.11, 3.12, 3.13, 3.14.
 
 ```bash
 # Run linters
