@@ -211,3 +211,41 @@ def test_frameless_sheet_style() -> None:
     assert "PREPARE CARRIAGE" in svg
     assert 'class="zone-text"' not in svg
     assert 'class="title-block"' not in svg
+
+
+def test_table_cell_styles_and_theme_panel_classes() -> None:
+    """Validate Table col_styles/cell_styles/row_alt_opacity and semantic RawSVG theme classes."""
+    from build123d_techdraw.annotations.tables import RawSVG, Table
+    from build123d_techdraw.renderers.theme import Theme, generate_theme_css
+
+    tbl = Table(
+        headers=["Param", "Value"],
+        rows=[["Gain", "1.25"], ["Mode", "ACTIVE"]],
+        col_widths=[30.0, 30.0],
+        position=(20.0, 20.0),
+        row_alt_opacity=0.35,
+        col_styles=[{"font_weight": "bold"}, {"color": "#38BDF8"}],
+        cell_styles={(1, 1): {"color": "#22C55E", "bg": "#0F172A"}},
+    )
+    svg = tbl.to_svg()
+    assert 'fill-opacity="0.35"' in svg
+    assert 'font-weight="bold"' in svg
+    assert 'fill="#38BDF8"' in svg
+    assert 'fill="#22C55E"' in svg
+    assert 'fill="#0F172A"' in svg
+
+    css = generate_theme_css(Theme.ISO_WHITE)
+    for cls in (
+        ".panel-bg",
+        ".panel-stroke",
+        ".panel-sub",
+        ".panel-text",
+        ".panel-muted",
+        ".accent-text",
+    ):
+        assert cls in css
+
+    raw = RawSVG(
+        '<rect x="0" y="0" width="40" height="20" class="panel-bg"/><text x="5" y="10" class="accent-text">OK</text>'
+    )
+    assert raw.bounding_box_2d() == (0.0, 0.0, 40.0, 20.0)

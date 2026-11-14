@@ -100,3 +100,29 @@ def test_annotation_overlap_lint() -> None:
     issues = sheet.lint()
     overlap_issues = [i for i in issues if i.code == "OVERLAP_ANNOTATION"]
     assert len(overlap_issues) >= 1
+
+
+def test_raw_svg_lint_visibility() -> None:
+    """Test that RawSVG bounds (explicit size/bbox or inferred <rect>/<svg>) are linted."""
+    from build123d_techdraw.annotations.tables import RawSVG
+
+    sheet = DrawingSheet(sheet_size=SheetSize.A4_LANDSCAPE)
+    raw1 = RawSVG(
+        '<rect x="0" y="0" width="40" height="20" class="panel-bg"/>',
+        position=(50.0, 50.0),
+    )
+    raw2 = RawSVG(
+        "<text>Overlap</text>",
+        position=(60.0, 55.0),
+        size=(30.0, 15.0),
+    )
+    raw_margin = RawSVG(
+        '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="5"/></svg>',
+        position=(2.0, 2.0),
+    )
+    sheet.annotations.extend([raw1, raw2, raw_margin])
+
+    issues = sheet.lint()
+    codes = {i.code for i in issues}
+    assert "OVERLAP_ANNOTATION" in codes
+    assert "COLLISION_MARGIN" in codes
