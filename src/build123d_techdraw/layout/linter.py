@@ -41,10 +41,10 @@ def get_annotation_bbox_2d(ann: Any) -> tuple[float, float, float, float] | None
         dim_type = getattr(ann, "dim_type", None)
         if str(dim_type).endswith("HORIZONTAL"):
             dim_y = (y1 + y2) / 2.0 + offset
-            return (min_x, min(min_y, dim_y - 2.0), max_x, max(max_y, dim_y + 2.0))
+            return (min_x, dim_y - 3.5, max_x, dim_y + 2.0)
         elif str(dim_type).endswith("VERTICAL"):
             dim_x = (x1 + x2) / 2.0 + offset
-            return (min(min_x, dim_x - 2.0), min_y, max(max_x, dim_x + 2.0), max_y)
+            return (dim_x - 3.5, min_y, dim_x + 2.0, max_y)
         return (min_x - 2.0, min_y - 2.0, max_x + 2.0, max_y + 2.0)
 
     # LeaderNote / ChamferCallout / HoleCallout / ThreadCallout
@@ -83,6 +83,20 @@ def get_annotation_bbox_2d(ann: Any) -> tuple[float, float, float, float] | None
     return None
 
 
+def get_title_block_bbox(sheet: DrawingSheet) -> tuple[float, float, float, float]:
+    """Return the ISO 7200 title block exclusion bounding box (min_x, min_y, max_x, max_y)."""
+    tb_w = 180.0
+    tb_h = 36.0 + (
+        len(sheet.title_info.extra_fields) * 3.5 if sheet.title_info.extra_fields else 0.0
+    )
+    return (
+        sheet.width_mm - sheet.right_margin - tb_w,
+        sheet.height_mm - sheet.bottom_margin - tb_h,
+        sheet.width_mm - sheet.right_margin,
+        sheet.height_mm - sheet.bottom_margin,
+    )
+
+
 def run_sheet_lint(sheet: DrawingSheet) -> list[LintIssue]:
     """Inspect drawing sheet for standards compliance, overlap defects, and boundary clipping."""
     issues: list[LintIssue] = []
@@ -95,17 +109,7 @@ def run_sheet_lint(sheet: DrawingSheet) -> list[LintIssue]:
     margin_b = sheet.bottom_margin
 
     # 1. Title Block Exclusion Zone
-    # Standard ISO 7200 title block is in bottom-right corner: 180mm x 36mm
-    tb_w = 180.0
-    tb_h = 36.0 + (
-        len(sheet.title_info.extra_fields) * 3.5 if sheet.title_info.extra_fields else 0.0
-    )
-    tb_bbox = (
-        sheet_w - margin_r - tb_w,
-        sheet_h - margin_b - tb_h,
-        sheet_w - margin_r,
-        sheet_h - margin_b,
-    )
+    tb_bbox = get_title_block_bbox(sheet)
 
     # Check views for title block collision
     for v in sheet.views:
