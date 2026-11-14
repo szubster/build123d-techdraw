@@ -84,9 +84,9 @@ section_view = sheet.add_section_view(
 
 `build123d-techdraw` supports both `build123d` programming paradigms:
 
-### Builder Mode (`BuildSheet`)
+### Builder Mode (`BuildDrawing`)
 ```python
-with BuildSheet(SheetSize.A3_LANDSCAPE) as sheet:
+with BuildDrawing(SheetSize.A3_LANDSCAPE) as sheet:
     TitleBlock(title="BRACKET", drawing_no="DWG-001")
     GeneralNotes(["1. ALL DIMENSIONS IN MM."])
 

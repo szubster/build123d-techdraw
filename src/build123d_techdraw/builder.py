@@ -31,7 +31,7 @@ from build123d_techdraw.layout.multiview import (
 )
 
 
-class BuildSheet:
+class BuildDrawing:
     """Context manager for constructing drawing sheets in build123d Builder mode."""
 
     def __init__(
@@ -104,7 +104,7 @@ class BuildSheet:
             )
         self._token: contextvars.Token[DrawingSheet | None] | None = None
 
-    def __enter__(self) -> BuildSheet:
+    def __enter__(self) -> BuildDrawing:
         self._token = CURRENT_SHEET.set(self.sheet)
         return self
 
@@ -125,17 +125,13 @@ class BuildSheet:
     def __getattr__(self, name: str) -> Any:
         return getattr(self.sheet, name)
 
-    def __iadd__(self, item: Any) -> BuildSheet:
+    def __iadd__(self, item: Any) -> BuildDrawing:
         self.sheet.add(item)
         return self
 
-    def __add__(self, item: Any) -> BuildSheet:
+    def __add__(self, item: Any) -> BuildDrawing:
         self.sheet.add(item)
         return self
-
-
-# Familiar build123d alias
-BuildDrawing = BuildSheet
 
 
 def _resolve_view_scale(

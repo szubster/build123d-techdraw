@@ -9,7 +9,6 @@ import pytest
 from build123d_techdraw import (
     AssemblyBOM,
     BuildDrawing,
-    BuildSheet,
     Centerline,
     CenterMark,
     DatumFeature,
@@ -56,7 +55,7 @@ def simple_assembly() -> bd.Compound:
 
 def test_builder_mode_complete_flow(bracket_part: bd.Compound) -> None:
     """Test full Builder mode context manager workflow with topological annotations."""
-    with BuildSheet(
+    with BuildDrawing(
         sheet_size=SheetSize.A3_LANDSCAPE,
         title="BRACKET BLUEPRINT",
         drawing_no="DWG-BRK-001",
@@ -139,8 +138,8 @@ def test_builder_mode_complete_flow(bracket_part: bd.Compound) -> None:
     assert "M11 CLEARANCE HOLE" in svg
 
 
-def test_build_drawing_alias(bracket_part: bd.Compound) -> None:
-    """Test BuildDrawing alias works identically to BuildSheet."""
+def test_build_drawing_defaults(bracket_part: bd.Compound) -> None:
+    """Test BuildDrawing works with default arguments."""
     with BuildDrawing() as dwg:
         TitleBlock(title="ALIAS TEST", drawing_no="DWG-ALT-001")
         with FrontView(bracket_part, center=(120, 120)):
@@ -207,9 +206,9 @@ def test_algebraic_mode_composition(bracket_part: bd.Compound) -> None:
 
 
 def test_standard_multiview_builder_mode(bracket_part: bd.Compound) -> None:
-    """Test StandardMultiview inside BuildSheet context."""
+    """Test StandardMultiview inside BuildDrawing context."""
     with (
-        BuildSheet(SheetSize.A3_LANDSCAPE) as sheet,
+        BuildDrawing(SheetSize.A3_LANDSCAPE) as sheet,
         StandardMultiview(bracket_part, scale="auto") as mv,
     ):
         assert mv.front is not None
@@ -244,7 +243,7 @@ def test_assembly_bom_both_modes(simple_assembly: bd.Compound) -> None:
     """Test AssemblyBOM in both Builder and Algebraic modes."""
     # 1. Builder mode
     with (
-        BuildSheet(SheetSize.A3_LANDSCAPE),
+        BuildDrawing(SheetSize.A3_LANDSCAPE),
         StandardMultiview(simple_assembly, scale="auto") as mv,
     ):
         bom = AssemblyBOM(simple_assembly, target_view=mv.isometric, balloon_distance=20.0)
@@ -292,7 +291,7 @@ def test_context_aware_annotations_and_string_sheet_size(bracket_part: bd.Compou
     from build123d_techdraw import BOMBalloon
 
     hole_center = (100.0, 100.0)
-    with BuildSheet(sheet_size="A3") as sheet:  # noqa: SIM117
+    with BuildDrawing(sheet_size="A3") as sheet:  # noqa: SIM117
         with FrontView(bracket_part, center=(100.0, 100.0)) as fv:
             dim = LinearDimension(offset=-10.0, text="127.00")
             cm = CenterMark(hole_center)
@@ -313,7 +312,7 @@ def test_context_aware_annotations_and_string_sheet_size(bracket_part: bd.Compou
 
 
 def test_flexible_sheet_size_coercion() -> None:
-    """Test case-insensitive string and enum coercion in DrawingSheet and BuildSheet."""
+    """Test case-insensitive string and enum coercion in DrawingSheet and BuildDrawing."""
     s_a3 = DrawingSheet(sheet_size="a3")
     assert (s_a3.width_mm, s_a3.height_mm) == (420.0, 297.0)
 
@@ -323,10 +322,10 @@ def test_flexible_sheet_size_coercion() -> None:
     s_a3_p = DrawingSheet(sheet_size="a3-portrait")
     assert (s_a3_p.width_mm, s_a3_p.height_mm) == (297.0, 420.0)
 
-    s_letter = BuildSheet(sheet_size="LETTER")
+    s_letter = BuildDrawing(sheet_size="LETTER")
     assert (s_letter.width_mm, s_letter.height_mm) == (279.4, 215.9)
 
-    s_enum_short = BuildSheet(sheet_size=SheetSize.A3)
+    s_enum_short = BuildDrawing(sheet_size=SheetSize.A3)
     assert (s_enum_short.width_mm, s_enum_short.height_mm) == (420.0, 297.0)
 
     with pytest.raises(ValueError, match="Unknown sheet_size"):
@@ -338,7 +337,7 @@ def test_raw_svg_and_table_components() -> None:
     from build123d_techdraw import RawSVG, Schedule, Table, Theme
 
     # Builder mode
-    with BuildSheet(sheet_size="A3") as sheet:
+    with BuildDrawing(sheet_size="A3") as sheet:
         raw = RawSVG(
             '<circle cx="10" cy="10" r="5" class="schematic-node"/>', position=(40.0, 50.0)
         )
@@ -382,7 +381,7 @@ def test_raw_svg_and_table_components() -> None:
 
 def test_title_block_explicit_line_breaks_subtitle_and_custom_fields() -> None:
     """Test explicit \n line breaks, consistent font size, subtitle, and custom fields."""
-    with BuildSheet(sheet_size="A3") as sheet:
+    with BuildDrawing(sheet_size="A3") as sheet:
         TitleBlock(
             title="DUAL-AXIS ACTUATOR\nPRIMARY HOUSING",
             subtitle="MACHINED SUB-ASSEMBLY",
@@ -407,7 +406,7 @@ def test_title_block_explicit_line_breaks_subtitle_and_custom_fields() -> None:
 
 def test_builder_mode_align_to_in_view_constructors(bracket_part: bd.Compound) -> None:
     """Test seamless align_to=(other, direction, spacing) directly in Builder view constructors."""
-    with BuildSheet(sheet_size="A3") as sheet:
+    with BuildDrawing(sheet_size="A3") as sheet:
         with FrontView(bracket_part, center=(150.0, 160.0)) as front:
             pass
         with TopView(bracket_part, align_to=(front, "above", 25.0)) as top:
@@ -427,7 +426,7 @@ def test_hole_thread_callouts_and_tolerance_helpers(bracket_part: bd.Compound) -
     """Test HoleCallout, ThreadCallout, and Tolerance formatting helpers."""
     from build123d_techdraw import HoleCallout, ThreadCallout, Tolerance
 
-    with BuildSheet(sheet_size="A3") as sheet:  # noqa: SIM117
+    with BuildDrawing(sheet_size="A3") as sheet:  # noqa: SIM117
         with FrontView(bracket_part, center=(150.0, 150.0)) as fv:
             hc = HoleCallout(
                 center=(140.0, 140.0),
@@ -473,7 +472,9 @@ def test_booklet_auto_pagination(bracket_part: bd.Compound, tmp_path: Path) -> N
 
     sheets = []
     for i in range(3):
-        with BuildSheet(sheet_size="A4", title=f"PART {i + 1}", drawing_no=f"DWG-{i + 1:03d}") as s:
+        with BuildDrawing(
+            sheet_size="A4", title=f"PART {i + 1}", drawing_no=f"DWG-{i + 1:03d}"
+        ) as s:
             FrontView(bracket_part, center=(120.0, 100.0), scale=0.8)
         sheets.append(s.sheet)
 
