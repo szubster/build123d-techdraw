@@ -1,6 +1,7 @@
 """ISO 5457 drawing sheets, standard sizes, borders, and coordinate grids."""
 
 import os
+from collections.abc import Sequence
 from enum import Enum
 from typing import Any, Self
 
@@ -53,8 +54,10 @@ from build123d_techdraw.core.view import (
     SheetView,
     ViewType,
     _apply_align_to,
+    project_aligned_section_to_view,
     project_auxiliary_view,
     project_detail_to_view,
+    project_offset_section_to_view,
     project_section_to_view,
     project_shape_to_view,
 )
@@ -386,6 +389,17 @@ class DrawingSheet:
                 self.annotations.append(ann)
         return view
 
+    def _register_view(self, view: SheetView, align_to: Any) -> SheetView:
+        if align_to is not None:
+            _apply_align_to(view, align_to)
+        view.sheet = self
+        if view not in self.views:
+            self.views.append(view)
+        for ann in getattr(view, "annotations", []):
+            if ann not in self.annotations:
+                self.annotations.append(ann)
+        return view
+
     def add_section_view(
         self,
         shape: bd.Solid | bd.Compound | Any,
@@ -416,15 +430,79 @@ class DrawingSheet:
             hatch_pitch=hatch_pitch,
             hatch_angle=hatch_angle,
         )
-        if align_to is not None:
-            _apply_align_to(view, align_to)
-        view.sheet = self
-        if view not in self.views:
-            self.views.append(view)
-        for ann in getattr(view, "annotations", []):
-            if ann not in self.annotations:
-                self.annotations.append(ann)
-        return view
+        return self._register_view(view, align_to)
+
+    def add_offset_section_view(
+        self,
+        shape: bd.Solid | bd.Compound | Any,
+        base_plane: bd.Plane,
+        points: Sequence[Any],
+        center: tuple[float, float] = (150.0, 150.0),
+        scale: float = 1.0,
+        view_label: str = "SECTION A-A",
+        view_label_y: float | None = None,
+        model_origin: tuple[float, float] | None = None,
+        align_to: Any = None,
+        show_background: bool = True,
+        show_jog_lines: bool = False,
+        hatch: str = "steel",
+        hatch_pitch: float = 4.0,
+        hatch_angle: float = 45.0,
+    ) -> SheetView:
+        """Add a stepped/offset section view along a multi-jog cutting path."""
+        view = project_offset_section_to_view(
+            shape=shape,
+            base_plane=base_plane,
+            points=points,
+            center_x=center[0],
+            center_y=center[1],
+            scale=scale,
+            view_label=view_label,
+            view_label_y=view_label_y,
+            model_origin=model_origin,
+            show_background=show_background,
+            show_jog_lines=show_jog_lines,
+            hatch=hatch,
+            hatch_pitch=hatch_pitch,
+            hatch_angle=hatch_angle,
+        )
+        return self._register_view(view, align_to)
+
+    def add_aligned_section_view(
+        self,
+        shape: bd.Solid | bd.Compound | Any,
+        base_plane: bd.Plane,
+        points: Sequence[Any],
+        center: tuple[float, float] = (150.0, 150.0),
+        scale: float = 1.0,
+        view_label: str = "SECTION A-A",
+        view_label_y: float | None = None,
+        model_origin: tuple[float, float] | None = None,
+        align_to: Any = None,
+        show_background: bool = True,
+        show_jog_lines: bool = False,
+        hatch: str = "steel",
+        hatch_pitch: float = 4.0,
+        hatch_angle: float = 45.0,
+    ) -> SheetView:
+        """Add an aligned/revolved section view unfolding angled legs onto base_plane."""
+        view = project_aligned_section_to_view(
+            shape=shape,
+            base_plane=base_plane,
+            points=points,
+            center_x=center[0],
+            center_y=center[1],
+            scale=scale,
+            view_label=view_label,
+            view_label_y=view_label_y,
+            model_origin=model_origin,
+            show_background=show_background,
+            show_jog_lines=show_jog_lines,
+            hatch=hatch,
+            hatch_pitch=hatch_pitch,
+            hatch_angle=hatch_angle,
+        )
+        return self._register_view(view, align_to)
 
     def add_detail_view(
         self,
@@ -998,15 +1076,13 @@ class DrawingSheet:
 
     def add_section_cutting_line(
         self,
-        start: tuple[float, float],
-        end: tuple[float, float],
+        points: Sequence[Any],
         label: str = "A",
-        arrow_dir: str = "up",
+        arrow_dir: str | tuple[float, float] = "up",
     ) -> SectionCuttingLine:
         """Add an ISO section cutting plane line."""
         cut = SectionCuttingLine(
-            start=start,
-            end=end,
+            points=points,
             label=label,
             arrow_dir=arrow_dir,
         )

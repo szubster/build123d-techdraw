@@ -63,8 +63,7 @@ def generate_advanced_views(output_dir: Path) -> None:
         # Parent TopView with section cutting line
         with TopView(housing, center=(110.0, 140.0), scale=1.0) as top:
             SectionCuttingLine(
-                start=(55.0, 140.0),
-                end=(165.0, 140.0),
+                points=[(55.0, 140.0), (165.0, 140.0)],
                 label="A",
                 arrow_dir="up",
             )

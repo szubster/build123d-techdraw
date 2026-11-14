@@ -137,7 +137,7 @@ def test_callouts_and_balloons() -> None:
     assert ">3<" in svg_b
 
     # Section cutting line
-    cut = SectionCuttingLine(start=(30.0, 100.0), end=(120.0, 100.0), label="B", arrow_dir="up")
+    cut = SectionCuttingLine(points=[(30.0, 100.0), (120.0, 100.0)], label="B", arrow_dir="up")
     svg_cut = cut.to_svg()
     assert 'class="section-cutting-plane"' in svg_cut
     assert ">B<" in svg_cut
@@ -194,7 +194,7 @@ def test_sheet_direct_annotation_methods() -> None:
     sheet.add_gdt_frame((50.0, 60.0), GDTCharacteristic.FLATNESS, "0.01")
     sheet.add_datum_symbol((50.0, 70.0), label="A")
     sheet.add_surface_finish((50.0, 80.0), ra_value="Ra 1.6")
-    sheet.add_section_cut((20.0, 100.0), (80.0, 100.0), label="A")
+    sheet.add_section_cut([(20.0, 100.0), (80.0, 100.0)], label="A")
 
     assert len(sheet.annotations) == 12
     svg = sheet.to_svg()
