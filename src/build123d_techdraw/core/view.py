@@ -496,40 +496,9 @@ class SheetView:
 
     @staticmethod
     def _add_edge_to_dxf(msp: Any, edge: Any, layer: str, scale: float) -> None:
-        gtype = getattr(edge, "geom_type", None)
-        if gtype == bd.GeomType.LINE:
-            v0 = edge.start_point()
-            v1 = edge.end_point()
-            msp.add_line(
-                (float(v0.X) * scale, float(v0.Y) * scale),
-                (float(v1.X) * scale, float(v1.Y) * scale),
-                dxfattribs={"layer": layer},
-            )
-        elif gtype == bd.GeomType.CIRCLE:
-            c = edge.arc_center
-            r = float(edge.radius) * scale
-            if getattr(edge, "is_closed", False):
-                msp.add_circle(
-                    (float(c.X) * scale, float(c.Y) * scale),
-                    r,
-                    dxfattribs={"layer": layer},
-                )
-            else:
-                msp.add_arc(
-                    (float(c.X) * scale, float(c.Y) * scale),
-                    r,
-                    start_angle=float(edge.start_angle),
-                    end_angle=float(edge.end_angle),
-                    dxfattribs={"layer": layer},
-                )
-        else:
-            pts = [edge.position_at(i / 20.0) for i in range(21)]
-            for i in range(len(pts) - 1):
-                msp.add_line(
-                    (float(pts[i].X) * scale, float(pts[i].Y) * scale),
-                    (float(pts[i + 1].X) * scale, float(pts[i + 1].Y) * scale),
-                    dxfattribs={"layer": layer},
-                )
+        from build123d_techdraw.renderers.dxf import add_edge_to_dxf
+
+        add_edge_to_dxf(msp, edge, layer=layer, scale=scale)
 
     def locate(self, center: tuple[float, float]) -> Self:
         """Reposition the view center on the sheet (in paper mm)."""
@@ -1622,6 +1591,27 @@ def project_shape_to_view(
     view_res.inner_svg_content = inner_content
     view_res.rotation_angle_deg = rotation_angle_deg
     return view_res
+
+
+def project_shape_to_svg_fragment(
+    shape: bd.Solid | bd.Compound | Any,
+    view_type: ViewType = ViewType.ISOMETRIC,
+    center: tuple[float, float] = (0.0, 0.0),
+    scale: float = 1.0,
+    show_hidden: bool = False,
+    rotation_angle_deg: float = 0.0,
+) -> str:
+    """Project a 3D shape into a standalone SVG ``<g>`` fragment without an outer ``<svg>`` wrapper."""
+    view = project_shape_to_view(
+        shape=shape,
+        view_type=view_type,
+        center_x=center[0],
+        center_y=center[1],
+        scale=scale,
+        show_hidden=show_hidden,
+        rotation_angle_deg=rotation_angle_deg,
+    )
+    return view.svg_content.strip()
 
 
 def project_section_to_view(

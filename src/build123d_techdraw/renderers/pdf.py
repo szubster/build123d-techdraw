@@ -3,20 +3,25 @@
 import io
 import math
 import os
+import re
+import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from typing import Any
 
-import matplotlib
-
-matplotlib.use("Agg")
+# Set MPLCONFIGDIR before importing matplotlib so it does not probe ~/.config/matplotlib.
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 
-import matplotlib.patches as patches
-import matplotlib.path as mpath
-import matplotlib.pyplot as plt
-import svgelements as se
-from matplotlib.backends.backend_pdf import Name, PdfPages
+import matplotlib  # noqa: E402
 
-from build123d_techdraw.renderers.theme import THEME_COLORS, Theme, ThemeColors
+matplotlib.use("Agg")
+
+import matplotlib.patches as patches  # noqa: E402
+import matplotlib.path as mpath  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import svgelements as se  # noqa: E402
+from matplotlib.backends.backend_pdf import Name, PdfPages  # noqa: E402
+
+from build123d_techdraw.renderers.theme import THEME_COLORS, Theme, ThemeColors  # noqa: E402
 
 MM_TO_PT: float = 72.0 / 25.4
 # Contours (ISO 128 Type A): 0.50mm -> 1.42pt
@@ -92,6 +97,55 @@ class BookmarkedPdfPages(PdfPages):
 class PDFRenderer:
     """Renders vector technical drawings to multi-page publication-ready PDF documents."""
 
+    @staticmethod
+    def _flatten_nested_svgs(svg_code: str) -> str:
+        """Convert nested <svg> elements into <g transform=...> so svgelements preserves offsets."""
+        if svg_code.lower().count("<svg") <= 1:
+            return svg_code
+        try:
+            ET.register_namespace("", "http://www.w3.org/2000/svg")
+            root = ET.fromstring(svg_code)
+        except ET.ParseError:
+            return svg_code
+
+        def _local_name(tag: str) -> str:
+            return tag.split("}", 1)[1] if "}" in tag else tag
+
+        def _ns_prefix(tag: str) -> str:
+            return f"{tag.split('}', 1)[0]}}}" if "}" in tag else ""
+
+        def _walk(parent: ET.Element) -> None:
+            for child in list(parent):
+                if _local_name(child.tag).lower() == "svg":
+                    x = float(child.attrib.pop("x", "0") or 0)
+                    y = float(child.attrib.pop("y", "0") or 0)
+                    w_raw = child.attrib.pop("width", None)
+                    h_raw = child.attrib.pop("height", None)
+                    vb_raw = child.attrib.pop("viewBox", None)
+                    transforms: list[str] = []
+                    if x != 0.0 or y != 0.0:
+                        transforms.append(f"translate({x:g}, {y:g})")
+                    if vb_raw and w_raw and h_raw:
+                        parts = [float(p) for p in re.split(r"[\s,]+", vb_raw.strip()) if p]
+                        w_val = PDFRenderer._parse_svg_length_mm(w_raw)
+                        h_val = PDFRenderer._parse_svg_length_mm(h_raw)
+                        if len(parts) == 4 and w_val and h_val and parts[2] > 0 and parts[3] > 0:
+                            sx = w_val / parts[2]
+                            sy = h_val / parts[3]
+                            transforms.append(f"scale({sx:g}, {sy:g})")
+                            if parts[0] != 0.0 or parts[1] != 0.0:
+                                transforms.append(f"translate({-parts[0]:g}, {-parts[1]:g})")
+                    existing = child.attrib.get("transform", "").strip()
+                    if existing:
+                        transforms.append(existing)
+                    if transforms:
+                        child.attrib["transform"] = " ".join(transforms)
+                    child.tag = f"{_ns_prefix(child.tag)}g"
+                _walk(child)
+
+        _walk(root)
+        return ET.tostring(root, encoding="unicode")
+
     @classmethod
     def _render_svg_to_ax(
         cls,
@@ -110,8 +164,9 @@ class PDFRenderer:
             patches.Rectangle((0, 0), width_mm, height_mm, facecolor=colors.bg, edgecolor="none")
         )
 
+        normalized_svg = cls._flatten_nested_svgs(svg_code)
         doc = se.SVG.parse(
-            io.BytesIO(svg_code.encode("utf-8")),
+            io.BytesIO(normalized_svg.encode("utf-8")),
             ppi=25.4,
             width=width_mm,
             height=height_mm,
@@ -230,10 +285,13 @@ class PDFRenderer:
                     elif "border-main" in cls_list:
                         stroke = colors.border
                         lw = 0.70 * MM_TO_PT
-                    elif "border-sub" in cls_list:
+                    elif "border-sub" in cls_list or "panel-sub" in cls_list:
                         stroke = colors.border_sub
                         lw = float(el.values.get("stroke-width", 0.35)) * MM_TO_PT
-                    elif "title-bg" in cls_list:
+                    elif "panel-stroke" in cls_list:
+                        stroke = colors.border
+                        lw = float(el.values.get("stroke-width", 0.50)) * MM_TO_PT
+                    elif "title-bg" in cls_list or "panel-bg" in cls_list:
                         fill = colors.title_bg
                         stroke = colors.border
                         lw = 0.6 * MM_TO_PT
@@ -270,6 +328,8 @@ class PDFRenderer:
                             stroke = colors.line_visible
                             lw = 0.35 * MM_TO_PT
 
+                    raw_fill_opacity = el.values.get("fill-opacity")
+                    alpha = float(raw_fill_opacity) if raw_fill_opacity is not None else None
                     patch = patches.PathPatch(
                         mpl_path,
                         facecolor=fill or "none",
@@ -277,6 +337,7 @@ class PDFRenderer:
                         linewidth=lw,
                         linestyle=ls,
                         hatch=hatch,
+                        alpha=alpha,
                     )
                     ax.add_patch(patch)
 
@@ -295,15 +356,30 @@ class PDFRenderer:
                     fs_pt = fs_mm * MM_TO_PT * 0.90
                     weight = "bold" if el.font_weight in ["bold", "700", "800"] else "normal"
 
-                    if "balloon-text" in cls_list:
+                    raw_text_fill = el.values.get("fill")
+                    if (
+                        raw_text_fill
+                        and raw_text_fill not in ("none", "currentColor")
+                        and not str(raw_text_fill).strip().startswith("var(")
+                    ):
+                        color = str(raw_text_fill).strip()
+                    elif "balloon-text" in cls_list:
                         color = colors.balloon_text
                     elif "dim-text" in cls_list:
                         color = colors.dim_text
+                    elif "accent-text" in cls_list:
+                        color = colors.text_accent
                     elif "section-label-text" in cls_list:
                         color = colors.line_section
                     elif any(
                         c in cls_list
-                        for c in ["zone-text", "view-scale", "tb-field-label", "tb-field-val-sm"]
+                        for c in [
+                            "zone-text",
+                            "view-scale",
+                            "tb-field-label",
+                            "tb-field-val-sm",
+                            "panel-muted",
+                        ]
                     ):
                         color = colors.text_muted
                     elif any(
@@ -314,6 +390,7 @@ class PDFRenderer:
                             "tb-field-val-bold",
                             "notes-text",
                             "leader-text",
+                            "panel-text",
                         ]
                     ):
                         color = colors.text
@@ -342,17 +419,85 @@ class PDFRenderer:
                         bbox=bbox_props,
                     )
 
+    @staticmethod
+    def _parse_svg_length_mm(raw: str) -> float | None:
+        """Convert an SVG length attribute (mm/cm/in/pt/px/unitless) to mm, rejecting '%'."""
+        m = re.match(r"^\s*([-+]?\d*\.?\d+)\s*([a-zA-Z%]*)\s*$", raw)
+        if not m:
+            return None
+        val = float(m.group(1))
+        unit = m.group(2).lower()
+        if unit == "%":
+            return None
+        unit_scale = {
+            "": 1.0,
+            "mm": 1.0,
+            "cm": 10.0,
+            "in": 25.4,
+            "pt": 25.4 / 72.0,
+            "pc": 25.4 / 6.0,
+            "px": 25.4 / 96.0,
+        }
+        factor = unit_scale.get(unit)
+        return val * factor if factor is not None else None
+
+    @classmethod
+    def _parse_svg_dimensions_mm(cls, svg_code: str) -> tuple[float, float]:
+        """Extract (width_mm, height_mm) from the root <svg> tag or viewBox, defaulting to A4."""
+        root_m = re.search(r"<svg\b([^>]*)>", svg_code, re.IGNORECASE)
+        if root_m:
+            attrs = root_m.group(1)
+            w_m = re.search(r'\bwidth\s*=\s*["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+            h_m = re.search(r'\bheight\s*=\s*["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+            if w_m and h_m:
+                w_mm = cls._parse_svg_length_mm(w_m.group(1))
+                h_mm = cls._parse_svg_length_mm(h_m.group(1))
+                if w_mm is not None and h_mm is not None:
+                    return w_mm, h_mm
+            vb_m = re.search(
+                r'\bviewBox\s*=\s*["\']\s*[-+]?\d*\.?\d+[\s,]+[-+]?\d*\.?\d+[\s,]+([-+]?\d*\.?\d+)[\s,]+([-+]?\d*\.?\d+)',
+                attrs,
+                re.IGNORECASE,
+            )
+            if vb_m:
+                return float(vb_m.group(1)), float(vb_m.group(2))
+        return (297.0, 210.0)
+
+    @classmethod
+    def _coerce_sheet_input(
+        cls,
+        item: tuple[float, float, str] | Any,
+        theme: Theme,
+    ) -> tuple[float, float, str]:
+        """Normalize a tuple, DrawingSheet, SVG path, or SVG string into (width_mm, height_mm, svg_str)."""
+        if isinstance(item, tuple) and len(item) == 3:
+            return (float(item[0]), float(item[1]), str(item[2]))
+        if hasattr(item, "to_svg") and hasattr(item, "width_mm") and hasattr(item, "height_mm"):
+            return (float(item.width_mm), float(item.height_mm), str(item.to_svg(theme=theme)))
+        if isinstance(item, (str, os.PathLike)):
+            path_or_svg = os.fspath(item)
+            if os.path.isfile(path_or_svg):
+                with open(path_or_svg, encoding="utf-8") as f:
+                    svg_code = f.read()
+            else:
+                svg_code = path_or_svg
+            w_mm, h_mm = cls._parse_svg_dimensions_mm(svg_code)
+            return (w_mm, h_mm, svg_code)
+        raise TypeError(
+            f"Expected (width_mm, height_mm, svg_str), DrawingSheet, or SVG path/string; got {type(item).__name__}"
+        )
+
     @classmethod
     def render_sheets_to_pdf(
         cls,
-        sheets_data: list[tuple[float, float, str]],
+        sheets_data: Sequence[tuple[float, float, str] | Any],
         output_path: str,
         theme: Theme = Theme.DARK_BLUEPRINT,
         bookmarks: bool = False,
         booklet_title: str = "ENGINEERING DRAWINGS",
         sheet_titles: list[str] | None = None,
     ) -> None:
-        """Render multiple sheets to a multi-page PDF document."""
+        """Render multiple sheets (tuples, DrawingSheets, or SVG paths/strings) to a multi-page PDF."""
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         colors = THEME_COLORS[theme]
 
@@ -362,7 +507,8 @@ class PDFRenderer:
             kwargs = {"booklet_title": booklet_title, "sheet_titles": sheet_titles}
 
         with pages_cls(output_path, **kwargs) as pdf:
-            for width_mm, height_mm, svg_code in sheets_data:
+            for item in sheets_data:
+                width_mm, height_mm, svg_code = cls._coerce_sheet_input(item, theme)
                 w_in = width_mm / 25.4
                 h_in = height_mm / 25.4
 
