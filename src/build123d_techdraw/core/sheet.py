@@ -132,6 +132,11 @@ class DrawingSheet:
         title_info: TitleBlockInfo | None = None,
         left_margin: float = 15.0,
         margin: float = 8.0,
+        style: str = "iso",
+        show_border: bool = True,
+        show_title_block: bool = True,
+        show_grid: bool = True,
+        show_notes: bool = True,
     ):
         if (
             custom_size is None
@@ -151,7 +156,20 @@ class DrawingSheet:
             self.width_mm, self.height_mm = resolved_size.value
             self.sheet_size = resolved_size
 
-        self.left_margin = left_margin
+        self.style = style.lower()
+        if self.style in ("frameless", "manual", "clean"):
+            self.show_border = False
+            self.show_title_block = False
+            self.show_grid = False
+            self.show_notes = False
+            self.left_margin = margin
+        else:
+            self.show_border = show_border
+            self.show_title_block = show_title_block
+            self.show_grid = show_grid
+            self.show_notes = show_notes
+            self.left_margin = left_margin
+
         self.right_margin = margin
         self.top_margin = margin
         self.bottom_margin = margin
@@ -667,6 +685,91 @@ class DrawingSheet:
         """Inspect sheet layout, annotations, and margins for drawing defects."""
         return run_sheet_lint(self)
 
+    def inspect_layout(self) -> dict[str, Any]:
+        """Return a structured layout dictionary of canvas, views, title blocks, and annotations for AI and CI inspection."""
+        drawable = [
+            round(self.left_margin, 2),
+            round(self.top_margin, 2),
+            round(self.width_mm - self.right_margin, 2),
+            round(self.height_mm - self.bottom_margin, 2),
+        ]
+        tb_w = 180.0
+        tb_rev_count = len(getattr(self.title_info, "revisions", [])) if self.title_info else 0
+        tb_h = 36.0 + tb_rev_count * 6.0
+        tb_bounds = (
+            [
+                round(self.width_mm - self.right_margin - tb_w, 2),
+                round(self.height_mm - self.bottom_margin - tb_h, 2),
+                round(self.width_mm - self.right_margin, 2),
+                round(self.height_mm - self.bottom_margin, 2),
+            ]
+            if self.show_title_block
+            else [0.0, 0.0, 0.0, 0.0]
+        )
+
+        views_info = []
+        for v in self.views:
+            v_bounds = [
+                round(v.min_x, 2),
+                round(v.min_y, 2),
+                round(v.max_x, 2),
+                round(v.max_y, 2),
+            ]
+            vis_bounds = [round(x, 2) for x in v.get_visual_bounds()]
+            views_info.append(
+                {
+                    "label": v.view_label or v.view_type.value.upper(),
+                    "view_type": v.view_type.value,
+                    "bounds": v_bounds,
+                    "visual_bounds": vis_bounds,
+                    "scale": round(v.scale, 4),
+                    "center": (round(v.center_x, 2), round(v.center_y, 2)),
+                    "annotations_count": len(getattr(v, "annotations", [])),
+                }
+            )
+
+        mid_x = (drawable[0] + drawable[2]) / 2.0
+        mid_y = (drawable[1] + drawable[3]) / 2.0
+        quadrants = {
+            "top-left": (drawable[0], drawable[1], mid_x, mid_y),
+            "top-right": (mid_x, drawable[1], drawable[2], mid_y),
+            "bottom-left": (drawable[0], mid_y, mid_x, drawable[3]),
+            "bottom-right": (mid_x, mid_y, drawable[2], drawable[3]),
+        }
+
+        free_quads = []
+        for q_name, (qx1, qy1, qx2, qy2) in quadrants.items():
+            occupied = False
+            if self.show_title_block and not (
+                tb_bounds[2] <= qx1
+                or tb_bounds[0] >= qx2
+                or tb_bounds[3] <= qy1
+                or tb_bounds[1] >= qy2
+            ):
+                occupied = True
+            if not occupied:
+                for v in self.views:
+                    vb = v.get_visual_bounds()
+                    if not (vb[2] <= qx1 or vb[0] >= qx2 or vb[3] <= qy1 or vb[1] >= qy2):
+                        occupied = True
+                        break
+            if not occupied:
+                free_quads.append(q_name)
+
+        lint_res = self.lint()
+        return {
+            "sheet_size": (round(self.width_mm, 2), round(self.height_mm, 2)),
+            "drawable_bounds": drawable,
+            "title_block_bounds": tb_bounds,
+            "views": views_info,
+            "annotations_count": len(self.annotations),
+            "free_quadrants": free_quads,
+            "lint_issues_count": len(lint_res),
+            "lint_issues": [
+                {"code": i.code, "severity": i.severity, "message": i.message} for i in lint_res
+            ],
+        }
+
     def add_gdt_frame(
         self,
         position: tuple[float, float],
@@ -914,6 +1017,8 @@ class DrawingSheet:
 
     def render_border_and_grid(self) -> str:
         """Render ISO 5457 borders, centering marks, and alphanumeric grid zones."""
+        if not self.show_border and not self.show_grid:
+            return ""
         w = self.width_mm
         h = self.height_mm
         bx = self.left_margin
@@ -1115,6 +1220,24 @@ class DrawingSheet:
             bom_h = 5.5 + len(self.bom_items) * 5.2
             bom_top_y = tb_y - bom_h - 1.0
 
+        border_svg = self.render_border_and_grid() if (self.show_border or self.show_grid) else ""
+        tb_svg = (
+            render_title_block_svg(self.title_info, w, h, self.right_margin, self.bottom_margin)
+            if self.show_title_block and self.title_info
+            else ""
+        )
+        rev_svg = (
+            render_revision_table_svg(self.revision_rows, w, self.right_margin, self.top_margin)
+            if self.show_title_block and self.revision_rows
+            else ""
+        )
+        bom_svg = (
+            render_bom_table_svg(self.bom_items, w, self.right_margin, bom_top_y)
+            if self.bom_items
+            else ""
+        )
+        notes_svg = self.render_notes() if self.show_notes else ""
+
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg"
      viewBox="0 0 {w} {h}"
@@ -1133,11 +1256,11 @@ class DrawingSheet:
     {self.render_hatch_defs()}
   </defs>
 
-  {self.render_border_and_grid()}
-  {render_title_block_svg(self.title_info, w, h, self.right_margin, self.bottom_margin)}
-  {render_revision_table_svg(self.revision_rows, w, self.right_margin, self.top_margin)}
-  {render_bom_table_svg(self.bom_items, w, self.right_margin, bom_top_y)}
-  {self.render_notes()}
+  {border_svg}
+  {tb_svg}
+  {rev_svg}
+  {bom_svg}
+  {notes_svg}
 
   <g class="drawing-views">
     {view_elements}
