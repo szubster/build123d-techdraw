@@ -53,11 +53,21 @@ class BuildSheet:
         margin: float = 8.0,
         **kwargs: Any,
     ):
+        style = kwargs.pop("style", "iso")
+        show_border = kwargs.pop("show_border", True)
+        show_title_block = kwargs.pop("show_title_block", True)
+        show_grid = kwargs.pop("show_grid", True)
+        show_notes = kwargs.pop("show_notes", True)
         self.sheet = DrawingSheet(
             sheet_size=sheet_size,
             custom_size=custom_size,
             left_margin=left_margin,
             margin=margin,
+            style=style,
+            show_border=show_border,
+            show_title_block=show_title_block,
+            show_grid=show_grid,
+            show_notes=show_notes,
         )
         effective_title = title or drawing_title
         effective_dwg_no = drawing_number or drawing_no

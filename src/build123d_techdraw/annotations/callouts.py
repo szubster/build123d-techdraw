@@ -309,20 +309,24 @@ class BOMBalloon:
         leader_offset: tuple[float, float] = (15.0, -15.0),
         view: Any | None = None,
         *,
+        item: int | None = None,
+        elbow_offset: tuple[float, float] | None = None,
         balloon_no: int | None = None,
         position: tuple[float, float] | None = None,
     ):
         resolved_no = (
-            item_no if item_no is not None else (balloon_no if balloon_no is not None else 1)
+            item
+            if item is not None
+            else (item_no if item_no is not None else (balloon_no if balloon_no is not None else 1))
         )
         self.item_no = int(resolved_no)
         self.radius = radius
         self.terminator = terminator
-        self.leader_offset = leader_offset
+        self.leader_offset = elbow_offset if elbow_offset is not None else leader_offset
         self.view = view
 
-        effective_target = target if target is not None else position
-        self.raw_target = effective_target
+        self.raw_target = target
+        self.raw_position = position
         self.target: tuple[float, float] = (0.0, 0.0)
         self.resolved = False
 
@@ -336,13 +340,8 @@ class BOMBalloon:
             self.balloon_center = (0.0, 0.0)
             self.center_explicit = False
 
-        if (
-            effective_target is not None
-            and not is_topological_entity(effective_target)
-            and isinstance(effective_target, (tuple, list))
-            and len(effective_target) == 2
-        ):
-            self.target = (float(effective_target[0]), float(effective_target[1]))
+        if position is not None and target is None:
+            self.target = (float(position[0]), float(position[1]))
             if not self.center_explicit:
                 self.balloon_center = (
                     self.target[0] + self.leader_offset[0],
@@ -354,6 +353,19 @@ class BOMBalloon:
         if target_view is not None:
             self._attach_to_view(target_view)
         else:
+            if (
+                target is not None
+                and not is_topological_entity(target)
+                and isinstance(target, (tuple, list))
+                and len(target) == 2
+            ):
+                self.target = (float(target[0]), float(target[1]))
+                if not self.center_explicit:
+                    self.balloon_center = (
+                        self.target[0] + self.leader_offset[0],
+                        self.target[1] + self.leader_offset[1],
+                    )
+                self.resolved = True
             target_sheet = CURRENT_SHEET.get()
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
@@ -373,14 +385,29 @@ class BOMBalloon:
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.raw_target is not None:
-            self.target = resolve_point_to_sheet(self.raw_target, view)
+            if isinstance(self.raw_target, (tuple, list)):
+                if len(self.raw_target) == 2:
+                    self.target = view.to_sheet_coords(
+                        float(self.raw_target[0]), float(self.raw_target[1])
+                    )
+                elif len(self.raw_target) == 3:
+                    self.target = view.to_sheet_3d(
+                        float(self.raw_target[0]),
+                        float(self.raw_target[1]),
+                        float(self.raw_target[2]),
+                    )
+                else:
+                    self.target = (float(self.raw_target[0]), float(self.raw_target[1]))
+            else:
+                self.target = resolve_point_to_sheet(self.raw_target, view)
+
             if not self.center_explicit:
                 self.balloon_center = (
                     self.target[0] + self.leader_offset[0],
                     self.target[1] + self.leader_offset[1],
                 )
             self.resolved = True
-        elif not self.resolved and self.raw_target is None:
+        elif not self.resolved and self.raw_target is None and not self.resolved:
             self.target = (view.center_x, view.center_y)
             if not self.center_explicit:
                 self.balloon_center = (
@@ -728,3 +755,61 @@ class WeldingSymbol:
             )
 
         return f'<g class="welding-symbol">{"".join(elements)}</g>'
+
+
+class StepBadge:
+    """Circular step number badge for assembly manuals and procedural drawings."""
+
+    def __init__(
+        self,
+        step_number: int | str = 1,
+        position: tuple[float, float] = (15.0, 15.0),
+        radius: float = 6.0,
+        label: str | None = None,
+        font_size: float = 4.0,
+        view: Any | None = None,
+        sheet: Any | None = None,
+    ):
+        self.step_number = step_number
+        self.position = (float(position[0]), float(position[1]))
+        self.radius = float(radius)
+        self.label = label
+        self.font_size = float(font_size)
+        self.view = view
+        self.sheet = sheet
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+        else:
+            target_sheet = sheet or CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
+                self.sheet = target_sheet
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
+            self.sheet = t_sheet
+
+    def bounding_box_2d(self) -> tuple[float, float, float, float]:
+        cx, cy = self.position
+        r = self.radius
+        return (cx - r, cy - r, cx + r, cy + r)
+
+    def to_svg(self) -> str:
+        cx, cy = self.position
+        r = self.radius
+        elements = [
+            f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r:.2f}" class="balloon-circle" stroke-width="0.6" fill="currentColor" fill-opacity="0.12"/>',
+            f'<text x="{cx:.2f}" y="{cy + self.font_size * 0.35:.2f}" class="balloon-text" text-anchor="middle" font-size="{self.font_size:.2f}" font-weight="bold">{html.escape(str(self.step_number))}</text>',
+        ]
+        if self.label:
+            elements.append(
+                f'<text x="{cx + r + 3.0:.2f}" y="{cy + 1.2:.2f}" class="tb-title" text-anchor="start" font-size="{self.font_size * 0.85:.2f}">{html.escape(self.label)}</text>'
+            )
+        return f'<g class="step-badge">{"".join(elements)}</g>'
