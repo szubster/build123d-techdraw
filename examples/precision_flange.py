@@ -8,7 +8,7 @@ import build123d as bd
 from build123d_techdraw import (
     AngularDimension,
     BoltCircle,
-    BuildSheet,
+    BuildDrawing,
     CenterMark,
     DiameterDimension,
     FrontView,
@@ -55,7 +55,7 @@ def generate_precision_flange(output_dir: Path) -> None:
     pcd = bolt_circles[0].pcd
 
     # 3. Compose A3 sheet with TopView and FrontView
-    with BuildSheet(sheet_size=SheetSize.A3_LANDSCAPE) as sheet:
+    with BuildDrawing(sheet_size=SheetSize.A3_LANDSCAPE) as sheet:
         TitleBlock(
             title="PRECISION MOUNTING FLANGE",
             drawing_number="FLG-200",

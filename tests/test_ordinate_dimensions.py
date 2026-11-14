@@ -3,7 +3,7 @@
 import build123d as bd
 
 from build123d_techdraw import (
-    BuildSheet,
+    BuildDrawing,
     FrontView,
     OrdinateDimensionSet,
 )
@@ -14,7 +14,7 @@ def test_ordinate_dimension_set_x_direction() -> None:
     plate = bd.Box(150.0, 80.0, 10.0)
 
     with (
-        BuildSheet(sheet_size="A3") as sheet,
+        BuildDrawing(sheet_size="A3") as sheet,
         FrontView(plate, center=(120.0, 100.0), scale=1.0) as fv,
     ):
         ords = OrdinateDimensionSet(
@@ -44,7 +44,7 @@ def test_ordinate_dimension_set_auto_jog() -> None:
     """Verify witness lines auto-jog when coordinates are tightly spaced (<5mm)."""
     plate = bd.Box(60.0, 60.0, 10.0)
 
-    with BuildSheet(sheet_size="A3"), FrontView(plate, center=(100.0, 100.0), scale=1.0):
+    with BuildDrawing(sheet_size="A3"), FrontView(plate, center=(100.0, 100.0), scale=1.0):
         ords = OrdinateDimensionSet(
             datum_origin=(0.0, 0.0),
             direction="X",
@@ -65,7 +65,7 @@ def test_ordinate_dimension_set_y_direction() -> None:
     """Verify OrdinateDimensionSet along Y axis."""
     plate = bd.Box(80.0, 120.0, 10.0)
 
-    with BuildSheet(sheet_size="A3"), FrontView(plate, center=(120.0, 100.0), scale=1.0):
+    with BuildDrawing(sheet_size="A3"), FrontView(plate, center=(120.0, 100.0), scale=1.0):
         ords = OrdinateDimensionSet(
             datum_origin=(0.0, 0.0),
             direction="Y",

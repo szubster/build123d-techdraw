@@ -5,7 +5,7 @@ from pathlib import Path
 import build123d as bd
 import ezdxf
 
-from build123d_techdraw import BuildSheet, Centerline, TopView
+from build123d_techdraw import BuildDrawing, Centerline, TopView
 
 
 def test_view_export_dxf_1to1_layers(tmp_path: Path) -> None:
@@ -24,7 +24,7 @@ def test_view_export_dxf_1to1_layers(tmp_path: Path) -> None:
     dxf_file = str(tmp_path / "plate_1to1.dxf")
 
     # Sheet scale is 0.5 (half-size on drawing sheet)
-    with BuildSheet(sheet_size="A3"), TopView(part, center=(120.0, 100.0), scale=0.5) as tv:
+    with BuildDrawing(sheet_size="A3"), TopView(part, center=(120.0, 100.0), scale=0.5) as tv:
         # Add explicit centerline annotation
         Centerline(start=(-25.0, -10.0), end=(-25.0, 10.0))
 
@@ -89,7 +89,7 @@ def test_view_export_dxf_default_layers(tmp_path: Path) -> None:
     box = bd.Box(50.0, 30.0, 10.0)
     dxf_file = str(tmp_path / "box_default.dxf")
 
-    with BuildSheet(sheet_size="A4"), TopView(box, center=(100.0, 100.0), scale=1.0) as tv:
+    with BuildDrawing(sheet_size="A4"), TopView(box, center=(100.0, 100.0), scale=1.0) as tv:
         tv.export_dxf(dxf_file)
 
     doc = ezdxf.readfile(dxf_file)
