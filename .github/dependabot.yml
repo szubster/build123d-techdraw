@@ -6,6 +6,9 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "chore(ci)"
+    labels:
+      - "dependencies"
+      - "ci"
 
   - package-ecosystem: "pip"
     directory: "/"
@@ -13,3 +16,5 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "chore(deps)"
+    labels:
+      - "dependencies"

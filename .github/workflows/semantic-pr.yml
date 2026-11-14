@@ -9,14 +9,17 @@ on:
       - reopened
 
 permissions:
-  pull-requests: read
+  pull-requests: write
+  issues: write
 
 jobs:
   validate-pr-title:
-    name: Validate Conventional Commit PR Title
+    name: Validate & Label Pull Request
     runs-on: ubuntu-latest
     steps:
-      - uses: amannn/action-semantic-pull-request@v6
+      - name: Validate Conventional Commit PR Title
+        id: semantic_pr
+        uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -33,3 +36,93 @@ jobs:
             chore
             revert
           requireScope: false
+
+      - name: Sync PR labels from Conventional Commit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const typeToLabel = {
+              feat: "feature",
+              fix: "bug",
+              docs: "documentation",
+              perf: "performance",
+              refactor: "refactor",
+              test: "tests",
+              build: "ci",
+              ci: "ci",
+              chore: "chore",
+              style: "chore",
+              revert: "chore",
+            };
+
+            const labelMeta = {
+              "breaking-change": { color: "b60205", description: "Introduces a breaking API or behavior change" },
+              feature: { color: "0e8a16", description: "New feature or enhancement" },
+              bug: { color: "d73a4a", description: "Something isn't working" },
+              documentation: { color: "0075ca", description: "Improvements or additions to documentation" },
+              performance: { color: "fbca04", description: "Performance improvements" },
+              refactor: { color: "cfd3d7", description: "Code refactoring without behavior changes" },
+              tests: { color: "bfd4f2", description: "Test additions or updates" },
+              ci: { color: "ededed", description: "CI/CD and build configuration" },
+              chore: { color: "fef2c0", description: "Maintenance and internal tasks" },
+            };
+
+            const pr = context.payload.pull_request;
+            const prType = "${{ steps.semantic_pr.outputs.type }}";
+            const isBreaking =
+              /^[a-z]+(\([^)]+\))?!:/.test(pr.title) ||
+              /^BREAKING CHANGE:/m.test(pr.body || "");
+
+            const desired = new Set();
+            if (typeToLabel[prType]) {
+              desired.add(typeToLabel[prType]);
+            }
+            if (isBreaking) {
+              desired.add("breaking-change");
+            }
+
+            const managedLabels = new Set(Object.keys(labelMeta));
+            const currentLabels = new Set(pr.labels.map((l) => l.name));
+
+            // Remove stale managed labels if PR title/body changed
+            for (const label of currentLabels) {
+              if (managedLabels.has(label) && !desired.has(label)) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  name: label,
+                });
+              }
+            }
+
+            const toAdd = [...desired].filter((l) => !currentLabels.has(l));
+            if (toAdd.length === 0) return;
+
+            // Ensure labels exist in repository before applying
+            for (const name of toAdd) {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name,
+                });
+              } catch (err) {
+                if (err.status !== 404) throw err;
+                const meta = labelMeta[name];
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name,
+                  color: meta.color,
+                  description: meta.description,
+                });
+              }
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: toAdd,
+            });
