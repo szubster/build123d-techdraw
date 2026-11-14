@@ -10,6 +10,7 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 import build123d as bd
+import ezdxf.path
 import svgelements as se
 from build123d.topology import Shape
 from ezdxf.document import Drawing
@@ -19,49 +20,6 @@ from build123d_techdraw.renderers.svg_elements import has_hidden_ancestor
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
-
-
-def _to_2d(pt: Any, plane: Any | None, scale: float = 1.0) -> tuple[float, float]:
-    """Project a 3D point onto a 2D plane (or XY if plane is None)."""
-    local = plane.to_local_coords(pt) if plane is not None else pt
-    return (float(local.X) * scale, float(local.Y) * scale)
-
-
-def _sample_edge_adaptive(
-    edge: Any,
-    plane: Any | None,
-    tolerance: float = 0.05,
-    scale: float = 1.0,
-    max_depth: int = 10,
-) -> list[tuple[float, float]]:
-    """Adaptively tessellate a curved edge within chordal tolerance (in mm)."""
-    pts: list[tuple[float, float]] = [_to_2d(edge.position_at(0.0), plane, scale)]
-
-    def _subdivide(
-        t0: float, p0: tuple[float, float], t1: float, p1: tuple[float, float], depth: int
-    ) -> None:
-        tm = 0.5 * (t0 + t1)
-        pm = _to_2d(edge.position_at(tm), plane, scale)
-        dx = p1[0] - p0[0]
-        dy = p1[1] - p0[1]
-        seg_len = math.hypot(dx, dy)
-        if depth < max_depth:
-            if depth < 2:
-                need_split = True
-            elif seg_len > 1e-9:
-                dist = abs(dx * (p0[1] - pm[1]) - (p0[0] - pm[0]) * dy) / seg_len
-                need_split = dist > tolerance
-            else:
-                need_split = math.hypot(pm[0] - p0[0], pm[1] - p0[1]) > tolerance
-            if need_split:
-                _subdivide(t0, p0, tm, pm, depth + 1)
-                _subdivide(tm, pm, t1, p1, depth + 1)
-                return
-        pts.append(p1)
-
-    p_end = _to_2d(edge.position_at(1.0), plane, scale)
-    _subdivide(0.0, pts[0], 1.0, p_end, 0)
-    return pts
 
 
 def _detect_primary_flat_face(shape: Shape[Any]) -> tuple[Shape[Any], bd.Plane | None]:
@@ -77,54 +35,6 @@ def _detect_primary_flat_face(shape: Shape[Any]) -> tuple[Shape[Any], bd.Plane |
     return primary, bd.Plane(primary)
 
 
-def add_edge_to_dxf(
-    msp: Any,
-    edge: bd.Edge,
-    layer: str = "VISIBLE",
-    scale: float = 1.0,
-    plane: Any | None = None,
-    tolerance: float = 0.05,
-) -> None:
-    """Convert a single build123d Edge to DXF entities on the given layer."""
-    gtype_str = str(edge.geom_type).upper()
-    if "LINE" in gtype_str:
-        v0 = _to_2d(edge.start_point(), plane, scale)
-        v1 = _to_2d(edge.end_point(), plane, scale)
-        msp.add_line(v0, v1, dxfattribs={"layer": layer})
-    elif "CIRCLE" in gtype_str:
-        c2d = _to_2d(edge.arc_center, plane, scale)
-        radius = float(edge.radius) * scale
-        p_start = _to_2d(edge.start_point(), plane, scale)
-        p_mid = _to_2d(edge.position_at(0.5), plane, scale)
-        p_end = _to_2d(edge.end_point(), plane, scale)
-        coplanar = all(
-            abs(math.hypot(pt[0] - c2d[0], pt[1] - c2d[1]) - radius) <= max(1e-3, tolerance)
-            for pt in (p_start, p_mid, p_end)
-        )
-        if not coplanar:
-            pts = _sample_edge_adaptive(edge, plane=plane, tolerance=tolerance, scale=scale)
-            if len(pts) >= 2:
-                msp.add_lwpolyline(pts, dxfattribs={"layer": layer})
-        elif edge.is_closed:
-            msp.add_circle(c2d, radius, dxfattribs={"layer": layer})
-        else:
-            a_start = math.degrees(math.atan2(p_start[1] - c2d[1], p_start[0] - c2d[0]))
-            a_mid = math.degrees(math.atan2(p_mid[1] - c2d[1], p_mid[0] - c2d[0]))
-            a_end = math.degrees(math.atan2(p_end[1] - c2d[1], p_end[0] - c2d[0]))
-            # Ensure CCW sweep from start through mid to end for DXF ARC
-            sweep_mid = (a_mid - a_start) % 360.0
-            sweep_end = (a_end - a_start) % 360.0
-            if sweep_mid > sweep_end:
-                a_start, a_end = a_end, a_start
-            msp.add_arc(
-                c2d, radius, start_angle=a_start, end_angle=a_end, dxfattribs={"layer": layer}
-            )
-    else:
-        pts = _sample_edge_adaptive(edge, plane=plane, tolerance=tolerance, scale=scale)
-        if len(pts) >= 2:
-            msp.add_lwpolyline(pts, dxfattribs={"layer": layer})
-
-
 class DXFRenderer:
     """Exports 2D CAD views and complete drawing sheets to standard multi-layer DXF files."""
 
@@ -135,18 +45,15 @@ class DXFRenderer:
         output_path: str,
         dxfversion: str = "R2010",
         plane: bd.Plane | None = None,
-        tolerance: float = 0.05,
+        tolerance: float = 0.05,  # noqa: ARG003
         strict: bool = False,
     ) -> None:
         """Export 2D cross-section, flat pattern, or 3D plate primary face to a 1:1 DXF file."""
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-        doc: Drawing = new_dxf_document(dxfversion=dxfversion)
-        msp = doc.modelspace()
-
-        # Set up standard CAD layers
-        doc.layers.new(name="VISIBLE", dxfattribs={"color": 7})  # White/Black
-        doc.layers.new(name="HIDDEN", dxfattribs={"color": 8, "linetype": "DASHED"})  # Gray
-        doc.layers.new(name="CENTER", dxfattribs={"color": 4, "linetype": "CENTER"})  # Cyan
+        exporter = bd.ExportDXF(version=dxfversion, unit=bd.Unit.MM)
+        exporter.add_layer("VISIBLE", color=bd.ColorIndex.BLACK)
+        exporter.add_layer("HIDDEN", color=bd.ColorIndex.GRAY, line_type=bd.LineType.DASHED)
+        exporter.add_layer("CENTER", color=bd.ColorIndex.CYAN, line_type=bd.LineType.CENTER)
 
         target_shape = shape
         active_plane = plane
@@ -156,14 +63,8 @@ class DXFRenderer:
         edges = target_shape.edges()
         for idx, edge in enumerate(edges):
             try:
-                add_edge_to_dxf(
-                    msp,
-                    edge,
-                    layer="VISIBLE",
-                    scale=1.0,
-                    plane=active_plane,
-                    tolerance=tolerance,
-                )
+                projected = active_plane.to_local_coords(edge) if active_plane is not None else edge
+                exporter.add_shape(projected, layer="VISIBLE")
             except Exception as exc:
                 if strict:
                     raise
@@ -173,7 +74,7 @@ class DXFRenderer:
                     stacklevel=2,
                 )
 
-        doc.saveas(output_path)
+        exporter.write(output_path)
 
     @classmethod
     def export_sheet_to_dxf(
@@ -280,25 +181,46 @@ class DXFRenderer:
                 p.reify()
                 p.approximate_arcs_with_cubics()
 
-                curr_pt: tuple[float, float] | None = None
+                subpaths: list[ezdxf.path.Path] = []
+                dxf_path: ezdxf.path.Path | None = None
                 for seg in p:
                     if isinstance(seg, se.Move):
-                        curr_pt = (float(seg.end.x), float(h_mm - seg.end.y))
+                        if dxf_path is not None and len(dxf_path):
+                            subpaths.append(dxf_path)
+                        dxf_path = ezdxf.path.Path(start=(float(seg.end.x), float(h_mm - seg.end.y)))
                     elif isinstance(seg, se.Line):
-                        nxt_pt = (float(seg.end.x), float(h_mm - seg.end.y))
-                        if curr_pt is not None:
-                            msp.add_line(curr_pt, nxt_pt, dxfattribs={"layer": target_layer})
-                        curr_pt = nxt_pt
-                    elif isinstance(seg, (se.CubicBezier, se.QuadraticBezier)):
-                        # Discretize bezier curve
-                        curve_pts = [seg.point(t) for t in [i / 10.0 for i in range(11)]]
-                        for i in range(len(curve_pts) - 1):
-                            p_a = (float(curve_pts[i].x), float(h_mm - curve_pts[i].y))
-                            p_b = (float(curve_pts[i + 1].x), float(h_mm - curve_pts[i + 1].y))
-                            msp.add_line(p_a, p_b, dxfattribs={"layer": target_layer})
-                        curr_pt = (float(seg.end.x), float(h_mm - seg.end.y))
-                    elif isinstance(seg, se.Close):
-                        curr_pt = None
+                        if dxf_path is None:
+                            dxf_path = ezdxf.path.Path(
+                                start=(float(seg.start.x), float(h_mm - seg.start.y))
+                            )
+                        dxf_path.line_to((float(seg.end.x), float(h_mm - seg.end.y)))
+                    elif isinstance(seg, se.CubicBezier):
+                        if dxf_path is None:
+                            dxf_path = ezdxf.path.Path(
+                                start=(float(seg.start.x), float(h_mm - seg.start.y))
+                            )
+                        dxf_path.curve4_to(
+                            (float(seg.end.x), float(h_mm - seg.end.y)),
+                            (float(seg.control1.x), float(h_mm - seg.control1.y)),
+                            (float(seg.control2.x), float(h_mm - seg.control2.y)),
+                        )
+                    elif isinstance(seg, se.QuadraticBezier):
+                        if dxf_path is None:
+                            dxf_path = ezdxf.path.Path(
+                                start=(float(seg.start.x), float(h_mm - seg.start.y))
+                            )
+                        dxf_path.curve3_to(
+                            (float(seg.end.x), float(h_mm - seg.end.y)),
+                            (float(seg.control.x), float(h_mm - seg.control.y)),
+                        )
+                    elif isinstance(seg, se.Close) and dxf_path is not None:
+                        dxf_path.close()
+                if dxf_path is not None and len(dxf_path):
+                    subpaths.append(dxf_path)
+                if subpaths:
+                    ezdxf.path.render_splines_and_polylines(
+                        msp, subpaths, dxfattribs={"layer": target_layer}
+                    )
 
             elif isinstance(el, se.SVGText):
                 txt = el.text
