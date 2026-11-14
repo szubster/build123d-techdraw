@@ -4,7 +4,7 @@ from pathlib import Path
 
 import build123d as bd
 
-from build123d_techdraw import BuildSheet, DrawingBooklet, FrontView
+from build123d_techdraw import BuildDrawing, DrawingBooklet, FrontView
 
 
 def test_booklet_pdf_export_with_bookmarks(tmp_path: Path) -> None:
@@ -12,14 +12,14 @@ def test_booklet_pdf_export_with_bookmarks(tmp_path: Path) -> None:
     box = bd.Box(40.0, 30.0, 10.0)
     cyl = bd.Cylinder(radius=15.0, height=20.0)
 
-    with BuildSheet(
+    with BuildDrawing(
         sheet_size="A4",
         drawing_no="DWG-001",
         title="GENERAL ASSEMBLY & KINEMATICS",
     ) as s1:
         FrontView(box, center=(100.0, 100.0))
 
-    with BuildSheet(
+    with BuildDrawing(
         sheet_size="A4",
         drawing_no="DWG-002",
         title="BRACKET DETAIL",
@@ -55,7 +55,7 @@ def test_booklet_pdf_export_without_bookmarks(tmp_path: Path) -> None:
     """Verify exported PDF does not generate outline entries when bookmarks=False."""
     box = bd.Box(20.0, 20.0, 10.0)
 
-    with BuildSheet(
+    with BuildDrawing(
         sheet_size="A4",
         drawing_no="DWG-001",
         title="SIMPLE SHEET",

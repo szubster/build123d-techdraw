@@ -5,7 +5,7 @@ from pathlib import Path
 import build123d as bd
 
 from build123d_techdraw import (
-    BuildSheet,
+    BuildDrawing,
     CenterMark,
     DatumFeature,
     FeatureControlFrame,
@@ -33,7 +33,7 @@ def generate_builder_mode_drawing(output_dir: Path) -> None:
     part = part - hole
 
     # 2. Builder Mode: Declarative drawing sheet construction
-    with BuildSheet(SheetSize.A3_LANDSCAPE) as sheet:
+    with BuildDrawing(SheetSize.A3_LANDSCAPE) as sheet:
         TitleBlock(
             title="STEPPED BRACKET (BUILDER MODE)",
             drawing_number="BRK-BUILDER-01",

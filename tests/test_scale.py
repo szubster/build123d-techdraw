@@ -3,7 +3,7 @@
 import build123d as bd
 import pytest
 
-from build123d_techdraw.builder import BuildSheet, BuildView
+from build123d_techdraw.builder import BuildDrawing, BuildView
 from build123d_techdraw.core.scale import (
     STANDARD_SCALES,
     calculate_auto_scale,
@@ -46,7 +46,7 @@ def test_build_view_enforce_iso_scale() -> None:
     assert set(STANDARD_SCALES) == allowed_iso
 
     part = bd.Box(260.0, 140.0, 110.0)
-    with BuildSheet("A4") as sheet:
+    with BuildDrawing("A4") as sheet:
         with BuildView(part, scale="auto", enforce_iso_scale=True) as v_snapped:
             assert BuildView._get_context() is v_snapped
         with BuildView(part, scale="auto", enforce_iso_scale=False) as v_raw:
