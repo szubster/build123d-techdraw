@@ -1,6 +1,7 @@
 """SheetView representations, view projection mathematics, and coordinate transformations."""
 
 import contextlib
+import math
 import os
 import re
 import tempfile
@@ -562,33 +563,92 @@ class SheetView:
         self._update_transform()
         return self
 
+    def get_visual_bounds(
+        self,
+        include_annotations: bool = True,
+        include_label: bool = True,
+    ) -> tuple[float, float, float, float]:
+        """Compute the visual bounding box (min_x, min_y, max_x, max_y) of this view in paper mm."""
+        min_x = self.min_x
+        min_y = self.min_y
+        max_x = self.max_x
+        max_y = self.max_y
+
+        if include_annotations and hasattr(self, "annotations"):
+            from build123d_techdraw.layout.linter import get_annotation_bbox_2d
+
+            for ann in self.annotations:
+                bbox = get_annotation_bbox_2d(ann)
+                if bbox is not None:
+                    min_x = min(min_x, bbox[0])
+                    min_y = min(min_y, bbox[1])
+                    max_x = max(max_x, bbox[2])
+                    max_y = max(max_y, bbox[3])
+
+        if include_label and (self.view_label or self.scale_label):
+            label_y = getattr(self, "bottom_annotation_y", self.max_y) + 8.0
+            max_y = max(max_y, label_y + 4.0)
+
+        return (min_x, min_y, max_x, max_y)
+
     def align_to(
         self,
         other: "SheetView | tuple[Any, ...]",
         direction: str = "right",
         spacing: float = 25.0,
+        include_annotations: bool = False,
+        include_label: bool = True,
     ) -> Self:
         if isinstance(other, (tuple, list, dict)):
             _apply_align_to(self, other)
             return self
         """Align this view relative to another view on the sheet."""
         d = direction.lower()
-        if d in ("right", "east"):
-            new_cx = other.max_x + spacing + self.width / 2.0
-            new_cy = other.center_y
-        elif d in ("left", "west"):
-            new_cx = other.min_x - spacing - self.width / 2.0
-            new_cy = other.center_y
-        elif d in ("above", "top", "north"):
-            new_cx = other.center_x
-            new_cy = other.min_y - spacing - self.height / 2.0
-        elif d in ("below", "bottom", "south"):
-            new_cx = other.center_x
-            new_cy = other.max_y + spacing + self.height / 2.0
-        else:
-            raise ValueError(
-                f"Unknown alignment direction '{direction}'. Use 'above', 'below', 'right', or 'left'."
+        if include_annotations:
+            other_min_x, other_min_y, other_max_x, other_max_y = other.get_visual_bounds(
+                include_annotations=True, include_label=include_label
             )
+            self_min_x, self_min_y, self_max_x, self_max_y = self.get_visual_bounds(
+                include_annotations=True, include_label=include_label
+            )
+            self_left_extent = self.center_x - self_min_x
+            self_right_extent = self_max_x - self.center_x
+            self_top_extent = self.center_y - self_min_y
+            self_bottom_extent = self_max_y - self.center_y
+
+            if d in ("right", "east"):
+                new_cx = other_max_x + spacing + self_left_extent
+                new_cy = other.center_y
+            elif d in ("left", "west"):
+                new_cx = other_min_x - spacing - self_right_extent
+                new_cy = other.center_y
+            elif d in ("above", "top", "north"):
+                new_cx = other.center_x
+                new_cy = other_min_y - spacing - self_bottom_extent
+            elif d in ("below", "bottom", "south"):
+                new_cx = other.center_x
+                new_cy = other_max_y + spacing + self_top_extent
+            else:
+                raise ValueError(
+                    f"Unknown alignment direction '{direction}'. Use 'above', 'below', 'right', or 'left'."
+                )
+        else:
+            if d in ("right", "east"):
+                new_cx = other.max_x + spacing + self.width / 2.0
+                new_cy = other.center_y
+            elif d in ("left", "west"):
+                new_cx = other.min_x - spacing - self.width / 2.0
+                new_cy = other.center_y
+            elif d in ("above", "top", "north"):
+                new_cx = other.center_x
+                new_cy = other.min_y - spacing - self.height / 2.0
+            elif d in ("below", "bottom", "south"):
+                new_cx = other.center_x
+                new_cy = other.max_y + spacing + self.height / 2.0
+            else:
+                raise ValueError(
+                    f"Unknown alignment direction '{direction}'. Use 'above', 'below', 'right', or 'left'."
+                )
         return self.locate((new_cx, new_cy))
 
     @property
@@ -678,6 +738,128 @@ class SheetView:
                     elif m_y >= y1:
                         sy -= shift / 2.0
         return (sx, sy)
+
+    def dimension(
+        self,
+        target: Any,
+        offset: float = -8.0,
+        direction: str | None = None,
+        text: str | None = None,
+        tolerance: str | Tolerance | None = None,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> LinearDimension:
+        """Add a dimension for a topological Edge, Face, or pair of points in this view.
+
+        Automatically determines dimension direction and length from the model entity.
+        """
+        dim = LinearDimension(
+            target_or_start=target,
+            offset=offset,
+            direction=direction,
+            text=text,
+            tolerance=tolerance,
+            prefix=prefix,
+            suffix=suffix,
+            view=self,
+        )
+        self.add(dim)
+        return dim
+
+    def dimension_between(
+        self,
+        target1: Any,
+        target2: Any,
+        direction: str = "horizontal",
+        offset: float = -8.0,
+        text: str | None = None,
+        tolerance: str | Tolerance | None = None,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> LinearDimension:
+        """Add a linear dimension between two model vertices, edges, or points in this view."""
+        from build123d_techdraw.annotations.resolver import is_topological_entity
+
+        if (
+            isinstance(target1, (tuple, list))
+            and isinstance(target2, (tuple, list))
+            and not is_topological_entity(target1)
+            and not is_topological_entity(target2)
+        ):
+            if len(target1) == 2 and len(target2) == 2:
+                s1 = self.to_sheet_coords(float(target1[0]), float(target1[1]))
+                s2 = self.to_sheet_coords(float(target2[0]), float(target2[1]))
+                d_lower = direction.lower() if direction else "horizontal"
+                if text is None:
+                    from build123d_techdraw.annotations.dimensions import format_dimension_value
+
+                    if d_lower == "horizontal":
+                        m_dist = abs(float(target2[0]) - float(target1[0]))
+                    elif d_lower == "vertical":
+                        m_dist = abs(float(target2[1]) - float(target1[1]))
+                    else:
+                        m_dist = math.hypot(
+                            float(target2[0]) - float(target1[0]),
+                            float(target2[1]) - float(target1[1]),
+                        )
+                    text = format_dimension_value(m_dist)
+                dim = LinearDimension(
+                    start=s1,
+                    end=s2,
+                    direction=direction,
+                    offset=offset,
+                    text=text,
+                    tolerance=tolerance,
+                    prefix=prefix,
+                    suffix=suffix,
+                    view=self,
+                )
+                self.add(dim)
+                return dim
+            elif len(target1) == 3 and len(target2) == 3:
+                s1 = self.to_sheet_3d(float(target1[0]), float(target1[1]), float(target1[2]))
+                s2 = self.to_sheet_3d(float(target2[0]), float(target2[1]), float(target2[2]))
+                if text is None:
+                    from build123d_techdraw.annotations.dimensions import format_dimension_value
+
+                    dx = float(target2[0]) - float(target1[0])
+                    dy = float(target2[1]) - float(target1[1])
+                    dz = float(target2[2]) - float(target1[2])
+                    d_lower = direction.lower() if direction else "horizontal"
+                    if d_lower == "horizontal":
+                        m_dist = abs(dx)
+                    elif d_lower == "vertical":
+                        m_dist = abs(dz if abs(dz) > 1e-4 else dy)
+                    else:
+                        m_dist = math.hypot(dx, dy, dz)
+                    text = format_dimension_value(m_dist)
+                dim = LinearDimension(
+                    start=s1,
+                    end=s2,
+                    direction=direction,
+                    offset=offset,
+                    text=text,
+                    tolerance=tolerance,
+                    prefix=prefix,
+                    suffix=suffix,
+                    view=self,
+                )
+                self.add(dim)
+                return dim
+
+        dim = LinearDimension(
+            target_or_start=target1,
+            target2_or_end=target2,
+            direction=direction,
+            offset=offset,
+            text=text,
+            tolerance=tolerance,
+            prefix=prefix,
+            suffix=suffix,
+            view=self,
+        )
+        self.add(dim)
+        return dim
 
     def dim_horizontal(
         self,

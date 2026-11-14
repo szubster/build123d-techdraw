@@ -6,6 +6,7 @@ from build123d_techdraw.annotations.callouts import (
     HoleCallout,
     LeaderNote,
     SectionCuttingLine,
+    StepBadge,
     ThreadCallout,
     WeldingSymbol,
     WeldType,
@@ -41,7 +42,7 @@ from build123d_techdraw.annotations.surface import (
     SurfaceFinishSymbol,
 )
 from build123d_techdraw.annotations.symbols import render_projection_cone_svg
-from build123d_techdraw.annotations.tables import RawSVG, Schedule, Table
+from build123d_techdraw.annotations.tables import Card, RawSVG, Schedule, Table, TextBox
 from build123d_techdraw.builder import (
     AssemblyBOM,
     AuxiliaryView,
@@ -109,6 +110,7 @@ __all__ = [
     "BuildDrawing",
     "BuildSheet",
     "BuildView",
+    "Card",
     "CenterMark",
     "Centerline",
     "ChainDimensionGroup",
@@ -152,10 +154,12 @@ __all__ = [
     "SheetSize",
     "SheetView",
     "StandardMultiview",
+    "StepBadge",
     "SurfaceFinish",
     "SurfaceFinishSymbol",
     "THEME_COLORS",
     "Table",
+    "TextBox",
     "Theme",
     "ThemeColors",
     "ThreadCallout",

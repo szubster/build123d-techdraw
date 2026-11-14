@@ -6,6 +6,7 @@ from build123d_techdraw.annotations.callouts import (
     HoleCallout,
     LeaderNote,
     SectionCuttingLine,
+    StepBadge,
     ThreadCallout,
     WeldingSymbol,
     WeldType,
@@ -39,13 +40,14 @@ from build123d_techdraw.annotations.surface import (
     SurfaceFinishSymbol,
 )
 from build123d_techdraw.annotations.symbols import render_projection_cone_svg
-from build123d_techdraw.annotations.tables import RawSVG, Schedule, Table
+from build123d_techdraw.annotations.tables import Card, RawSVG, Schedule, Table, TextBox
 
 __all__ = [
     "AngularDimension",
     "BOMBalloon",
     "BaselineDimensionGroup",
     "BoltCircle",
+    "Card",
     "CenterMark",
     "Centerline",
     "ChainDimensionGroup",
@@ -66,8 +68,10 @@ __all__ = [
     "RawSVG",
     "Schedule",
     "SectionCuttingLine",
+    "StepBadge",
     "SurfaceFinishSymbol",
     "Table",
+    "TextBox",
     "ThreadCallout",
     "Tolerance",
     "WeldType",
