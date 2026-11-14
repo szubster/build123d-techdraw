@@ -105,7 +105,7 @@ sheet.export_dxf("flat_pattern.dxf")
 ```python
 import build123d as bd
 from build123d_techdraw import (
-    BuildSheet,
+    BuildDrawing,
     CenterMark,
     DatumFeature,
     FeatureControlFrame,
@@ -119,7 +119,7 @@ from build123d_techdraw import (
     TopView,
 )
 
-with BuildSheet(SheetSize.A3_LANDSCAPE) as sheet:
+with BuildDrawing(SheetSize.A3_LANDSCAPE) as sheet:
     TitleBlock(title="BRACKET BLUEPRINT", drawing_no="DWG-001", material="AL 6061-T6")
     GeneralNotes(["1. ALL DIMENSIONS IN MILLIMETERS.", "2. ISO 2768-mK."])
 

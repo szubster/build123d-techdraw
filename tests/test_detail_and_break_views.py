@@ -7,7 +7,7 @@ import pytest
 
 from build123d_techdraw import (
     BreakView,
-    BuildSheet,
+    BuildDrawing,
     DetailView,
     FrontView,
     LinearDimension,
@@ -20,7 +20,7 @@ def test_detail_view_circular_and_nested_annotations() -> None:
     """Verify DetailView clips geometry, scales up, renders callout circle on parent view, and accepts nested annotations."""
     shaft = bd.Cylinder(radius=10.0, height=120.0)
 
-    with BuildSheet(sheet_size="A3") as sheet:
+    with BuildDrawing(sheet_size="A3") as sheet:
         with FrontView(shaft, center=(120.0, 100.0), scale=0.5) as front:
             pass
 
@@ -67,7 +67,7 @@ def test_detail_view_rectangular() -> None:
     """Verify DetailView with rectangular shape clips and renders rectangular callout and boundary."""
     plate = bd.Box(80.0, 50.0, 10.0)
 
-    with BuildSheet(sheet_size="A3") as sheet:
+    with BuildDrawing(sheet_size="A3") as sheet:
         with FrontView(plate, center=(100.0, 100.0), scale=1.0) as front:
             pass
 
@@ -97,7 +97,7 @@ def test_break_view_via_add_break() -> None:
     long_beam = bd.Box(1000.0, 20.0, 20.0)
 
     with (
-        BuildSheet(sheet_size="A3") as sheet,
+        BuildDrawing(sheet_size="A3") as sheet,
         FrontView(long_beam, center=(200.0, 100.0), scale=1.0) as fv,
     ):
         fv.add_break(
@@ -132,7 +132,7 @@ def test_break_view_class_wavy_style() -> None:
     long_rail = bd.Box(800.0, 30.0, 15.0)
 
     with (
-        BuildSheet(sheet_size="A3") as sheet,
+        BuildDrawing(sheet_size="A3") as sheet,
         BreakView(
             long_rail,
             interval=(100.0, 700.0),
@@ -166,7 +166,7 @@ def test_section_view_iso_hatch_patterns(tmp_path) -> None:
     part = bd.Box(60.0, 40.0, 20.0)
     cutting_plane = bd.Plane(origin=(0.0, 0.0, 0.0), x_dir=(0, 1, 0))
 
-    with BuildSheet(sheet_size="A3") as sheet:
+    with BuildDrawing(sheet_size="A3") as sheet:
         with SectionView(
             part,
             cutting_plane=cutting_plane,

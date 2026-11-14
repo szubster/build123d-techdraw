@@ -273,10 +273,10 @@ def test_dxf_3d_plate_plane_adaptive_and_strict() -> None:
 
 def test_borderless_svg_fragment_pdf_ergonomics_and_nested_svg() -> None:
     """Verify borderless=True, project_shape_to_svg_fragment, PDFRenderer inputs, and nested <svg>."""
-    from build123d_techdraw import BuildSheet, project_shape_to_svg_fragment
+    from build123d_techdraw import BuildDrawing, project_shape_to_svg_fragment
 
     box = bd.Box(30.0, 20.0, 10.0)
-    with BuildSheet(sheet_size=SheetSize.A4_PORTRAIT, borderless=True) as bs:
+    with BuildDrawing(sheet_size=SheetSize.A4_PORTRAIT, borderless=True) as bs:
         assert bs.sheet.show_border is False
         assert bs.sheet.show_title_block is False
 

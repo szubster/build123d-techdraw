@@ -14,7 +14,7 @@ import build123d as bd
 
 from build123d_techdraw import (
     BOMBalloon,
-    BuildSheet,
+    BuildDrawing,
     Card,
     DrawingSheet,
     FrontView,
@@ -27,10 +27,10 @@ from build123d_techdraw import (
 
 
 def test_duplicate_annotation_registration_fix() -> None:
-    """Validate that helper dimension calls inside BuildSheet do not produce duplicates or false lint errors."""
+    """Validate that helper dimension calls inside BuildDrawing do not produce duplicates or false lint errors."""
     box = bd.Box(100.0, 50.0, 10.0)
 
-    with BuildSheet(sheet_size="A4_LANDSCAPE") as s:
+    with BuildDrawing(sheet_size="A4_LANDSCAPE") as s:
         view = FrontView(box, center=(100.0, 100.0))
         dim = view.add_overall_horizontal()
 
@@ -44,7 +44,7 @@ def test_duplicate_annotation_registration_fix() -> None:
     assert len(overlap_issues) == 0
 
     # Also test dim_horizontal, dim_vertical, and add_overall_vertical
-    with BuildSheet(sheet_size="A4_LANDSCAPE") as s2:
+    with BuildDrawing(sheet_size="A4_LANDSCAPE") as s2:
         v2 = FrontView(box, center=(120.0, 120.0))
         v2.dim_horizontal(0.0, 50.0, model_y=0.0, offset_y=-5.0)
         v2.dim_vertical(0.0, 25.0, model_x=0.0, offset_x=-5.0)
@@ -86,7 +86,7 @@ def test_context_aware_bom_balloon_model_coords() -> None:
     """Validate context-aware BOMBalloon resolving model coordinates and elbow offset."""
     part = bd.Box(100.0, 50.0, 20.0)
     with (
-        BuildSheet(sheet_size="A3_LANDSCAPE") as s,
+        BuildDrawing(sheet_size="A3_LANDSCAPE") as s,
         FrontView(part, center=(135.0, 100.0), scale=0.5) as front,
     ):
         balloon = BOMBalloon(item=1, target=(40.0, 10.0), elbow_offset=(-15.0, 25.0))

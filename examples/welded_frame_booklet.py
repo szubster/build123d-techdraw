@@ -6,7 +6,7 @@ import build123d as bd
 
 from build123d_techdraw import (
     BaselineDimensionGroup,
-    BuildSheet,
+    BuildDrawing,
     Card,
     ChainDimensionGroup,
     DrawingBooklet,
@@ -34,7 +34,7 @@ def generate_welded_frame_booklet(output_dir: Path) -> None:
     weldment = bd.Compound(children=[base_plate, upright, gusset])
 
     # 2. Sheet 1: Welded Assembly with ISO 2553 Welding Symbols, StepBadges, and Weld Schedule Table
-    with BuildSheet(sheet_size=SheetSize.A3_LANDSCAPE) as sheet1:
+    with BuildDrawing(sheet_size=SheetSize.A3_LANDSCAPE) as sheet1:
         TitleBlock(
             title="WELDED GUSSET FRAME - ASSEMBLY",
             drawing_number="WLD-001",
@@ -82,7 +82,7 @@ def generate_welded_frame_booklet(output_dir: Path) -> None:
         )
 
     # 3. Sheet 2: Gusset Plate Detail with Chain & Baseline Dimensions and WPS Card
-    with BuildSheet(sheet_size=SheetSize.A3_LANDSCAPE) as sheet2:
+    with BuildDrawing(sheet_size=SheetSize.A3_LANDSCAPE) as sheet2:
         TitleBlock(
             title="WELDED GUSSET FRAME - PLATE DETAIL",
             drawing_number="WLD-002",

@@ -6,7 +6,7 @@ import build123d as bd
 
 from build123d_techdraw import (
     AuxiliaryView,
-    BuildSheet,
+    BuildDrawing,
     ChamferCallout,
     DetailView,
     FrontView,
@@ -43,7 +43,7 @@ def generate_advanced_views(output_dir: Path) -> None:
     tie_rod = bd.Pos(0.0, 0.0, 0.0) * bd.Box(400.0, 14.0, 14.0)
 
     # 2. Compose A2 landscape sheet with all 4 advanced view types
-    with BuildSheet(sheet_size=SheetSize.A2_LANDSCAPE) as sheet:
+    with BuildDrawing(sheet_size=SheetSize.A2_LANDSCAPE) as sheet:
         TitleBlock(
             title="ADVANCED VIEWS SHOWCASE",
             drawing_number="ADV-001",
