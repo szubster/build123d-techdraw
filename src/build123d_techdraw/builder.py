@@ -753,7 +753,7 @@ class StandardMultiview(MultiviewLayout):
         show_hidden: bool = False,
         show_labels: bool = True,
         show_scale_label: bool = False,
-        auto_dimensions: bool = False,
+        auto_dimensions: bool | str = False,
         auto_centerlines: bool = False,
         enforce_iso_scale: bool = True,
     ) -> StandardMultiview:

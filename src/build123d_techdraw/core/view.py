@@ -967,6 +967,12 @@ class SheetView:
         self.add(dim)
         return dim
 
+    def auto_dimension(self, tolerance: str | None = None) -> list[Any]:
+        """Automatically dimension this view using collision-avoiding placement."""
+        from build123d_techdraw.layout.auto_dimension import auto_dimension_view
+
+        return auto_dimension_view(self, tolerance=tolerance)
+
     def dim_radial(
         self,
         center_model: tuple[float, float],

@@ -46,6 +46,44 @@ class RecognizedBoltCircle:
         return self.hole_feature.diameter
 
 
+@dataclass
+class RecognizedBoss:
+    """Represents an external cylindrical boss or shaft."""
+
+    center_3d: tuple[float, float, float]
+    diameter: float
+    height: float
+    axis_dir: tuple[float, float, float] = (0.0, 0.0, 1.0)
+
+
+@dataclass
+class RecognizedStep:
+    """Represents an interior planar step or shoulder along a principal axis."""
+
+    axis: str  # "X", "Y", or "Z"
+    ref_coord: float
+    step_coord: float
+    value: float
+    face_center_3d: tuple[float, float, float]
+
+
+def _is_internal_cylinder(face: bd.Face) -> bool:
+    """Return True if a cylindrical face's outward normal points toward its axis (hole)."""
+    axis = face.axis_of_rotation
+    if axis is None:
+        return True
+    try:
+        center = face.center()
+        normal = face.normal_at(center)
+        radial = center - axis.position
+        radial = radial - axis.direction * radial.dot(axis.direction)
+        if radial.length < 1e-6:
+            return True
+        return float(radial.dot(normal)) < 0.0
+    except Exception:
+        return True
+
+
 def recognize_holes(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedHole]:
     """Inspect build123d topological faces to detect hole features, counterbores, and countersinks."""
     if not hasattr(shape, "faces"):
@@ -56,7 +94,9 @@ def recognize_holes(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedHole]
     except Exception:
         return []
 
-    cyl_faces = [f for f in faces if f.geom_type == bd.GeomType.CYLINDER]
+    cyl_faces = [
+        f for f in faces if f.geom_type == bd.GeomType.CYLINDER and _is_internal_cylinder(f)
+    ]
     if not cyl_faces:
         return []
 
@@ -83,7 +123,8 @@ def recognize_holes(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedHole]
             if abs(axis.direction.Z) > 0.8
             else (bb.size.Y if abs(axis.direction.Y) > 0.8 else bb.size.X)
         )
-        pos = axis.position
+        f_center = f.center()
+        pos = axis.position + axis.direction * (f_center - axis.position).dot(axis.direction)
 
         # Hole depth
         solid_dim = float(
@@ -238,3 +279,122 @@ def recognize_bolt_circles(shape: bd.Solid | bd.Compound | Any) -> list[Recogniz
             )
 
     return bolt_circles
+
+
+def recognize_bosses(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedBoss]:
+    """Detect external cylindrical bosses and shafts."""
+    if not hasattr(shape, "faces"):
+        return []
+
+    try:
+        faces = list(shape.faces())
+    except Exception:
+        return []
+
+    boss_faces = [
+        f for f in faces if f.geom_type == bd.GeomType.CYLINDER and not _is_internal_cylinder(f)
+    ]
+    if not boss_faces:
+        return []
+
+    seen: set[tuple[Any, ...]] = set()
+    bosses: list[RecognizedBoss] = []
+
+    for f in boss_faces:
+        axis = f.axis_of_rotation
+        r = getattr(f, "radius", None)
+        if axis is None or r is None or float(r) <= 0.0:
+            continue
+        dia = round(2.0 * float(r), 2)
+        bb = f.bounding_box()
+        dx, dy, dz = float(axis.direction.X), float(axis.direction.Y), float(axis.direction.Z)
+        f_len = float(bb.size.Z if abs(dz) > 0.8 else (bb.size.Y if abs(dy) > 0.8 else bb.size.X))
+        pos = (float(axis.position.X), float(axis.position.Y), float(axis.position.Z))
+        sig = (
+            round(pos[0], 2),
+            round(pos[1], 2),
+            round(pos[2], 2),
+            dia,
+            round(f_len, 2),
+        )
+        if sig in seen:
+            continue
+        seen.add(sig)
+        bosses.append(
+            RecognizedBoss(
+                center_3d=pos,
+                diameter=dia,
+                height=round(f_len, 2),
+                axis_dir=(dx, dy, dz),
+            )
+        )
+
+    return bosses
+
+
+def recognize_steps(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedStep]:
+    """Detect interior planar steps/shoulders aligned with principal axes (X, Y, Z)."""
+    if not hasattr(shape, "faces"):
+        return []
+
+    try:
+        faces = list(shape.faces())
+        bb = shape.bounding_box()
+    except Exception:
+        return []
+
+    tol = 0.25
+    bounds = {
+        "X": (float(bb.min.X), float(bb.max.X)),
+        "Y": (float(bb.min.Y), float(bb.max.Y)),
+        "Z": (float(bb.min.Z), float(bb.max.Z)),
+    }
+
+    seen: set[tuple[str, float]] = set()
+    steps: list[RecognizedStep] = []
+
+    for f in faces:
+        if f.geom_type != bd.GeomType.PLANE:
+            continue
+        try:
+            c = f.center()
+            n = f.normal_at(c)
+        except Exception:
+            continue
+
+        axis_name: str | None = None
+        coord = 0.0
+        if abs(n.X) > 0.99:
+            axis_name = "X"
+            coord = float(c.X)
+        elif abs(n.Y) > 0.99:
+            axis_name = "Y"
+            coord = float(c.Y)
+        elif abs(n.Z) > 0.99:
+            axis_name = "Z"
+            coord = float(c.Z)
+
+        if axis_name is None:
+            continue
+
+        ax_min, ax_max = bounds[axis_name]
+        if coord <= ax_min + tol or coord >= ax_max - tol:
+            continue
+
+        key = (axis_name, round(coord, 2))
+        if key in seen:
+            continue
+        seen.add(key)
+
+        steps.append(
+            RecognizedStep(
+                axis=axis_name,
+                ref_coord=ax_min,
+                step_coord=coord,
+                value=round(coord - ax_min, 2),
+                face_center_3d=(float(c.X), float(c.Y), float(c.Z)),
+            )
+        )
+
+    steps.sort(key=lambda s: (s.axis, s.value))
+    return steps

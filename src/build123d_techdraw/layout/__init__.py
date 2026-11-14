@@ -1,5 +1,9 @@
 """Layout module providing automated multi-view generation and BOM callouts."""
 
+from build123d_techdraw.layout.auto_dimension import (
+    auto_dimension_view,
+    auto_dimension_views,
+)
 from build123d_techdraw.layout.multiview import (
     MultiviewLayout,
     add_assembly_bom_and_balloons,
@@ -11,5 +15,7 @@ __all__ = [
     "MultiviewLayout",
     "add_assembly_bom_and_balloons",
     "add_standard_multiview",
+    "auto_dimension_view",
+    "auto_dimension_views",
     "generate_assembly_bom",
 ]
