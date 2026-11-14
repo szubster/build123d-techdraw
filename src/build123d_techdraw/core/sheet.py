@@ -137,6 +137,7 @@ class DrawingSheet:
         show_title_block: bool = True,
         show_grid: bool = True,
         show_notes: bool = True,
+        borderless: bool = False,
     ):
         if (
             custom_size is None
@@ -157,7 +158,7 @@ class DrawingSheet:
             self.sheet_size = resolved_size
 
         self.style = style.lower()
-        if self.style in ("frameless", "manual", "clean"):
+        if borderless or self.style in ("frameless", "manual", "clean"):
             self.show_border = False
             self.show_title_block = False
             self.show_grid = False
