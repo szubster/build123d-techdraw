@@ -380,6 +380,7 @@ def auto_dimension_views(
     shape: bd.Solid | bd.Compound | Any,
     views_map: dict[ViewType, SheetView],
     tolerance: str | None = None,
+    infer_threads: bool = False,
 ) -> list[Any]:
     """Automatically dimension a set of orthographic views with canonical view de-duplication
     and ISO 129-1 / ASME Y14.5 collision-avoiding stacking.
@@ -583,7 +584,7 @@ def auto_dimension_views(
     # 4. Holes & Bolt Circles - canonical circular view + datum locations
     # ------------------------------------------------------------------
     bcs = recognize_bolt_circles(shape)
-    holes = recognize_holes(shape)
+    holes = recognize_holes(shape, infer_threads=infer_threads)
 
     # Track hole datum coordinates on canonical views (excluding bolt-circle holes)
     if not bcs:

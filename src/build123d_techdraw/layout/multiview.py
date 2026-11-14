@@ -98,6 +98,7 @@ def add_standard_multiview(
     auto_dimensions: bool | str = False,
     auto_centerlines: bool = False,
     enforce_iso_scale: bool = True,
+    infer_threads: bool = False,
 ) -> MultiviewLayout:
     """Generate a standard orthographic multi-view layout on a drawing sheet.
 
@@ -326,7 +327,12 @@ def add_standard_multiview(
     if auto_dimensions:
         from build123d_techdraw.layout.auto_dimension import auto_dimension_views
 
-        auto_dimension_views(sheet=sheet, shape=shape, views_map=layout_obj.views)
+        auto_dimension_views(
+            sheet=sheet,
+            shape=shape,
+            views_map=layout_obj.views,
+            infer_threads=infer_threads,
+        )
 
     if auto_centerlines:
         # 1. Add centermarks to circular projected holes/bosses on 2D views

@@ -14,6 +14,7 @@ from build123d_techdraw.annotations.resolver import (
     resolve_circle_or_cylinder_to_sheet,
     resolve_point_to_sheet,
 )
+from build123d_techdraw.annotations.threads import ThreadSpec, get_clearance_hole, get_thread_spec
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
 
@@ -152,6 +153,8 @@ class HoleCallout(LeaderNote):
         counterbore_depth: float | None = None,
         quantity: int | None = None,
         tolerance: str | None = None,
+        clearance_for: str | None = None,
+        fit: str = "medium",
         center: Any = None,
         target: Any = None,
         elbow_offset: tuple[float, float] = (15.0, -12.0),
@@ -162,6 +165,10 @@ class HoleCallout(LeaderNote):
         font_size: float = 2.8,
         view: Any | None = None,
     ):
+        self.clearance_for = clearance_for
+        self.fit = fit
+        if diameter is None and clearance_for is not None:
+            diameter = get_clearance_hole(clearance_for, fit=fit)
         self.diameter = diameter
         self.depth = depth
         self.countersink_dia = countersink_dia
@@ -240,6 +247,7 @@ class ThreadCallout(LeaderNote):
         quantity: int | None = None,
         countersink_dia: float | None = None,
         countersink_angle: float = 90.0,
+        show_tap_drill: bool = False,
         center: Any = None,
         target: Any = None,
         elbow_offset: tuple[float, float] = (15.0, -12.0),
@@ -250,7 +258,23 @@ class ThreadCallout(LeaderNote):
         font_size: float = 2.8,
         view: Any | None = None,
     ):
-        self.thread = thread
+        self.raw_thread = thread
+        self.show_tap_drill = show_tap_drill
+        self.thread_spec: ThreadSpec | None = None
+        self.pitch: float | None = None
+        self.tap_drill: float | None = None
+        self.major_diameter: float | None = None
+        try:
+            spec = get_thread_spec(thread)
+        except ValueError:
+            self.thread = thread
+        else:
+            self.thread_spec = spec
+            self.thread = spec.designation
+            self.pitch = spec.pitch
+            self.tap_drill = spec.tap_drill
+            self.major_diameter = spec.major_diameter
+
         self.depth = depth
         self.class_fit = class_fit
         self.quantity = quantity
@@ -294,7 +318,11 @@ class ThreadCallout(LeaderNote):
                 f" × {format_dimension_value(float(self.countersink_angle))}°"
             )
 
-        return f"{qty_prefix}{self.thread}{fit_str}{depth_str}{csink_str}"
+        tap_str = ""
+        if self.show_tap_drill and self.tap_drill is not None:
+            tap_str = f" (⌀{format_dimension_value(self.tap_drill)} TAP)"
+
+        return f"{qty_prefix}{self.thread}{fit_str}{depth_str}{csink_str}{tap_str}"
 
 
 class BOMBalloon:
