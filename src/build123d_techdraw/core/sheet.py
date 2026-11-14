@@ -970,7 +970,7 @@ class DrawingSheet:
     def add_hole_callout(
         self,
         center: tuple[float, float],
-        diameter: float,
+        diameter: float | None = None,
         depth: float | str | None = None,
         countersink_dia: float | None = None,
         countersink_angle: float = 90.0,
@@ -978,6 +978,8 @@ class DrawingSheet:
         counterbore_depth: float | None = None,
         quantity: int | None = None,
         tolerance: str | None = None,
+        clearance_for: str | None = None,
+        fit: str = "medium",
         elbow_offset: tuple[float, float] = (15.0, -12.0),
     ) -> HoleCallout:
         """Add a standard engineering hole callout in sheet paper coordinates."""
@@ -991,6 +993,8 @@ class DrawingSheet:
             counterbore_depth=counterbore_depth,
             quantity=quantity,
             tolerance=tolerance,
+            clearance_for=clearance_for,
+            fit=fit,
             elbow_offset=elbow_offset,
         )
         if hc not in self.annotations:
@@ -1004,6 +1008,7 @@ class DrawingSheet:
         depth: float | str | None = "THRU",
         class_fit: str | None = None,
         quantity: int | None = None,
+        show_tap_drill: bool = False,
         elbow_offset: tuple[float, float] = (15.0, -12.0),
     ) -> ThreadCallout:
         """Add a standard engineering thread callout in sheet paper coordinates."""
@@ -1013,6 +1018,7 @@ class DrawingSheet:
             depth=depth,
             class_fit=class_fit,
             quantity=quantity,
+            show_tap_drill=show_tap_drill,
             elbow_offset=elbow_offset,
         )
         if tc not in self.annotations:

@@ -11,7 +11,7 @@ import build123d as bd
 
 @dataclass
 class RecognizedHole:
-    """Represents a recognized drilled, counterbored, or countersunk hole."""
+    """Represents a recognized drilled, counterbored, countersunk, or threaded hole."""
 
     center_3d: tuple[float, float, float]
     diameter: float
@@ -22,6 +22,9 @@ class RecognizedHole:
     countersink_angle: float = 90.0
     axis_dir: tuple[float, float, float] = (0.0, 0.0, 1.0)
     quantity: int = 1
+    thread_spec: str | None = None
+    is_threaded: bool = False
+    thread_source: str | None = None
 
 
 @dataclass
@@ -84,7 +87,40 @@ def _is_internal_cylinder(face: bd.Face) -> bool:
         return True
 
 
-def recognize_holes(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedHole]:
+def _detect_bd_warehouse_threads(shape: Any) -> list[tuple[tuple[float, float, float], str]]:
+    """Extract explicit ``bd_warehouse.thread.IsoThread`` metadata from ``shape`` or its children."""
+    from build123d_techdraw.annotations.threads import _fmt_num, _fmt_pitch, _require_bd_warehouse
+
+    _, thread_mod = _require_bd_warehouse()
+    iso_cls = thread_mod.IsoThread
+
+    found: list[tuple[tuple[float, float, float], str]] = []
+    queue: list[Any] = [shape]
+    visited: set[int] = set()
+    while queue:
+        obj = queue.pop(0)
+        if id(obj) in visited:
+            continue
+        visited.add(id(obj))
+        if isinstance(obj, iso_cls):
+            loc = (
+                obj.location.position
+                if hasattr(obj, "location") and obj.location
+                else bd.Vector(0, 0, 0)
+            )
+            spec_str = f"M{_fmt_num(float(obj.major_diameter))}x{_fmt_pitch(float(obj.pitch))}"
+            found.append(((float(loc.X), float(loc.Y), float(loc.Z)), spec_str))
+        children = getattr(obj, "children", None)
+        if isinstance(children, (list, tuple)):
+            queue.extend(children)
+    return found
+
+
+def recognize_holes(
+    shape: bd.Solid | bd.Compound | Any,
+    *,
+    infer_threads: bool = False,
+) -> list[RecognizedHole]:
     """Inspect build123d topological faces to detect hole features, counterbores, and countersinks."""
     if not hasattr(shape, "faces"):
         return []
@@ -222,10 +258,43 @@ def recognize_holes(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedHole]
                 )
             )
 
-    # Group identical holes by (diameter, depth, cbore_dia, csink_dia) to assign quantity
+    # Match explicit bd_warehouse IsoThread metadata first
+    explicit_threads = _detect_bd_warehouse_threads(shape)
+    for r_hole in recognized:
+        for t_pos, t_spec in explicit_threads:
+            dist = math.dist(
+                (r_hole.center_3d[0], r_hole.center_3d[1]),
+                (t_pos[0], t_pos[1]),
+            )
+            if dist < 0.5:
+                r_hole.is_threaded = True
+                r_hole.thread_spec = t_spec
+                r_hole.thread_source = "bd_warehouse"
+                break
+
+    # Infer threads from tap-drill diameters only when explicitly requested
+    if infer_threads:
+        from build123d_techdraw.annotations.threads import find_threads_by_tap_drill
+
+        for r_hole in recognized:
+            if r_hole.is_threaded:
+                continue
+            matches = find_threads_by_tap_drill(r_hole.diameter)
+            if matches:
+                r_hole.is_threaded = True
+                r_hole.thread_spec = matches[0].designation
+                r_hole.thread_source = "inferred"
+
+    # Group identical holes by (diameter, depth, cbore_dia, csink_dia, thread_spec) to assign quantity
     grouped_counts: dict[tuple[Any, ...], list[RecognizedHole]] = {}
     for r_hole in recognized:
-        sig = (r_hole.diameter, str(r_hole.depth), r_hole.counterbore_dia, r_hole.countersink_dia)
+        sig = (
+            r_hole.diameter,
+            str(r_hole.depth),
+            r_hole.counterbore_dia,
+            r_hole.countersink_dia,
+            r_hole.thread_spec,
+        )
         grouped_counts.setdefault(sig, []).append(r_hole)
 
     for hole_list in grouped_counts.values():

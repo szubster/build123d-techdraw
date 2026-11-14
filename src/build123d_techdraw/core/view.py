@@ -1325,7 +1325,7 @@ class SheetView:
         self,
         model_x: float,
         model_y: float,
-        diameter: float,
+        diameter: float | None = None,
         depth: float | str | None = None,
         countersink_dia: float | None = None,
         countersink_angle: float = 90.0,
@@ -1333,6 +1333,8 @@ class SheetView:
         counterbore_depth: float | None = None,
         quantity: int | None = None,
         tolerance: str | Tolerance | None = None,
+        clearance_for: str | None = None,
+        fit: str = "medium",
         elbow_dx: float = 15.0,
         elbow_dy: float = -12.0,
     ) -> HoleCallout:
@@ -1348,6 +1350,8 @@ class SheetView:
             counterbore_depth=counterbore_depth,
             quantity=quantity,
             tolerance=str(tolerance) if tolerance is not None else None,
+            clearance_for=clearance_for,
+            fit=fit,
             elbow_offset=(elbow_dx, elbow_dy),
             view=self,
         )
@@ -1361,6 +1365,7 @@ class SheetView:
         depth: float | str | None = "THRU",
         class_fit: str | None = None,
         quantity: int | None = None,
+        show_tap_drill: bool = False,
         elbow_dx: float = 15.0,
         elbow_dy: float = -12.0,
     ) -> ThreadCallout:
@@ -1372,6 +1377,7 @@ class SheetView:
             depth=depth,
             class_fit=class_fit,
             quantity=quantity,
+            show_tap_drill=show_tap_drill,
             elbow_offset=(elbow_dx, elbow_dy),
             view=self,
         )
