@@ -177,3 +177,155 @@ def test_pdf_coordinate_scaling_one_to_one() -> None:
         assert pos[1] <= ylim[1]
     finally:
         plt.close(fig)
+
+
+def test_pdf_import_sets_mplconfigdir_before_matplotlib() -> None:
+    """Verify MPLCONFIGDIR is configured before matplotlib probes HOME on import."""
+    import subprocess
+    import sys
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mpl_dir = os.path.join(tmpdir, "mpl_cfg")
+        env = {
+            "HOME": "/nonexistent_home_for_test",
+            "PATH": os.environ.get("PATH", ""),
+            "MPLCONFIGDIR": mpl_dir,
+        }
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import build123d_techdraw.renderers.pdf, matplotlib; "
+                "print(matplotlib.get_configdir())",
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert proc.stdout.strip() == mpl_dir
+
+        # Also verify default fallback when MPLCONFIGDIR is unset
+        env_default = {
+            "HOME": "/nonexistent_home_for_test",
+            "PATH": os.environ.get("PATH", ""),
+        }
+        proc_default = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import os, build123d_techdraw.renderers.pdf, matplotlib; "
+                "print(os.environ.get('MPLCONFIGDIR')); "
+                "print(matplotlib.get_configdir())",
+            ],
+            env=env_default,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        lines = proc_default.stdout.strip().splitlines()
+        assert lines[0] == "/tmp/matplotlib"
+        assert lines[1] == "/tmp/matplotlib"
+
+
+def test_dxf_3d_plate_plane_adaptive_and_strict() -> None:
+    """Verify DXFRenderer auto-detects primary flat face, projects on plane, and surfaces errors."""
+    import ezdxf
+
+    plate = bd.Rot(90, 0, 0) * bd.Box(60.0, 40.0, 5.0)
+    ellipse = bd.Ellipse(20.0, 10.0)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        plate_dxf = os.path.join(tmpdir, "plate.dxf")
+        DXFRenderer.export_shape_to_dxf(plate, plate_dxf)
+        doc = ezdxf.readfile(plate_dxf)
+        lines = list(doc.modelspace().query("LINE"))
+        assert len(lines) == 4
+
+        plane_dxf = os.path.join(tmpdir, "plane.dxf")
+        DXFRenderer.export_shape_to_dxf(plate, plane_dxf, plane=bd.Plane.XZ)
+        doc2 = ezdxf.readfile(plane_dxf)
+        assert len(list(doc2.modelspace())) >= 4
+
+        ellipse_dxf = os.path.join(tmpdir, "ellipse.dxf")
+        DXFRenderer.export_shape_to_dxf(ellipse, ellipse_dxf, tolerance=0.001)
+        doc_e = ezdxf.readfile(ellipse_dxf)
+        polys = list(doc_e.modelspace().query("LWPOLYLINE"))
+        assert len(polys) >= 1
+        assert len(polys[0]) > 20
+
+        class _BrokenEdge:
+            geom_type = "LINE"
+
+            def start_point(self) -> None:
+                raise RuntimeError("broken edge")
+
+        class _BrokenShape:
+            def edges(self) -> list[_BrokenEdge]:
+                return [_BrokenEdge()]
+
+        broken_dxf = os.path.join(tmpdir, "broken.dxf")
+        with pytest.warns(RuntimeWarning, match="Failed to export edge 0"):
+            DXFRenderer.export_shape_to_dxf(_BrokenShape(), broken_dxf)
+        with pytest.raises(RuntimeError, match="broken edge"):
+            DXFRenderer.export_shape_to_dxf(_BrokenShape(), broken_dxf, strict=True)
+
+
+def test_borderless_svg_fragment_pdf_ergonomics_and_nested_svg() -> None:
+    """Verify borderless=True, project_shape_to_svg_fragment, PDFRenderer inputs, and nested <svg>."""
+    from build123d_techdraw import BuildSheet, project_shape_to_svg_fragment
+
+    box = bd.Box(30.0, 20.0, 10.0)
+    with BuildSheet(sheet_size=SheetSize.A4_PORTRAIT, borderless=True) as bs:
+        assert bs.sheet.show_border is False
+        assert bs.sheet.show_title_block is False
+
+    frag = project_shape_to_svg_fragment(box, view_type=ViewType.ISOMETRIC, center=(80.0, 80.0))
+    assert "<g " in frag
+    assert "<svg" not in frag
+
+    sheet = DrawingSheet(sheet_size=SheetSize.A4_LANDSCAPE, borderless=True)
+    sheet.add_view(box, view_type=ViewType.FRONT, center=(100.0, 100.0))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        svg_path = os.path.join(tmpdir, "sheet.svg")
+        SVGRenderer.save(sheet, svg_path)
+
+        pdf_path = os.path.join(tmpdir, "mixed.pdf")
+        PDFRenderer.render_sheets_to_pdf(
+            [sheet, svg_path, (297.0, 210.0, sheet.to_svg())],
+            pdf_path,
+            theme=Theme.ISO_WHITE,
+        )
+        assert os.path.exists(pdf_path)
+        assert os.path.getsize(pdf_path) > 1000
+
+    nested_svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200mm" height="200mm">'
+        '<svg x="20" y="30" width="50" height="50">'
+        '<rect x="10" y="10" width="20" height="20" class="line-visible"/>'
+        "</svg>"
+        "</svg>"
+    )
+    fig, ax = plt.subplots(figsize=(200 / 25.4, 200 / 25.4))
+    try:
+        PDFRenderer._render_svg_to_ax(ax, nested_svg, 200.0, 200.0, THEME_COLORS[Theme.ISO_WHITE])
+        assert len(ax.patches) >= 2
+        extents = ax.patches[1].get_path().get_extents()
+        assert extents.x0 == pytest.approx(30.0, rel=1e-3)
+        assert extents.x1 == pytest.approx(50.0, rel=1e-3)
+        assert extents.y0 == pytest.approx(140.0, rel=1e-3)
+        assert extents.y1 == pytest.approx(160.0, rel=1e-3)
+    finally:
+        plt.close(fig)
+
+    nested_only_root_vb = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 297 210">'
+        '<svg x="20" y="30" width="50" height="50"></svg>'
+        "</svg>"
+    )
+    assert PDFRenderer._parse_svg_dimensions_mm(nested_only_root_vb) == (297.0, 210.0)
+    assert PDFRenderer._parse_svg_dimensions_mm('<svg width="10in" height="5in"></svg>') == (
+        254.0,
+        127.0,
+    )

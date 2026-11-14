@@ -171,13 +171,17 @@ def run_sheet_lint(sheet: DrawingSheet) -> list[LintIssue]:
                 )
             )
 
-        # Check title block collision
-        if not (
-            bbox[2] < tb_bbox[0]
-            or bbox[0] > tb_bbox[2]
-            or bbox[3] < tb_bbox[1]
-            or bbox[1] > tb_bbox[3]
-        ) and (type(ann).__name__ != "Table" or bbox[1] < tb_bbox[1] - 5.0):
+        # Check title block collision (only if title block is enabled on sheet)
+        if (
+            getattr(sheet, "show_title_block", True)
+            and not (
+                bbox[2] < tb_bbox[0]
+                or bbox[0] > tb_bbox[2]
+                or bbox[3] < tb_bbox[1]
+                or bbox[1] > tb_bbox[3]
+            )
+            and (type(ann).__name__ != "Table" or bbox[1] < tb_bbox[1] - 5.0)
+        ):
             issues.append(
                 LintIssue(
                     code="COLLISION_TITLE_BLOCK",

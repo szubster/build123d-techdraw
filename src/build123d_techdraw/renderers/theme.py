@@ -154,6 +154,12 @@ def generate_theme_css(default_theme: Theme = Theme.DARK_BLUEPRINT) -> str:
     .border-main {{ stroke: var(--border-main); fill: none; }}
     .border-sub {{ stroke: var(--border-sub); fill: none; }}
     .title-bg {{ fill: var(--title-bg); stroke: var(--border-main); }}
+    .panel-bg {{ fill: var(--title-bg); stroke: var(--border-main); }}
+    .panel-stroke {{ stroke: var(--border-main); fill: none; }}
+    .panel-sub {{ stroke: var(--border-sub); fill: none; }}
+    .panel-text {{ fill: var(--text-main); }}
+    .panel-muted {{ fill: var(--text-muted); }}
+    .accent-text {{ fill: var(--text-accent); font-weight: 700; }}
     .table-header-bg {{ fill: var(--table-header-bg); }}
     .table-row-alt {{ fill: var(--table-row-alt); }}
     .zone-text {{ fill: var(--text-muted); font-size: 2.8px; font-weight: bold; text-anchor: middle; }}

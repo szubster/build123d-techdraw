@@ -6,6 +6,7 @@ from build123d_techdraw.annotations.callouts import (
     HoleCallout,
     LeaderNote,
     SectionCuttingLine,
+    StepBadge,
     ThreadCallout,
     WeldingSymbol,
     WeldType,
@@ -41,7 +42,7 @@ from build123d_techdraw.annotations.surface import (
     SurfaceFinishSymbol,
 )
 from build123d_techdraw.annotations.symbols import render_projection_cone_svg
-from build123d_techdraw.annotations.tables import RawSVG, Schedule, Table
+from build123d_techdraw.annotations.tables import Card, RawSVG, Schedule, Table, TextBox
 from build123d_techdraw.builder import (
     AssemblyBOM,
     AuxiliaryView,
@@ -72,7 +73,7 @@ from build123d_techdraw.core.scale import (
 )
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.title_block import BOMItem, RevisionEntry, TitleBlockInfo
-from build123d_techdraw.core.view import SheetView, ViewType
+from build123d_techdraw.core.view import SheetView, ViewType, project_shape_to_svg_fragment
 from build123d_techdraw.layout.linter import LintIssue, run_sheet_lint
 from build123d_techdraw.layout.multiview import (
     MultiviewLayout,
@@ -109,6 +110,7 @@ __all__ = [
     "BuildDrawing",
     "BuildSheet",
     "BuildView",
+    "Card",
     "CenterMark",
     "Centerline",
     "ChainDimensionGroup",
@@ -152,10 +154,12 @@ __all__ = [
     "SheetSize",
     "SheetView",
     "StandardMultiview",
+    "StepBadge",
     "SurfaceFinish",
     "SurfaceFinishSymbol",
     "THEME_COLORS",
     "Table",
+    "TextBox",
     "Theme",
     "ThemeColors",
     "ThreadCallout",
@@ -174,6 +178,7 @@ __all__ = [
     "format_dimension_value",
     "format_iso_scale",
     "generate_assembly_bom",
+    "project_shape_to_svg_fragment",
     "recognize_bolt_circles",
     "recognize_holes",
     "render_projection_cone_svg",
