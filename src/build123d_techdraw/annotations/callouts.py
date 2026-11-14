@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import math
+from collections.abc import Sequence
 from enum import Enum
 from typing import Any
 
@@ -453,20 +454,20 @@ class BOMBalloon:
 
 
 class SectionCuttingLine:
-    """ISO cutting plane line with thick termination segments and viewing direction arrows."""
+    """ISO 128-3 cutting plane line with thick ends, corner bends, and viewing arrows."""
 
     def __init__(
         self,
-        start: tuple[float, float],
-        end: tuple[float, float],
+        points: Sequence[Any],
         label: str = "A",
-        arrow_dir: str = "up",
+        arrow_dir: str | tuple[float, float] = "up",
         thick_length: float = 8.0,
         arrow_length: float = 6.0,
         view: Any | None = None,
     ):
-        self.start = (float(start[0]), float(start[1]))
-        self.end = (float(end[0]), float(end[1]))
+        if len(points) < 2:
+            raise ValueError("SectionCuttingLine requires at least 2 points.")
+
         self.label = label
         self.arrow_dir = arrow_dir
         self.thick_length = thick_length
@@ -474,6 +475,19 @@ class SectionCuttingLine:
         self.view = view
 
         target_view = view or CURRENT_VIEW.get()
+        resolved_points: list[tuple[float, float]] = []
+        for pt in points:
+            if target_view is not None:
+                resolved_points.append(resolve_point_to_sheet(pt, target_view))
+            elif isinstance(pt, (tuple, list)) and len(pt) >= 2:
+                resolved_points.append((float(pt[0]), float(pt[1])))
+            else:
+                raise TypeError(
+                    "SectionCuttingLine requires 2D (x, y) tuples when no view is attached."
+                )
+
+        self.points: list[tuple[float, float]] = resolved_points
+
         if target_view is not None:
             if hasattr(target_view, "annotations") and self not in target_view.annotations:
                 target_view.annotations.append(self)
@@ -485,46 +499,79 @@ class SectionCuttingLine:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
+    def _arrow_normal(self, ux: float, uy: float) -> tuple[float, float]:
+        if isinstance(self.arrow_dir, (tuple, list)):
+            adx, ady = float(self.arrow_dir[0]), float(self.arrow_dir[1])
+            alen = math.hypot(adx, ady)
+            return (adx / alen, ady / alen) if alen > 0.0 else (0.0, 1.0)
+        if self.arrow_dir in ("up", "left"):
+            return -uy, ux
+        return uy, -ux
+
     def to_svg(self) -> str:
-        x1, y1 = self.start
-        x2, y2 = self.end
-        dx = x2 - x1
-        dy = y2 - y1
-        length = math.hypot(dx, dy)
-        if length == 0.0:
+        pts = self.points
+        if len(pts) < 2:
             return ""
 
-        ux = dx / length
-        uy = dy / length
+        segments: list[tuple[tuple[float, float], tuple[float, float], float, float, float]] = []
+        for i in range(len(pts) - 1):
+            x1, y1 = pts[i]
+            x2, y2 = pts[i + 1]
+            dx, dy = x2 - x1, y2 - y1
+            seg_len = math.hypot(dx, dy)
+            if seg_len > 1e-9:
+                segments.append(((x1, y1), (x2, y2), dx / seg_len, dy / seg_len, seg_len))
 
-        if self.arrow_dir == "up":
-            nx, ny = -uy, ux
-        elif self.arrow_dir == "down":
-            nx, ny = uy, -ux
-        elif self.arrow_dir == "left":
-            nx, ny = -uy, ux
-        else:
-            nx, ny = uy, -ux
+        if not segments:
+            return ""
 
-        tl = min(self.thick_length, length / 3.0)
+        elements: list[str] = []
+        num_segs = len(segments)
+        bend_len = self.thick_length * 0.6
+
+        for idx, ((x1, y1), (x2, y2), ux, uy, seg_len) in enumerate(segments):
+            start_thick = min(self.thick_length if idx == 0 else bend_len, seg_len / 3.0)
+            end_thick = min(self.thick_length if idx == num_segs - 1 else bend_len, seg_len / 3.0)
+
+            sx, sy = x1 + ux * start_thick, y1 + uy * start_thick
+            ex, ey = x2 - ux * end_thick, y2 - uy * end_thick
+
+            # Central chain-thin line
+            elements.append(
+                f'<line x1="{sx:.2f}" y1="{sy:.2f}" x2="{ex:.2f}" y2="{ey:.2f}" '
+                f'class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.35"/>'
+            )
+            # Start thick segment (outer end or corner bend)
+            elements.append(
+                f'<line x1="{x1:.2f}" y1="{y1:.2f}" x2="{sx:.2f}" y2="{sy:.2f}" '
+                f'class="line-section-thick" stroke-width="0.8"/>'
+            )
+            # End thick segment (outer end or corner bend)
+            elements.append(
+                f'<line x1="{ex:.2f}" y1="{ey:.2f}" x2="{x2:.2f}" y2="{y2:.2f}" '
+                f'class="line-section-thick" stroke-width="0.8"/>'
+            )
+
+        # Viewing direction arrows & labels at the two outer ends
         al = self.arrow_length
+        (p0, _, ux0, uy0, _) = segments[0]
+        nx0, ny0 = self._arrow_normal(ux0, uy0)
+        (_, p_last, ux_last, uy_last, _) = segments[-1]
+        nx_last, ny_last = self._arrow_normal(ux_last, uy_last)
 
-        elements = [
-            # Central long-dash dot-dash line
-            f'<line x1="{x1 + ux * tl:.2f}" y1="{y1 + uy * tl:.2f}" x2="{x2 - ux * tl:.2f}" y2="{y2 - uy * tl:.2f}" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.35"/>',
-            # Thick end segment 1
-            f'<line x1="{x1:.2f}" y1="{y1:.2f}" x2="{x1 + ux * tl:.2f}" y2="{y1 + uy * tl:.2f}" class="line-section-thick" stroke-width="0.8"/>',
-            # Thick end segment 2
-            f'<line x1="{x2 - ux * tl:.2f}" y1="{y2 - uy * tl:.2f}" x2="{x2:.2f}" y2="{y2:.2f}" class="line-section-thick" stroke-width="0.8"/>',
-            # Arrow 1
-            f'<line x1="{x1:.2f}" y1="{y1:.2f}" x2="{x1 + nx * al:.2f}" y2="{y1 + ny * al:.2f}" class="line-section-thick" stroke-width="0.6"/>',
-            render_arrowhead(x1 + nx * al, y1 + ny * al, nx, ny, length=3.0, half_width=0.9),
-            f'<text x="{x1 + nx * (al + 3.5):.2f}" y="{y1 + ny * (al + 3.5) + 1.5:.2f}" class="section-label-text" font-size="5.0" font-weight="bold" text-anchor="middle">{html.escape(self.label)}</text>',
-            # Arrow 2
-            f'<line x1="{x2:.2f}" y1="{y2:.2f}" x2="{x2 + nx * al:.2f}" y2="{y2 + ny * al:.2f}" class="line-section-thick" stroke-width="0.6"/>',
-            render_arrowhead(x2 + nx * al, y2 + ny * al, nx, ny, length=3.0, half_width=0.9),
-            f'<text x="{x2 + nx * (al + 3.5):.2f}" y="{y2 + ny * (al + 3.5) + 1.5:.2f}" class="section-label-text" font-size="5.0" font-weight="bold" text-anchor="middle">{html.escape(self.label)}</text>',
-        ]
+        for (px, py), (nx, ny) in ((p0, (nx0, ny0)), (p_last, (nx_last, ny_last))):
+            ax, ay = px + nx * al, py + ny * al
+            lx, ly = px + nx * (al + 3.5), py + ny * (al + 3.5) + 1.5
+            elements.append(
+                f'<line x1="{px:.2f}" y1="{py:.2f}" x2="{ax:.2f}" y2="{ay:.2f}" '
+                f'class="line-section-thick" stroke-width="0.6"/>'
+            )
+            elements.append(render_arrowhead(ax, ay, nx, ny, length=3.0, half_width=0.9))
+            elements.append(
+                f'<text x="{lx:.2f}" y="{ly:.2f}" class="section-label-text" '
+                f'font-size="5.0" font-weight="bold" text-anchor="middle">{html.escape(self.label)}</text>'
+            )
+
         return f'<g class="section-cutting-plane">{"".join(elements)}</g>'
 
 

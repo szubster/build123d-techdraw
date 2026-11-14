@@ -44,6 +44,7 @@ from build123d_techdraw.annotations.surface import (
 from build123d_techdraw.annotations.symbols import render_projection_cone_svg
 from build123d_techdraw.annotations.tables import Card, RawSVG, Schedule, Table, TextBox
 from build123d_techdraw.builder import (
+    AlignedSectionView,
     AssemblyBOM,
     AuxiliaryView,
     BottomView,
@@ -55,6 +56,7 @@ from build123d_techdraw.builder import (
     GeneralNotes,
     IsometricView,
     LeftView,
+    OffsetSectionView,
     RearView,
     Revision,
     RightView,
@@ -97,6 +99,7 @@ except ImportError:  # pragma: no cover
     __version__ = "0.1.0.dev0"
 
 __all__ = [
+    "AlignedSectionView",
     "AngularDimension",
     "AssemblyBOM",
     "AuxiliaryView",
@@ -133,6 +136,7 @@ __all__ = [
     "LintIssue",
     "MaterialRemoval",
     "MultiviewLayout",
+    "OffsetSectionView",
     "OrdinateDimension",
     "OrdinateDimensionGroup",
     "OrdinateDimensionSet",

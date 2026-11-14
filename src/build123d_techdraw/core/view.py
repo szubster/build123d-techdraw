@@ -5,6 +5,7 @@ import math
 import os
 import re
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Self
@@ -1620,46 +1621,39 @@ def project_shape_to_svg_fragment(
     return view.svg_content.strip()
 
 
-def project_section_to_view(
+def _assemble_section_view(
     shape: bd.Solid | bd.Compound | Any,
-    cutting_plane: bd.Plane,
+    sec_faces: list[bd.Face],
+    bg_edge_shapes: list[Any],
     center_x: float,
     center_y: float,
-    scale: float = 1.0,
-    view_label: str = "SECTION A-A",
-    view_label_y: float | None = None,
-    view_label_offset_y: float = 7.0,
-    model_origin: tuple[float, float] | None = None,
-    show_background: bool = True,
-    hatch: str = "steel",
-    hatch_pitch: float = 4.0,
-    hatch_angle: float = 45.0,
+    scale: float,
+    view_label: str,
+    view_label_y: float | None,
+    view_label_offset_y: float,
+    model_origin: tuple[float, float] | None,
+    hatch: str,
+    hatch_pitch: float,
+    hatch_angle: float,
+    fallback_shape: Any | None = None,
 ) -> SheetView:
-    """Project a 2D section slice through 3D shape with ISO/ANSI material hatching and background visible lines."""
-    sec = bd.section(shape, section_by=cutting_plane)
-    sec_2d = cutting_plane.to_local_coords(sec)
-
+    """Export 2D section faces and background edges into a hatched SheetView."""
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
 
-    # Optional background visible geometry behind the section plane
-    if show_background:
-        try:
-            look_from = cutting_plane.z_dir
-            look_up = cutting_plane.y_dir
-            split_half = bd.split(shape, bisect_by=cutting_plane, keep=bd.Keep.BOTTOM)
-            dwg_bg = bd.Drawing(split_half, look_from=look_from, look_up=look_up, with_hidden=False)
-            if len(dwg_bg.visible_lines.edges()) > 0:
-                exporter.add_layer("visible_bg", line_color="gray", line_weight=0.25)
-                exporter.add_shape(dwg_bg.visible_lines, layer="visible_bg")
-        except Exception:
-            pass
+    if bg_edge_shapes:
+        exporter.add_layer("visible_bg", line_color="gray", line_weight=0.25)
+        for bg_edges in bg_edge_shapes:
+            exporter.add_shape(bg_edges, layer="visible_bg")
 
     exporter.add_layer("visible", line_color="black", line_weight=0.5, fill_color=None)
-    sec_faces = sorted(
-        sec_2d.faces(),
+    sorted_faces = sorted(
+        sec_faces,
         key=lambda f: (round(f.center().X, 4), round(f.center().Y, 4), round(f.area, 4)),
     )
-    exporter.add_shape(bd.Compound(sec_faces) if sec_faces else sec_2d, layer="visible")
+    section_compound: Any = (
+        bd.Compound(sorted_faces) if sorted_faces else (fallback_shape or bd.Compound())
+    )
+    exporter.add_shape(section_compound, layer="visible")
 
     with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tf:
         tmp_path = tf.name
@@ -1705,7 +1699,7 @@ def project_section_to_view(
     )
 
     try:
-        geom_bb = sec_2d.bounding_box()
+        geom_bb = section_compound.bounding_box()
         exact_w = float(geom_bb.size.X)
         exact_h = float(geom_bb.size.Y)
     except Exception:
@@ -1756,6 +1750,296 @@ def project_section_to_view(
     view_res.hatch_angle = hatch_angle
     view_res.hatch_id = hatch_id
     return view_res
+
+
+def _point_to_plane_ud(pt: Any, base_plane: bd.Plane) -> tuple[float, float]:
+    """Convert a 2D (u, depth) tuple or 3D point/Vector/Vertex into base_plane (x_dir, z_dir)."""
+    if isinstance(pt, (tuple, list)) and len(pt) == 2:
+        return float(pt[0]), float(pt[1])
+    if isinstance(pt, (tuple, list)) and len(pt) >= 3:
+        vec = bd.Vector(float(pt[0]), float(pt[1]), float(pt[2]))
+    elif isinstance(pt, bd.Vertex):
+        vec = bd.Vector(float(pt.X), float(pt.Y), float(pt.Z))
+    elif isinstance(pt, bd.Vector):
+        vec = pt
+    else:
+        raise TypeError(f"Unsupported section path point type: {type(pt).__name__}")
+    delta = vec - base_plane.origin
+    return float(delta.dot(base_plane.x_dir)), float(delta.dot(base_plane.z_dir))
+
+
+def _clip_2d_faces_x(
+    faces: list[bd.Face], x_min: float, x_max: float, y_extent: float
+) -> list[bd.Face]:
+    """Clip 2D XY faces to the horizontal slab [x_min, x_max]."""
+    if x_max - x_min <= 1e-6 or not faces:
+        return []
+    cx = (x_min + x_max) / 2.0
+    clip_rect = bd.Pos(cx, 0.0, 0.0) * bd.Rectangle(x_max - x_min, y_extent * 2.0)
+    clipped: list[bd.Face] = []
+    for face in faces:
+        try:
+            inter = face.intersect(clip_rect)
+            if inter is not None:
+                for sub in inter.faces() if hasattr(inter, "faces") else [inter]:
+                    if isinstance(sub, bd.Face) and sub.area > 1e-6:
+                        clipped.append(sub)
+        except Exception:
+            continue
+    return clipped
+
+
+def _unify_2d_faces(faces: list[bd.Face]) -> list[bd.Face]:
+    """Fuse adjacent/touching coplanar 2D faces to remove internal jog seam lines."""
+    if len(faces) <= 1:
+        return faces
+    try:
+        fused = faces[0].fuse(*faces[1:])
+        result = [f for f in fused.faces() if f.area > 1e-6]
+        return result if result else faces
+    except Exception:
+        return faces
+
+
+def _make_plane_slab_box(
+    base_plane: bd.Plane, u_min: float, u_max: float, extent: float
+) -> bd.Solid:
+    """Create a 3D bounding box aligned to base_plane spanning u in [u_min, u_max]."""
+    w = u_max - u_min
+    uc = (u_min + u_max) / 2.0
+    box_local = bd.Pos(uc, 0.0, 0.0) * bd.Box(w, extent * 2.0, extent * 2.0)
+    return base_plane.from_local_coords(box_local)  # type: ignore[no-any-return]
+
+
+def project_section_to_view(
+    shape: bd.Solid | bd.Compound | Any,
+    cutting_plane: bd.Plane,
+    center_x: float,
+    center_y: float,
+    scale: float = 1.0,
+    view_label: str = "SECTION A-A",
+    view_label_y: float | None = None,
+    view_label_offset_y: float = 7.0,
+    model_origin: tuple[float, float] | None = None,
+    show_background: bool = True,
+    hatch: str = "steel",
+    hatch_pitch: float = 4.0,
+    hatch_angle: float = 45.0,
+) -> SheetView:
+    """Project a 2D section slice through 3D shape with ISO/ANSI material hatching and background visible lines."""
+    sec = bd.section(shape, section_by=cutting_plane)
+    sec_2d = cutting_plane.to_local_coords(sec)
+
+    bg_shapes: list[Any] = []
+    if show_background:
+        with contextlib.suppress(Exception):
+            look_from = cutting_plane.z_dir
+            look_up = cutting_plane.y_dir
+            split_half = bd.split(shape, bisect_by=cutting_plane, keep=bd.Keep.BOTTOM)
+            dwg_bg = bd.Drawing(split_half, look_from=look_from, look_up=look_up, with_hidden=False)
+            if len(dwg_bg.visible_lines.edges()) > 0:
+                bg_shapes.append(dwg_bg.visible_lines)
+
+    return _assemble_section_view(
+        shape=shape,
+        sec_faces=list(sec_2d.faces()),
+        bg_edge_shapes=bg_shapes,
+        center_x=center_x,
+        center_y=center_y,
+        scale=scale,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        model_origin=model_origin,
+        hatch=hatch,
+        hatch_pitch=hatch_pitch,
+        hatch_angle=hatch_angle,
+        fallback_shape=sec_2d,
+    )
+
+
+def project_offset_section_to_view(
+    shape: bd.Solid | bd.Compound | Any,
+    base_plane: bd.Plane,
+    points: Sequence[Any],
+    center_x: float,
+    center_y: float,
+    scale: float = 1.0,
+    view_label: str = "SECTION A-A",
+    view_label_y: float | None = None,
+    view_label_offset_y: float = 7.0,
+    model_origin: tuple[float, float] | None = None,
+    show_background: bool = True,
+    show_jog_lines: bool = False,
+    hatch: str = "steel",
+    hatch_pitch: float = 4.0,
+    hatch_angle: float = 45.0,
+) -> SheetView:
+    """Project a stepped/offset section view along a multi-jog cutting path."""
+    if len(points) < 2:
+        raise ValueError("Offset section requires at least 2 path points.")
+
+    ud_pts = [_point_to_plane_ud(p, base_plane) for p in points]
+    bb = shape.bounding_box()
+    extent = max(float(bb.size.X), float(bb.size.Y), float(bb.size.Z), 10.0) * 2.0
+
+    all_faces: list[bd.Face] = []
+    bg_shapes: list[Any] = []
+
+    for i in range(len(ud_pts) - 1):
+        u1, d1 = ud_pts[i]
+        u2, d2 = ud_pts[i + 1]
+        if abs(u2 - u1) <= 1e-6:
+            # 90-degree jog segment perpendicular to projection plane
+            continue
+
+        u_min, u_max = min(u1, u2), max(u1, u2)
+        depth = 0.5 * (d1 + d2)
+        plane_k = bd.Plane(
+            origin=base_plane.origin + base_plane.z_dir * depth,
+            x_dir=base_plane.x_dir,
+            z_dir=base_plane.z_dir,
+        )
+        sec_k = bd.section(shape, section_by=plane_k)
+        sec_2d_k = plane_k.to_local_coords(sec_k)
+        clipped_k = _clip_2d_faces_x(list(sec_2d_k.faces()), u_min, u_max, extent)
+        all_faces.extend(clipped_k)
+
+        if show_background:
+            with contextlib.suppress(Exception):
+                split_half = bd.split(shape, bisect_by=plane_k, keep=bd.Keep.BOTTOM)
+                slab_box = _make_plane_slab_box(base_plane, u_min, u_max, extent)
+                slab_bg = split_half.intersect(slab_box)
+                if slab_bg is not None:
+                    dwg_bg = bd.Drawing(
+                        slab_bg,
+                        look_from=base_plane.z_dir,
+                        look_up=base_plane.y_dir,
+                        with_hidden=False,
+                    )
+                    if len(dwg_bg.visible_lines.edges()) > 0:
+                        bg_shapes.append(dwg_bg.visible_lines)
+
+    if not show_jog_lines:
+        all_faces = _unify_2d_faces(all_faces)
+
+    return _assemble_section_view(
+        shape=shape,
+        sec_faces=all_faces,
+        bg_edge_shapes=bg_shapes,
+        center_x=center_x,
+        center_y=center_y,
+        scale=scale,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        model_origin=model_origin,
+        hatch=hatch,
+        hatch_pitch=hatch_pitch,
+        hatch_angle=hatch_angle,
+    )
+
+
+def project_aligned_section_to_view(
+    shape: bd.Solid | bd.Compound | Any,
+    base_plane: bd.Plane,
+    points: Sequence[Any],
+    center_x: float,
+    center_y: float,
+    scale: float = 1.0,
+    view_label: str = "SECTION A-A",
+    view_label_y: float | None = None,
+    view_label_offset_y: float = 7.0,
+    model_origin: tuple[float, float] | None = None,
+    show_background: bool = True,
+    show_jog_lines: bool = False,
+    hatch: str = "steel",
+    hatch_pitch: float = 4.0,
+    hatch_angle: float = 45.0,
+) -> SheetView:
+    """Project an aligned/revolved section view by unfolding angled cutting legs onto base_plane."""
+    if len(points) < 2:
+        raise ValueError("Aligned section requires at least 2 path points.")
+
+    ud_pts = [_point_to_plane_ud(p, base_plane) for p in points]
+    if len(ud_pts) == 2:
+        u_piv, d_piv = 0.0, 0.0
+        leg_targets = [ud_pts[0], ud_pts[1]]
+    else:
+        u_piv, d_piv = ud_pts[1]
+        leg_targets = [ud_pts[0], ud_pts[2]]
+
+    pivot_3d = base_plane.origin + base_plane.x_dir * u_piv + base_plane.z_dir * d_piv
+    bb = shape.bounding_box()
+    extent = max(float(bb.size.X), float(bb.size.Y), float(bb.size.Z), 10.0) * 2.0
+
+    all_faces: list[bd.Face] = []
+    bg_shapes: list[Any] = []
+
+    for leg_idx, (u_end, d_end) in enumerate(leg_targets):
+        du = u_end - u_piv
+        dd = d_end - d_piv
+        leg_len = math.hypot(du, dd)
+        if leg_len <= 1e-6:
+            continue
+
+        r_dir = (base_plane.x_dir * du + base_plane.z_dir * dd).normalized()
+        leg_z = r_dir.cross(base_plane.y_dir)
+        leg_plane = bd.Plane(origin=pivot_3d, x_dir=r_dir, z_dir=leg_z)
+
+        sec_leg = bd.section(shape, section_by=leg_plane)
+        sec_2d_leg = leg_plane.to_local_coords(sec_leg)
+        clipped_leg = _clip_2d_faces_x(list(sec_2d_leg.faces()), 0.0, extent, extent)
+
+        place_negative = (leg_idx == 0 and du <= 0.0) or (
+            leg_idx == 1 and du < 0.0 and leg_targets[0][0] >= u_piv
+        )
+        for face in clipped_leg:
+            oriented = bd.mirror(face, about=bd.Plane.YZ) if place_negative else face
+            if abs(u_piv) > 1e-6:
+                oriented = bd.Pos(u_piv, 0.0, 0.0) * oriented
+            all_faces.append(oriented)
+
+        if show_background:
+            with contextlib.suppress(Exception):
+                split_half = bd.split(shape, bisect_by=leg_plane, keep=bd.Keep.BOTTOM)
+                half_box = _make_plane_slab_box(leg_plane, 0.0, extent, extent)
+                leg_bg = split_half.intersect(half_box)
+                if leg_bg is not None:
+                    target_dir = -base_plane.x_dir if place_negative else base_plane.x_dir
+                    angle_rad = math.atan2(
+                        float(r_dir.cross(target_dir).dot(base_plane.y_dir)),
+                        float(r_dir.dot(target_dir)),
+                    )
+                    axis = bd.Axis(pivot_3d, base_plane.y_dir)
+                    rotated_bg = leg_bg.rotate(axis, math.degrees(angle_rad))
+                    dwg_bg = bd.Drawing(
+                        rotated_bg,
+                        look_from=base_plane.z_dir,
+                        look_up=base_plane.y_dir,
+                        with_hidden=False,
+                    )
+                    if len(dwg_bg.visible_lines.edges()) > 0:
+                        bg_shapes.append(dwg_bg.visible_lines)
+
+    if not show_jog_lines:
+        all_faces = _unify_2d_faces(all_faces)
+
+    return _assemble_section_view(
+        shape=shape,
+        sec_faces=all_faces,
+        bg_edge_shapes=bg_shapes,
+        center_x=center_x,
+        center_y=center_y,
+        scale=scale,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        model_origin=model_origin,
+        hatch=hatch,
+        hatch_pitch=hatch_pitch,
+        hatch_angle=hatch_angle,
+    )
 
 
 def project_detail_to_view(

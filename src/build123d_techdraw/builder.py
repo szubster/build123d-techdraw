@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextvars
 import math
 import types
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,8 +20,10 @@ from build123d_techdraw.core.view import (
     SheetView,
     ViewType,
     _apply_align_to,
+    project_aligned_section_to_view,
     project_auxiliary_view,
     project_detail_to_view,
+    project_offset_section_to_view,
     project_section_to_view,
     project_shape_to_view,
 )
@@ -534,6 +537,25 @@ class IsometricView(View):
         pass
 
 
+def _finalize_section_view(
+    cls: type[View],
+    view: SheetView,
+    shape: Any,
+    enforce_iso_scale: bool,
+    align_to: Any,
+    sheet: DrawingSheet | None,
+) -> Any:
+    view.__class__ = cls
+    view.shape = shape
+    view.enforce_iso_scale = enforce_iso_scale
+    if align_to is not None:
+        _apply_align_to(view, align_to)
+    target_sheet = sheet or CURRENT_SHEET.get()
+    if target_sheet is not None:
+        target_sheet.add_view(view)
+    return view
+
+
 class SectionView(View):
     """2D planar section cut slice with engineering hatching."""
 
@@ -575,18 +597,115 @@ class SectionView(View):
             hatch_pitch=hatch_pitch,
             hatch_angle=hatch_angle,
         )
-        view.__class__ = cls
-        view.shape = shape
-        view.enforce_iso_scale = enforce_iso_scale
+        return _finalize_section_view(  # type: ignore[no-any-return]
+            cls, view, shape, enforce_iso_scale, align_to, sheet
+        )
 
-        if align_to is not None:
-            _apply_align_to(view, align_to)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
 
-        target_sheet = sheet or CURRENT_SHEET.get()
-        if target_sheet is not None:
-            target_sheet.add_view(view)
 
-        return view  # type: ignore[return-value]
+class OffsetSectionView(View):
+    """2D stepped/offset section cut along a multi-jog cutting path."""
+
+    def __new__(
+        cls,
+        shape: Any,
+        base_plane: bd.Plane,
+        points: Sequence[Any],
+        center: tuple[float, float] = (150.0, 150.0),
+        scale: float | str = 1.0,
+        view_label: str = "SECTION A-A",
+        view_label_y: float | None = None,
+        model_origin: tuple[float, float] | None = None,
+        sheet: DrawingSheet | None = None,
+        align_to: Any = None,
+        show_background: bool = True,
+        show_jog_lines: bool = False,
+        enforce_iso_scale: bool = True,
+        hatch: str = "steel",
+        hatch_pitch: float = 4.0,
+        hatch_angle: float = 45.0,
+    ) -> OffsetSectionView:
+        calc_scale = _resolve_view_scale(
+            shape=shape,
+            view_type=ViewType.SECTION,
+            scale=scale,
+            sheet=sheet,
+            enforce_iso_scale=enforce_iso_scale,
+        )
+        view = project_offset_section_to_view(
+            shape=shape,
+            base_plane=base_plane,
+            points=points,
+            center_x=center[0],
+            center_y=center[1],
+            scale=calc_scale,
+            view_label=view_label,
+            view_label_y=view_label_y,
+            model_origin=model_origin,
+            show_background=show_background,
+            show_jog_lines=show_jog_lines,
+            hatch=hatch,
+            hatch_pitch=hatch_pitch,
+            hatch_angle=hatch_angle,
+        )
+        return _finalize_section_view(  # type: ignore[no-any-return]
+            cls, view, shape, enforce_iso_scale, align_to, sheet
+        )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+
+class AlignedSectionView(View):
+    """2D aligned/revolved section cut unfolding angled legs onto a flat plane."""
+
+    def __new__(
+        cls,
+        shape: Any,
+        base_plane: bd.Plane,
+        points: Sequence[Any],
+        center: tuple[float, float] = (150.0, 150.0),
+        scale: float | str = 1.0,
+        view_label: str = "SECTION A-A",
+        view_label_y: float | None = None,
+        model_origin: tuple[float, float] | None = None,
+        sheet: DrawingSheet | None = None,
+        align_to: Any = None,
+        show_background: bool = True,
+        show_jog_lines: bool = False,
+        enforce_iso_scale: bool = True,
+        hatch: str = "steel",
+        hatch_pitch: float = 4.0,
+        hatch_angle: float = 45.0,
+    ) -> AlignedSectionView:
+        calc_scale = _resolve_view_scale(
+            shape=shape,
+            view_type=ViewType.SECTION,
+            scale=scale,
+            sheet=sheet,
+            enforce_iso_scale=enforce_iso_scale,
+        )
+        view = project_aligned_section_to_view(
+            shape=shape,
+            base_plane=base_plane,
+            points=points,
+            center_x=center[0],
+            center_y=center[1],
+            scale=calc_scale,
+            view_label=view_label,
+            view_label_y=view_label_y,
+            model_origin=model_origin,
+            show_background=show_background,
+            show_jog_lines=show_jog_lines,
+            hatch=hatch,
+            hatch_pitch=hatch_pitch,
+            hatch_angle=hatch_angle,
+        )
+        return _finalize_section_view(  # type: ignore[no-any-return]
+            cls, view, shape, enforce_iso_scale, align_to, sheet
+        )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         pass
