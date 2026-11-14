@@ -108,3 +108,4 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: dist/*
+          generate_release_notes: ${{ github.event.release.body == '' || github.event.release.body == null }}

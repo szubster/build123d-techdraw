@@ -1,32 +1,38 @@
 changelog:
+  exclude:
+    labels:
+      - "ignore-for-release"
+      - "duplicate"
+      - "invalid"
+      - "wontfix"
   categories:
+    - title: "🚨 Breaking Changes"
+      labels:
+        - "breaking-change"
     - title: "🚀 Features"
       labels:
         - "feature"
         - "enhancement"
-      keywords:
-        - "feat"
-        - "feature"
     - title: "🐛 Bug Fixes"
       labels:
         - "bug"
         - "fix"
-      keywords:
-        - "fix"
+    - title: "⚡ Performance"
+      labels:
+        - "performance"
     - title: "📖 Documentation"
       labels:
         - "documentation"
         - "docs"
-      keywords:
-        - "docs"
+    - title: "📦 Dependencies"
+      labels:
+        - "dependencies"
     - title: "🔧 Maintenance & Internal"
       labels:
         - "chore"
         - "refactor"
         - "ci"
-        - "dependencies"
-      keywords:
-        - "chore"
-        - "refactor"
-        - "test"
-        - "ci"
+        - "tests"
+    - title: "📦 Other Changes"
+      labels:
+        - "*"
