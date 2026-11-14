@@ -1649,7 +1649,11 @@ def project_section_to_view(
             pass
 
     exporter.add_layer("visible", line_color="black", line_weight=0.5, fill_color=None)
-    exporter.add_shape(sec_2d, layer="visible")
+    sec_faces = sorted(
+        sec_2d.faces(),
+        key=lambda f: (round(f.center().X, 4), round(f.center().Y, 4), round(f.area, 4)),
+    )
+    exporter.add_shape(bd.Compound(sec_faces) if sec_faces else sec_2d, layer="visible")
 
     with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tf:
         tmp_path = tf.name
