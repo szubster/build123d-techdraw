@@ -88,11 +88,16 @@ def _is_internal_cylinder(face: bd.Face) -> bool:
 
 
 def _detect_bd_warehouse_threads(shape: Any) -> list[tuple[tuple[float, float, float], str]]:
-    """Extract explicit ``bd_warehouse.thread.IsoThread`` metadata from ``shape`` or its children."""
-    from build123d_techdraw.annotations.threads import _fmt_num, _fmt_pitch, _require_bd_warehouse
+    """Extract explicit ``bd_warehouse`` ``IsoThread`` or fastener metadata from ``shape``."""
+    from build123d_techdraw.annotations.threads import (
+        _require_bd_warehouse,
+        coerce_thread_designation,
+        get_thread_spec,
+    )
 
-    _, thread_mod = _require_bd_warehouse()
+    fastener_mod, thread_mod = _require_bd_warehouse()
     iso_cls = thread_mod.IsoThread
+    fastener_cls = (fastener_mod.Screw, fastener_mod.Nut)
 
     found: list[tuple[tuple[float, float, float], str]] = []
     queue: list[Any] = [shape]
@@ -102,13 +107,17 @@ def _detect_bd_warehouse_threads(shape: Any) -> list[tuple[tuple[float, float, f
         if id(obj) in visited:
             continue
         visited.add(id(obj))
-        if isinstance(obj, iso_cls):
+        if isinstance(obj, (iso_cls, *fastener_cls)) or hasattr(obj, "thread_size"):
             loc = (
                 obj.location.position
                 if hasattr(obj, "location") and obj.location
                 else bd.Vector(0, 0, 0)
             )
-            spec_str = f"M{_fmt_num(float(obj.major_diameter))}x{_fmt_pitch(float(obj.pitch))}"
+            raw_spec = coerce_thread_designation(obj)
+            try:
+                spec_str = get_thread_spec(raw_spec).designation
+            except ValueError:
+                spec_str = raw_spec
             found.append(((float(loc.X), float(loc.Y), float(loc.Z)), spec_str))
         children = getattr(obj, "children", None)
         if isinstance(children, (list, tuple)):

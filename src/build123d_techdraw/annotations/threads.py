@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 # ISO 261 coarse pitches (mm) for metric threads M1.5 - M64
@@ -212,15 +213,31 @@ def _lookup_clearance_row(
     )
 
 
-def get_thread_spec(designation: str) -> ThreadSpec:
+def coerce_thread_designation(target: str | Any) -> str:
+    """Extract a thread designation string from a string, ``IsoThread``, or ``bd_warehouse`` fastener."""
+    if isinstance(target, str):
+        return target
+    fastener_mod, thread_mod = _require_bd_warehouse()
+    if isinstance(target, thread_mod.IsoThread):
+        return f"M{_fmt_num(float(target.major_diameter))}x{_fmt_pitch(float(target.pitch))}"
+    if isinstance(target, (fastener_mod.Screw, fastener_mod.Nut)) or hasattr(target, "thread_size"):
+        return str(target.thread_size)
+    raise TypeError(
+        f"Expected thread designation str, IsoThread, or bd_warehouse fastener, got {type(target).__name__}"
+    )
+
+
+def get_thread_spec(designation: str | Any) -> ThreadSpec:
     """Look up a metric (ISO 261) or imperial (UNC/UNF/UNEF) thread specification.
 
+    Accepts a designation string (e.g. ``'M6'``, ``'1/4-20 UNC'``), an
+    ``IsoThread``, or a ``bd_warehouse`` ``Screw``/``Nut`` instance.
     Raises ``ImportError`` if ``bd_warehouse`` is not installed, and ``ValueError``
     if ``designation`` cannot be resolved to a known standard thread.
     """
     fastener_mod, thread_mod = _require_bd_warehouse()
 
-    raw = designation.strip()
+    raw = coerce_thread_designation(designation).strip()
     metric_match = _METRIC_RE.match(raw)
     if metric_match:
         major = float(metric_match.group(1))
@@ -342,11 +359,12 @@ def get_tap_drill(designation: str, material: str = "soft") -> float:
     raise ValueError(f"Invalid material {material!r}; expected 'soft' or 'hard'.")
 
 
-def get_clearance_hole(designation: str, fit: str = "medium") -> float:
+def get_clearance_hole(designation: str | Any, fit: str = "medium") -> float:
     """Return the standard clearance hole diameter (mm) from ``bd_warehouse``.
 
-    ``designation`` can be a nominal fastener size (``"M6"``, ``"1/4"``, ``"#10"``)
-    or a full thread designation (``"M6x1.0"``, ``"1/4-20 UNC"``).
+    ``designation`` can be a nominal fastener size (``"M6"``, ``"1/4"``, ``"#10"``),
+    a full thread designation (``"M6x1.0"``, ``"1/4-20 UNC"``), or a ``bd_warehouse``
+    ``IsoThread`` / ``Screw`` / ``Nut`` instance.
     ``fit`` may be ``"close"``, ``"medium"`` (or ``"normal"``), or ``"loose"`` (or ``"coarse"``).
     """
     fastener_mod, _ = _require_bd_warehouse()
@@ -356,7 +374,7 @@ def get_clearance_hole(designation: str, fit: str = "medium") -> float:
             f"Invalid clearance fit {fit!r}; expected one of 'close', 'medium', 'normal', 'loose', 'coarse'."
         )
 
-    raw = designation.strip()
+    raw = coerce_thread_designation(designation).strip()
     clr_data: dict[str, dict[str, float]] = fastener_mod.Nut.clearance_hole_data
 
     # Direct nominal match first (handles M1-M150, #0-#12, 1/4-4")
@@ -374,11 +392,11 @@ def get_clearance_hole(designation: str, fit: str = "medium") -> float:
     raise ValueError(f"No clearance hole data for {designation!r}")
 
 
-def list_standard_threads(standard: str | None = None) -> list[ThreadSpec]:
-    """Return all standard metric (ISO 261 M2-M64) and/or imperial (UTS) thread specs."""
+@lru_cache(maxsize=4)
+def _cached_standard_threads(std_filter: str | None) -> tuple[ThreadSpec, ...]:
+    """Cached builder for standard metric and imperial thread specs."""
     fastener_mod, _ = _require_bd_warehouse()
     specs: list[ThreadSpec] = []
-    std_filter = standard.strip().upper() if standard else None
 
     if std_filter in (None, "ISO", "METRIC"):
         for major, coarse_p in sorted(_ISO_261_COARSE_PITCH.items()):
@@ -394,7 +412,14 @@ def list_standard_threads(standard: str | None = None) -> list[ThreadSpec]:
         for key, series in series_map.items():
             specs.append(get_thread_spec(f"{key} {series}"))
 
-    return specs
+    return tuple(specs)
+
+
+def list_standard_threads(standard: str | None = None) -> list[ThreadSpec]:
+    """Return all standard metric (ISO 261 M2-M64) and/or imperial (UTS) thread specs."""
+    _require_bd_warehouse()
+    std_filter = standard.strip().upper() if standard else None
+    return list(_cached_standard_threads(std_filter))
 
 
 def find_threads_by_tap_drill(diameter: float, tolerance: float = 0.08) -> list[ThreadSpec]:
