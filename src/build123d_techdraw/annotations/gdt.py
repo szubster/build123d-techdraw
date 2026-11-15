@@ -7,8 +7,13 @@ import math
 from enum import Enum
 from typing import Any
 
+from build123d_techdraw.annotations.anchors import Anchor
 from build123d_techdraw.annotations.dimensions import render_arrowhead
-from build123d_techdraw.annotations.resolver import is_topological_entity, resolve_point_to_sheet
+from build123d_techdraw.annotations.resolver import (
+    ensure_anchor,
+    is_topological_entity,
+    resolve_point_to_sheet,
+)
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
 
@@ -50,7 +55,12 @@ class FeatureControlFrame:
         leader_target: tuple[float, float] | None = None,
         datum_refs: list[str] | None = None,
         view: Any | None = None,
+        *,
+        anchor: Any = None,
     ):
+        if target is None and anchor is not None:
+            target = anchor
+
         self.characteristic = characteristic
         self.tolerance_value = tolerance_value
         self.frame_height = frame_height
@@ -60,6 +70,9 @@ class FeatureControlFrame:
         self.view = view
         self.target = target if target is not None else leader_target
         self.resolved = False
+        self._explicit_coords = False
+        self.anchor_stale = False
+        self.stale_reason: str | None = None
 
         if datum_refs:
             self.datum_a = datum_refs[0] if len(datum_refs) > 0 else None
@@ -81,6 +94,7 @@ class FeatureControlFrame:
         if leader_target is not None and not is_topological_entity(leader_target):
             self.leader_target = (float(leader_target[0]), float(leader_target[1]))
             self.resolved = True
+            self._explicit_coords = True
         else:
             self.leader_target = None
 
@@ -92,16 +106,39 @@ class FeatureControlFrame:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
+    def _rebind_to_view(self, view: Any) -> None:
+        if not self._explicit_coords:
+            self.resolved = False
+            self._attach_to_view(view)
+
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
+            if not isinstance(self.target, (tuple, list)):
+                self.target = (
+                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
+                )
+            prev_lt = self.leader_target
+            prev_pos = self.position
+
             target_pt = resolve_point_to_sheet(self.target, view)
+            if isinstance(self.target, Anchor) and self.target.is_stale:
+                self.anchor_stale = True
+                self.stale_reason = self.target.stale_reason
+                if prev_lt is not None:
+                    target_pt = prev_lt
+            else:
+                self.anchor_stale = False
+                self.stale_reason = None
+
             self.leader_target = target_pt
             if not self.position_explicit:
                 self.position = (
                     target_pt[0] + self.leader_offset[0],
                     target_pt[1] + self.leader_offset[1],
                 )
+            elif self.anchor_stale and prev_pos != (100.0, 100.0):
+                self.position = prev_pos
             self.resolved = True
         elif not self.resolved and self.target is None and not self.position_explicit:
             self.position = (view.center_x, view.center_y)
@@ -179,7 +216,12 @@ class DatumFeatureSymbol:
         box_size: float = 5.5,
         direction: str = "up",
         view: Any | None = None,
+        *,
+        anchor: Any = None,
     ):
+        if target is None and anchor is not None:
+            target = anchor
+
         self.label = label
         self.stem_length = stem_length
         self.box_size = box_size
@@ -188,6 +230,9 @@ class DatumFeatureSymbol:
         self.raw_target = target
         self.target: tuple[float, float] = (0.0, 0.0)
         self.resolved = False
+        self._explicit_coords = False
+        self.anchor_stale = False
+        self.stale_reason: str | None = None
 
         if (
             target is not None
@@ -196,6 +241,7 @@ class DatumFeatureSymbol:
         ):
             self.target = (float(target[0]), float(target[1]))
             self.resolved = True
+            self._explicit_coords = True
 
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
@@ -205,10 +251,28 @@ class DatumFeatureSymbol:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
+    def _rebind_to_view(self, view: Any) -> None:
+        if not self._explicit_coords:
+            self.resolved = False
+            self._attach_to_view(view)
+
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.raw_target is not None:
+            if not isinstance(self.raw_target, (tuple, list)):
+                self.raw_target = (
+                    ensure_anchor(self.raw_target, getattr(view, "shape", None)) or self.raw_target
+                )
+            prev_target = self.target
             self.target = resolve_point_to_sheet(self.raw_target, view)
+            if isinstance(self.raw_target, Anchor) and self.raw_target.is_stale:
+                self.anchor_stale = True
+                self.stale_reason = self.raw_target.stale_reason
+                if prev_target != (0.0, 0.0):
+                    self.target = prev_target
+            else:
+                self.anchor_stale = False
+                self.stale_reason = None
             self.resolved = True
         elif not self.resolved and self.raw_target is None:
             self.target = (view.center_x, view.min_y)

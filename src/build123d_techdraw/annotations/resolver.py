@@ -1,53 +1,83 @@
-"""Topological entity resolution: projects 3D CAD geometry to 2D view space."""
+"""Topological entity resolution: projects 3D CAD geometry and semantic anchors to 2D view space."""
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Any
 
 import build123d as bd
+
+from build123d_techdraw.annotations.anchors import Anchor
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.view import SheetView
 
 
 def is_topological_entity(obj: Any) -> bool:
-    """Check if an object is a build123d 3D topological shape (Edge, Vertex, Face, Solid)."""
+    """Check if an object is a build123d 3D topological shape or semantic Anchor."""
     if obj is None:
         return False
-    return isinstance(obj, (bd.Edge, bd.Vertex, bd.Face, bd.Solid, bd.Compound, bd.Vector))
+    return isinstance(obj, (Anchor, bd.Edge, bd.Vertex, bd.Face, bd.Solid, bd.Compound, bd.Vector))
+
+
+def ensure_anchor(target: Any, shape: Any = None) -> Anchor | None:
+    """Return ``target`` if it is an ``Anchor``, or wrap a 3D topological entity in ``Anchor.of``."""
+    if isinstance(target, Anchor):
+        target._ensure_normalized_fingerprint(shape)
+        return target
+    if isinstance(target, (bd.Edge, bd.Vertex, bd.Face, bd.Solid, bd.Compound)):
+        return Anchor.of(target, shape=shape)
+    return None
+
+
+def resolve_point_3d(
+    target: Any, view: SheetView | None = None
+) -> tuple[float, float, float] | None:
+    """Resolve an Anchor, topological entity, or 3D tuple to a 3D model point (X, Y, Z)."""
+    shape = getattr(view, "shape", None) if view is not None else None
+    if isinstance(target, Anchor):
+        return target.resolve_point_3d(shape)
+    if isinstance(target, (bd.Vertex, bd.Vector)):
+        return (float(target.X), float(target.Y), float(target.Z))
+    if isinstance(target, bd.Edge):
+        if target.geom_type == bd.GeomType.CIRCLE:
+            c = target.arc_center
+            return (float(c.X), float(c.Y), float(c.Z))
+        bb = target.bounding_box()
+        mid = (bb.min + bb.max) / 2.0
+        return (float(mid.X), float(mid.Y), float(mid.Z))
+    if isinstance(target, bd.Face):
+        if target.geom_type == bd.GeomType.CYLINDER and target.axis_of_rotation:
+            axis = target.axis_of_rotation
+            fc = target.center()
+            pos = axis.position + axis.direction * (fc - axis.position).dot(axis.direction)
+            return (float(pos.X), float(pos.Y), float(pos.Z))
+        bb = target.bounding_box()
+        mid = (bb.min + bb.max) / 2.0
+        return (float(mid.X), float(mid.Y), float(mid.Z))
+    if isinstance(target, (bd.Solid, bd.Compound)):
+        bb = target.bounding_box()
+        mid = (bb.min + bb.max) / 2.0
+        return (float(mid.X), float(mid.Y), float(mid.Z))
+    if isinstance(target, (tuple, list)) and len(target) == 3:
+        return (float(target[0]), float(target[1]), float(target[2]))
+    return None
 
 
 def resolve_point_to_sheet(target: Any, view: SheetView) -> tuple[float, float]:
-    """Resolve a 3D vertex, vector, edge center, or face center to 2D sheet coordinates."""
+    """Resolve a semantic Anchor, 3D vertex, vector, edge, or face to 2D sheet coordinates."""
+    if isinstance(target, Anchor):
+        return target.resolve_to_sheet(view)
+
     if isinstance(target, (tuple, list)):
         if len(target) == 2:
             return float(target[0]), float(target[1])
         if len(target) == 3:
             return view.to_sheet_3d(float(target[0]), float(target[1]), float(target[2]))
 
-    if isinstance(target, (bd.Vertex, bd.Vector)):
-        return view.to_sheet_3d(float(target.X), float(target.Y), float(target.Z))
-
-    if isinstance(target, bd.Edge):
-        if target.geom_type == bd.GeomType.CIRCLE:
-            c = target.arc_center
-            return view.to_sheet_3d(float(c.X), float(c.Y), float(c.Z))
-        bb = target.bounding_box()
-        mid = (bb.min + bb.max) / 2.0
-        return view.to_sheet_3d(float(mid.X), float(mid.Y), float(mid.Z))
-
-    if isinstance(target, bd.Face):
-        if target.geom_type == bd.GeomType.CYLINDER and target.axis_of_rotation:
-            pos = target.axis_of_rotation.position
-            return view.to_sheet_3d(float(pos.X), float(pos.Y), float(pos.Z))
-        bb = target.bounding_box()
-        mid = (bb.min + bb.max) / 2.0
-        return view.to_sheet_3d(float(mid.X), float(mid.Y), float(mid.Z))
-
-    if isinstance(target, (bd.Solid, bd.Compound)):
-        bb = target.bounding_box()
-        mid = (bb.min + bb.max) / 2.0
-        return view.to_sheet_3d(float(mid.X), float(mid.Y), float(mid.Z))
+    pt_3d = resolve_point_3d(target, view)
+    if pt_3d is not None:
+        return view.to_sheet_3d(pt_3d[0], pt_3d[1], pt_3d[2])
 
     raise TypeError(f"Cannot resolve target of type {type(target).__name__} to sheet coordinates.")
 
@@ -55,7 +85,19 @@ def resolve_point_to_sheet(target: Any, view: SheetView) -> tuple[float, float]:
 def resolve_edge_to_sheet(
     edge: Any, view: SheetView
 ) -> tuple[tuple[float, float], tuple[float, float], float]:
-    """Resolve an Edge to its projected sheet start and end points and true 3D model length."""
+    """Resolve an Edge or semantic Anchor to its projected sheet start/end points and 3D model length."""
+    if isinstance(edge, Anchor):
+        shape = getattr(view, "shape", None)
+        ent = edge.resolve_entity(shape, prefer_kind="edge")
+        if isinstance(ent, bd.Edge):
+            edge = ent
+        elif edge.fingerprint is not None and edge.fingerprint.start_3d and edge.fingerprint.end_3d:
+            s0 = view.to_sheet_3d(*edge.fingerprint.start_3d)
+            s1 = view.to_sheet_3d(*edge.fingerprint.end_3d)
+            return s0, s1, float(edge.fingerprint.length or 0.0)
+        else:
+            raise TypeError("Anchor did not resolve to a build123d.Edge.")
+
     if not isinstance(edge, bd.Edge):
         raise TypeError(f"Expected build123d.Edge, got {type(edge).__name__}")
 
@@ -70,7 +112,17 @@ def resolve_edge_to_sheet(
 def resolve_circle_or_cylinder_to_sheet(
     target: Any, view: SheetView
 ) -> tuple[tuple[float, float], float, float]:
-    """Resolve a circular Edge or cylindrical Face to (center_on_sheet, paper_radius, model_radius)."""
+    """Resolve a circular Edge, cylindrical Face, or Anchor to (center_on_sheet, paper_radius, model_radius)."""
+    if isinstance(target, Anchor):
+        shape = getattr(view, "shape", None)
+        ent = target.resolve_entity(shape)
+        if ent is not None and isinstance(ent, (bd.Edge, bd.Face)):
+            target = ent
+        elif target.last_resolved_point_3d is not None and target.last_resolved_radius is not None:
+            paper_center = view.to_sheet_3d(*target.last_resolved_point_3d)
+            r = float(target.last_resolved_radius)
+            return paper_center, r * view.scale, r
+
     if isinstance(target, bd.Edge) and target.geom_type == bd.GeomType.CIRCLE:
         c = target.arc_center
         r = float(target.radius)
@@ -79,7 +131,11 @@ def resolve_circle_or_cylinder_to_sheet(
 
     if isinstance(target, bd.Face) and target.geom_type == bd.GeomType.CYLINDER:
         axis = target.axis_of_rotation
-        c = axis.position if axis else (target.bounding_box().min + target.bounding_box().max) / 2.0
+        if axis is not None:
+            fc = target.center()
+            c = axis.position + axis.direction * (fc - axis.position).dot(axis.direction)
+        else:
+            c = (target.bounding_box().min + target.bounding_box().max) / 2.0
         r_val = getattr(target, "radius", None)
         r = float(r_val) if r_val is not None else 5.0
         paper_center = view.to_sheet_3d(float(c.X), float(c.Y), float(c.Z))
@@ -116,12 +172,26 @@ def resolve_angle_to_sheet(
     view: SheetView,
     target_apex: Any = None,
 ) -> tuple[tuple[float, float], float, float, float]:
-    """Resolve two edges, faces, or points to (apex_2d, start_angle_deg, end_angle_deg, angle_deg)."""
-    import math
+    """Resolve two edges, faces, anchors, or points to (apex_2d, start_angle_deg, end_angle_deg, angle_deg)."""
+    shape = getattr(view, "shape", None)
+    eff1 = (
+        target1.resolve_entity(shape, prefer_kind="edge")
+        if isinstance(target1, Anchor)
+        else target1
+    )
+    eff2 = (
+        target2.resolve_entity(shape, prefer_kind="edge")
+        if isinstance(target2, Anchor)
+        else target2
+    )
+    if eff1 is None:
+        eff1 = target1
+    if eff2 is None:
+        eff2 = target2
 
-    if isinstance(target1, bd.Edge) and isinstance(target2, bd.Edge):
-        s0_1, s1_1, _ = resolve_edge_to_sheet(target1, view)
-        s0_2, s1_2, _ = resolve_edge_to_sheet(target2, view)
+    if isinstance(eff1, bd.Edge) and isinstance(eff2, bd.Edge):
+        s0_1, s1_1, _ = resolve_edge_to_sheet(eff1, view)
+        s0_2, s1_2, _ = resolve_edge_to_sheet(eff2, view)
 
         if target_apex is not None:
             apex = resolve_point_to_sheet(target_apex, view)
@@ -142,8 +212,8 @@ def resolve_angle_to_sheet(
         a2 = ray_angle(s0_2, s1_2, apex)
 
         # Compute 3D true angle between edge directions if available
-        v1_dir = (target1.end_point() - target1.start_point()).normalized()
-        v2_dir = (target2.end_point() - target2.start_point()).normalized()
+        v1_dir = (eff1.end_point() - eff1.start_point()).normalized()
+        v2_dir = (eff2.end_point() - eff2.start_point()).normalized()
         dot_val = min(1.0, max(-1.0, v1_dir.dot(v2_dir)))
         true_angle = math.degrees(math.acos(abs(dot_val)))
 

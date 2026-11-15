@@ -1,5 +1,11 @@
 """build123d-techdraw: 2D technical drawing and blueprint engine for build123d."""
 
+from build123d_techdraw.annotations.anchors import (
+    Anchor,
+    AnchorDirection,
+    Direction,
+    SemanticFingerprint,
+)
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
     ChamferCallout,
@@ -108,6 +114,8 @@ except ImportError:  # pragma: no cover
 
 __all__ = [
     "AlignedSectionView",
+    "Anchor",
+    "AnchorDirection",
     "AngularDimension",
     "AssemblyBOM",
     "AuxiliaryView",
@@ -130,6 +138,7 @@ __all__ = [
     "DetailView",
     "DiameterDimension",
     "DimensionType",
+    "Direction",
     "DrawingBooklet",
     "DrawingSheet",
     "FeatureControlFrame",
@@ -161,6 +170,7 @@ __all__ = [
     "Schedule",
     "SectionCuttingLine",
     "SectionView",
+    "SemanticFingerprint",
     "SheetSize",
     "SheetView",
     "StandardMultiview",

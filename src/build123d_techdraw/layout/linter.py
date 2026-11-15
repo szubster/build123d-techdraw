@@ -153,6 +153,17 @@ def run_sheet_lint(sheet: DrawingSheet) -> list[LintIssue]:
 
     for ann in sheet.annotations:
         bbox = get_annotation_bbox_2d(ann)
+        if getattr(ann, "anchor_stale", False):
+            reason = getattr(ann, "stale_reason", None) or "Semantic anchor failed to resolve"
+            issues.append(
+                LintIssue(
+                    code="STALE_ANCHOR",
+                    severity="WARNING",
+                    message=f"Stale semantic anchor on {type(ann).__name__}: {reason}",
+                    element=ann,
+                    bbox=bbox,
+                )
+            )
         if bbox is None:
             continue
 

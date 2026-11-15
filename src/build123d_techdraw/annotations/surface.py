@@ -6,7 +6,12 @@ import html
 from enum import Enum
 from typing import Any
 
-from build123d_techdraw.annotations.resolver import is_topological_entity, resolve_point_to_sheet
+from build123d_techdraw.annotations.anchors import Anchor
+from build123d_techdraw.annotations.resolver import (
+    ensure_anchor,
+    is_topological_entity,
+    resolve_point_to_sheet,
+)
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
 
@@ -29,13 +34,21 @@ class SurfaceFinishSymbol:
         position: tuple[float, float] | None = None,
         target: Any = None,
         view: Any | None = None,
+        *,
+        anchor: Any = None,
     ):
+        if target is None and anchor is not None:
+            target = anchor
+
         self.ra_value = ra_value
         self.material_removal = material_removal
         self.process = process
         self.scale = scale
         self.view = view
         self.resolved = False
+        self._explicit_coords = False
+        self.anchor_stale = False
+        self.stale_reason: str | None = None
 
         effective_target = target if target is not None else target_or_pos
 
@@ -43,6 +56,7 @@ class SurfaceFinishSymbol:
             self.position = (float(position[0]), float(position[1]))
             self.target = None
             self.resolved = True
+            self._explicit_coords = True
         elif (
             effective_target is not None
             and not is_topological_entity(effective_target)
@@ -51,6 +65,7 @@ class SurfaceFinishSymbol:
             self.position = (float(effective_target[0]), float(effective_target[1]))
             self.target = None
             self.resolved = True
+            self._explicit_coords = True
         else:
             self.position = (0.0, 0.0)
             self.target = effective_target
@@ -63,10 +78,28 @@ class SurfaceFinishSymbol:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
+    def _rebind_to_view(self, view: Any) -> None:
+        if not self._explicit_coords:
+            self.resolved = False
+            self._attach_to_view(view)
+
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
+            if not isinstance(self.target, (tuple, list)):
+                self.target = (
+                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
+                )
+            prev_pos = self.position
             self.position = resolve_point_to_sheet(self.target, view)
+            if isinstance(self.target, Anchor) and self.target.is_stale:
+                self.anchor_stale = True
+                self.stale_reason = self.target.stale_reason
+                if prev_pos != (0.0, 0.0):
+                    self.position = prev_pos
+            else:
+                self.anchor_stale = False
+                self.stale_reason = None
             self.resolved = True
         elif not self.resolved and self.target is None:
             self.position = (view.center_x, view.min_y)

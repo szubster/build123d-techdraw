@@ -113,10 +113,12 @@ class SheetView:
         sheet: Optional["DrawingSheet"] = None,
         shape: Any | None = None,
         enforce_iso_scale: bool = True,
+        show_hidden: bool = True,
     ):
         self.sheet = sheet
         self.shape = shape
         self.enforce_iso_scale = enforce_iso_scale
+        self.show_hidden = show_hidden
         self.view_type = view_type
         self.center_x = center_x
         self.center_y = center_y
@@ -501,6 +503,52 @@ class SheetView:
 
         add_edge_to_dxf(msp, edge, layer=layer, scale=scale)
 
+    def _rebind_annotations(self) -> None:
+        """Re-resolve all anchored/topological annotations attached to this view."""
+        for ann in list(self.annotations):
+            if hasattr(ann, "_rebind_to_view"):
+                ann._rebind_to_view(self)
+
+    def update_shape(self, new_shape: Any) -> Self:
+        """Update the view's 3D shape, re-project geometry, and re-bind all anchored annotations."""
+        self.shape = new_shape
+        if self.view_type not in (ViewType.SECTION, ViewType.DETAIL, ViewType.AUXILIARY):
+            reproj = project_shape_to_view(
+                new_shape,
+                self.view_type,
+                self.center_x,
+                self.center_y,
+                scale=self.scale,
+                show_hidden=self.show_hidden,
+                view_label=self.view_label,
+                rotation_angle_deg=self.rotation_angle_deg,
+            )
+            self.width = reproj.width
+            self.height = reproj.height
+            self.unbroken_width = reproj.unbroken_width
+            self.unbroken_height = reproj.unbroken_height
+            self.min_x = reproj.min_x
+            self.max_x = reproj.max_x
+            self.min_y = reproj.min_y
+            self.max_y = reproj.max_y
+            self.bottom_annotation_y = reproj.bottom_annotation_y
+            self.model_origin = reproj.model_origin
+            self.origin_x = reproj.origin_x
+            self.origin_y = reproj.origin_y
+            self.projection_origin = reproj.projection_origin
+            self.proj_x = reproj.proj_x
+            self.proj_y = reproj.proj_y
+            self.orig_cx = reproj.orig_cx
+            self.orig_cy = reproj.orig_cy
+            self.svg_content = reproj.svg_content
+            self.inner_svg_content = reproj.inner_svg_content
+            self.view_label_pos = reproj.view_label_pos
+            if self.breaks:
+                self._apply_breaks()
+
+        self._rebind_annotations()
+        return self
+
     def locate(self, center: tuple[float, float]) -> Self:
         """Reposition the view center on the sheet (in paper mm)."""
         dx = float(center[0]) - self.center_x
@@ -515,6 +563,7 @@ class SheetView:
         if self.view_label_pos is not None:
             self.view_label_pos = (self.view_label_pos[0] + dx, self.view_label_pos[1] + dy)
         self._update_transform()
+        self._rebind_annotations()
         return self
 
     def scale_to(self, scale: float) -> Self:
@@ -531,6 +580,7 @@ class SheetView:
         self.bottom_annotation_y = self.max_y
         self.scale_label = format_iso_scale(scale)
         self._update_transform()
+        self._rebind_annotations()
         return self
 
     def get_visual_bounds(
@@ -1257,16 +1307,32 @@ class SheetView:
 
     def add_gdt_frame(
         self,
-        model_x: float,
-        model_y: float,
-        characteristic: GDTCharacteristic,
-        tolerance_value: str,
+        model_x: float = 0.0,
+        model_y: float = 0.0,
+        characteristic: GDTCharacteristic = GDTCharacteristic.POSITION,
+        tolerance_value: str = "0.05",
         datum_a: str | None = None,
         datum_b: str | None = None,
         datum_c: str | None = None,
         leader_offset: tuple[float, float] | None = None,
+        *,
+        anchor: Any = None,
     ) -> FeatureControlFrame:
-        """Add a GD&T Feature Control Frame near (model_x, model_y), optionally with a leader line."""
+        """Add a GD&T Feature Control Frame near (model_x, model_y) or an anchor, optionally with a leader line."""
+        if anchor is not None:
+            fcf = FeatureControlFrame(
+                characteristic=characteristic,
+                tolerance_value=tolerance_value,
+                datum_a=datum_a,
+                datum_b=datum_b,
+                datum_c=datum_c,
+                leader_offset=leader_offset or (12.0, -10.0),
+                view=self,
+                anchor=anchor,
+            )
+            self.add(fcf)
+            return fcf
+
         target_pos = self.to_sheet_coords(model_x, model_y)
         if leader_offset is not None:
             pos = (target_pos[0] + leader_offset[0], target_pos[1] + leader_offset[1])
@@ -1290,41 +1356,45 @@ class SheetView:
 
     def add_datum_symbol(
         self,
-        model_x: float,
-        model_y: float,
+        model_x: float = 0.0,
+        model_y: float = 0.0,
         label: str = "A",
         direction: str = "up",
+        *,
+        anchor: Any = None,
     ) -> DatumFeatureSymbol:
-        """Add an ISO datum feature identifier symbol at (model_x, model_y)."""
-        target = self.to_sheet_coords(model_x, model_y)
+        """Add an ISO datum feature identifier symbol at (model_x, model_y) or an anchor."""
+        target = anchor if anchor is not None else self.to_sheet_coords(model_x, model_y)
         sym = DatumFeatureSymbol(target=target, label=label, direction=direction, view=self)
         self.add(sym)
         return sym
 
     def add_surface_finish(
         self,
-        model_x: float,
-        model_y: float,
+        model_x: float = 0.0,
+        model_y: float = 0.0,
         ra_value: str = "Ra 3.2",
         material_removal: MaterialRemoval = MaterialRemoval.REQUIRED,
         process: str | None = None,
+        *,
+        anchor: Any = None,
     ) -> SurfaceFinishSymbol:
-        """Add an ISO 1302 surface roughness symbol at (model_x, model_y)."""
-        pos = self.to_sheet_coords(model_x, model_y)
+        """Add an ISO 1302 surface roughness symbol at (model_x, model_y) or an anchor."""
         sym = SurfaceFinishSymbol(
-            position=pos,
+            position=None if anchor is not None else self.to_sheet_coords(model_x, model_y),
             ra_value=ra_value,
             material_removal=material_removal,
             process=process,
             view=self,
+            anchor=anchor,
         )
         self.add(sym)
         return sym
 
     def hole_callout(
         self,
-        model_x: float,
-        model_y: float,
+        model_x: float = 0.0,
+        model_y: float = 0.0,
         diameter: float | None = None,
         depth: float | str | None = None,
         countersink_dia: float | None = None,
@@ -1337,9 +1407,11 @@ class SheetView:
         fit: str = "medium",
         elbow_dx: float = 15.0,
         elbow_dy: float = -12.0,
+        *,
+        anchor: Any = None,
     ) -> HoleCallout:
-        """Add a standard engineering hole callout at (model_x, model_y)."""
-        target = self.to_sheet_coords(model_x, model_y)
+        """Add a standard engineering hole callout at (model_x, model_y) or an anchor."""
+        target = anchor if anchor is not None else self.to_sheet_coords(model_x, model_y)
         hc = HoleCallout(
             center=target,
             diameter=diameter,
@@ -1359,8 +1431,8 @@ class SheetView:
 
     def thread_callout(
         self,
-        model_x: float,
-        model_y: float,
+        model_x: float = 0.0,
+        model_y: float = 0.0,
         thread: str = "M5x0.8",
         depth: float | str | None = "THRU",
         class_fit: str | None = None,
@@ -1368,9 +1440,11 @@ class SheetView:
         show_tap_drill: bool = False,
         elbow_dx: float = 15.0,
         elbow_dy: float = -12.0,
+        *,
+        anchor: Any = None,
     ) -> ThreadCallout:
-        """Add a standard engineering thread callout at (model_x, model_y)."""
-        target = self.to_sheet_coords(model_x, model_y)
+        """Add a standard engineering thread callout at (model_x, model_y) or an anchor."""
+        target = anchor if anchor is not None else self.to_sheet_coords(model_x, model_y)
         tc = ThreadCallout(
             center=target,
             thread=thread,
@@ -1600,6 +1674,7 @@ def project_shape_to_view(
         view_label_pos=lbl_pos,
         scale_label=scale_str,
         shape=shape,
+        show_hidden=show_hidden,
     )
     view_res.inner_svg_content = inner_content
     view_res.rotation_angle_deg = rotation_angle_deg

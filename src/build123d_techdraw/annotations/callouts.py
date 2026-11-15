@@ -8,8 +8,10 @@ from collections.abc import Sequence
 from enum import Enum
 from typing import Any
 
+from build123d_techdraw.annotations.anchors import Anchor
 from build123d_techdraw.annotations.dimensions import format_dimension_value, render_arrowhead
 from build123d_techdraw.annotations.resolver import (
+    ensure_anchor,
     is_topological_entity,
     resolve_circle_or_cylinder_to_sheet,
     resolve_point_to_sheet,
@@ -40,7 +42,12 @@ class LeaderNote:
         text: str | list[str] | None = None,
         leader_offset: tuple[float, float] | None = None,
         view: Any | None = None,
+        *,
+        anchor: Any = None,
     ):
+        if target is None and anchor is not None:
+            target = anchor
+
         self.shelf_length = shelf_length
         self.align_right = align_right
         self.terminator = terminator
@@ -50,6 +57,9 @@ class LeaderNote:
         self.raw_target: Any = None
         self.target: tuple[float, float] = (0.0, 0.0)
         self.resolved = False
+        self._explicit_coords = False
+        self.anchor_stale = False
+        self.stale_reason: str | None = None
 
         # Parse text / lines
         raw_text = text or lines
@@ -78,6 +88,7 @@ class LeaderNote:
         ):
             self.target = (float(self.raw_target[0]), float(self.raw_target[1]))
             self.resolved = True
+            self._explicit_coords = True
 
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
@@ -91,10 +102,28 @@ class LeaderNote:
     def text(self) -> str:
         return " ".join(self.lines)
 
+    def _rebind_to_view(self, view: Any) -> None:
+        if not self._explicit_coords:
+            self.resolved = False
+            self._attach_to_view(view)
+
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.raw_target is not None:
+            if not isinstance(self.raw_target, (tuple, list)):
+                self.raw_target = (
+                    ensure_anchor(self.raw_target, getattr(view, "shape", None)) or self.raw_target
+                )
+            prev_target = self.target
             self.target = resolve_point_to_sheet(self.raw_target, view)
+            if isinstance(self.raw_target, Anchor) and self.raw_target.is_stale:
+                self.anchor_stale = True
+                self.stale_reason = self.raw_target.stale_reason
+                if prev_target != (0.0, 0.0):
+                    self.target = prev_target
+            else:
+                self.anchor_stale = False
+                self.stale_reason = None
             self.resolved = True
         elif not self.resolved and self.raw_target is None:
             self.target = (view.center_x, view.center_y)
@@ -169,11 +198,14 @@ class HoleCallout(LeaderNote):
         terminator: str = "arrow",
         font_size: float = 2.8,
         view: Any | None = None,
+        *,
+        anchor: Any = None,
     ):
         self.clearance_for = clearance_for
         self.fit = fit
         if diameter is None and clearance_for is not None:
             diameter = get_clearance_hole(clearance_for, fit=fit)
+        self._explicit_diameter = diameter is not None
         self.diameter = diameter
         self.depth = depth
         self.countersink_dia = countersink_dia
@@ -184,7 +216,13 @@ class HoleCallout(LeaderNote):
         self.tolerance = str(tolerance) if tolerance is not None else None
 
         effective_target = (
-            center if center is not None else (target if target is not None else target_or_center)
+            center
+            if center is not None
+            else (
+                target
+                if target is not None
+                else (anchor if anchor is not None else target_or_center)
+            )
         )
         callout_text = self._format_callout(self.diameter)
 
@@ -230,11 +268,16 @@ class HoleCallout(LeaderNote):
         return f"{qty_prefix}{dia_str}{tol_str}{depth_str}{csink_str}{cbore_str}"
 
     def _attach_to_view(self, view: Any) -> None:
-        if self.diameter is None and self.raw_target is not None:
+        if self.raw_target is not None and not isinstance(self.raw_target, (tuple, list)):
+            self.raw_target = (
+                ensure_anchor(self.raw_target, getattr(view, "shape", None)) or self.raw_target
+            )
+        if not self._explicit_diameter and self.raw_target is not None:
             try:
                 _, _, model_r = resolve_circle_or_cylinder_to_sheet(self.raw_target, view)
-                self.diameter = 2.0 * model_r
-                self.lines = [self._format_callout(self.diameter)]
+                if not (isinstance(self.raw_target, Anchor) and self.raw_target.is_stale):
+                    self.diameter = 2.0 * model_r
+                    self.lines = [self._format_callout(self.diameter)]
             except TypeError:
                 pass
         super()._attach_to_view(view)
@@ -262,6 +305,8 @@ class ThreadCallout(LeaderNote):
         terminator: str = "arrow",
         font_size: float = 2.8,
         view: Any | None = None,
+        *,
+        anchor: Any = None,
     ):
         self.raw_thread = thread
         self.show_tap_drill = show_tap_drill
@@ -288,7 +333,13 @@ class ThreadCallout(LeaderNote):
         self.countersink_angle = countersink_angle
 
         effective_target = (
-            center if center is not None else (target if target is not None else target_or_center)
+            center
+            if center is not None
+            else (
+                target
+                if target is not None
+                else (anchor if anchor is not None else target_or_center)
+            )
         )
         callout_text = self._format_callout()
 
@@ -348,7 +399,10 @@ class BOMBalloon:
         elbow_offset: tuple[float, float] | None = None,
         balloon_no: int | None = None,
         position: tuple[float, float] | None = None,
+        anchor: Any = None,
     ):
+        if target is None and anchor is not None:
+            target = anchor
         resolved_no = (
             item
             if item is not None
@@ -364,6 +418,9 @@ class BOMBalloon:
         self.raw_position = position
         self.target: tuple[float, float] = (0.0, 0.0)
         self.resolved = False
+        self._explicit_coords = False
+        self.anchor_stale = False
+        self.stale_reason: str | None = None
 
         if balloon_center is not None:
             self.balloon_center = (float(balloon_center[0]), float(balloon_center[1]))
@@ -383,6 +440,7 @@ class BOMBalloon:
                     self.target[1] + self.leader_offset[1],
                 )
             self.resolved = True
+            self._explicit_coords = True
 
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
@@ -401,6 +459,7 @@ class BOMBalloon:
                         self.target[1] + self.leader_offset[1],
                     )
                 self.resolved = True
+                self._explicit_coords = True
             target_sheet = CURRENT_SHEET.get()
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
@@ -417,9 +476,15 @@ class BOMBalloon:
     def position(self) -> tuple[float, float]:
         return self.target
 
+    def _rebind_to_view(self, view: Any) -> None:
+        if not self._explicit_coords:
+            self.resolved = False
+            self._attach_to_view(view)
+
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.raw_target is not None:
+            prev_target = self.target
             if isinstance(self.raw_target, (tuple, list)):
                 if len(self.raw_target) == 2:
                     self.target = view.to_sheet_coords(
@@ -434,7 +499,18 @@ class BOMBalloon:
                 else:
                     self.target = (float(self.raw_target[0]), float(self.raw_target[1]))
             else:
+                self.raw_target = (
+                    ensure_anchor(self.raw_target, getattr(view, "shape", None)) or self.raw_target
+                )
                 self.target = resolve_point_to_sheet(self.raw_target, view)
+                if isinstance(self.raw_target, Anchor) and self.raw_target.is_stale:
+                    self.anchor_stale = True
+                    self.stale_reason = self.raw_target.stale_reason
+                    if prev_target != (0.0, 0.0):
+                        self.target = prev_target
+                else:
+                    self.anchor_stale = False
+                    self.stale_reason = None
 
             if not self.center_explicit:
                 self.balloon_center = (
@@ -442,7 +518,7 @@ class BOMBalloon:
                     self.target[1] + self.leader_offset[1],
                 )
             self.resolved = True
-        elif not self.resolved and self.raw_target is None and not self.resolved:
+        elif not self.resolved and self.raw_target is None:
             self.target = (view.center_x, view.center_y)
             if not self.center_explicit:
                 self.balloon_center = (
@@ -507,31 +583,58 @@ class SectionCuttingLine:
         self.thick_length = thick_length
         self.arrow_length = arrow_length
         self.view = view
+        self.raw_points: list[Any] = list(points)
+        self.points: list[tuple[float, float]] = []
+        self.anchor_stale = False
+        self.stale_reason: str | None = None
 
         target_view = view or CURRENT_VIEW.get()
-        resolved_points: list[tuple[float, float]] = []
-        for pt in points:
-            if target_view is not None:
-                resolved_points.append(resolve_point_to_sheet(pt, target_view))
-            elif isinstance(pt, (tuple, list)) and len(pt) >= 2:
-                resolved_points.append((float(pt[0]), float(pt[1])))
-            else:
-                raise TypeError(
-                    "SectionCuttingLine requires 2D (x, y) tuples when no view is attached."
-                )
-
-        self.points: list[tuple[float, float]] = resolved_points
-
         if target_view is not None:
-            if hasattr(target_view, "annotations") and self not in target_view.annotations:
-                target_view.annotations.append(self)
-            t_sheet = getattr(target_view, "sheet", None) or CURRENT_SHEET.get()
-            if t_sheet is not None and self not in t_sheet.annotations:
-                t_sheet.annotations.append(self)
+            self._attach_to_view(target_view)
         else:
+            resolved_points: list[tuple[float, float]] = []
+            for pt in points:
+                if isinstance(pt, (tuple, list)) and len(pt) >= 2:
+                    resolved_points.append((float(pt[0]), float(pt[1])))
+                else:
+                    raise TypeError(
+                        "SectionCuttingLine requires 2D (x, y) tuples when no view is attached."
+                    )
+            self.points = resolved_points
             target_sheet = CURRENT_SHEET.get()
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
+
+    def _rebind_to_view(self, view: Any) -> None:
+        self._attach_to_view(view)
+
+    def _attach_to_view(self, view: Any) -> None:
+        self.view = view
+        prev_points = list(self.points)
+        resolved_points: list[tuple[float, float]] = []
+        stale_reasons: list[str] = []
+        view_shape = getattr(view, "shape", None)
+
+        for idx, pt in enumerate(self.raw_points):
+            if not isinstance(pt, (tuple, list)):
+                pt = ensure_anchor(pt, view_shape) or pt
+                self.raw_points[idx] = pt
+            resolved_pt = resolve_point_to_sheet(pt, view)
+            if isinstance(pt, Anchor) and pt.is_stale:
+                stale_reasons.append(pt.stale_reason or "Stale anchor")
+                if idx < len(prev_points):
+                    resolved_pt = prev_points[idx]
+            resolved_points.append(resolved_pt)
+
+        self.points = resolved_points
+        self.anchor_stale = bool(stale_reasons)
+        self.stale_reason = "; ".join(stale_reasons) if stale_reasons else None
+
+        if hasattr(view, "annotations") and self not in view.annotations:
+            view.annotations.append(self)
+        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
+        if t_sheet is not None and self not in t_sheet.annotations:
+            t_sheet.annotations.append(self)
 
     def _arrow_normal(self, ux: float, uy: float) -> tuple[float, float]:
         if isinstance(self.arrow_dir, (tuple, list)):
@@ -622,15 +725,21 @@ class ChamferCallout(LeaderNote):
         elbow_offset: tuple[float, float] = (15.0, -12.0),
         shelf_length: float = 18.0,
         view: Any | None = None,
+        *,
+        anchor: Any = None,
     ):
+        self._explicit_width = width is not None
         self.width = width
         self.angle_deg = angle_deg
         self.style = style.lower()
         self.quantity = quantity
 
+        effective_target = (
+            anchor if target_or_edge is None and anchor is not None else target_or_edge
+        )
         callout_text = self._format_chamfer(self.width, self.angle_deg)
         super().__init__(
-            target=target_or_edge,
+            target=effective_target,
             lines=[callout_text],
             elbow_offset=elbow_offset,
             shelf_length=shelf_length,
@@ -647,14 +756,22 @@ class ChamferCallout(LeaderNote):
         return f"{qty_prefix}{w_val} × {a_val}°"
 
     def _attach_to_view(self, view: Any) -> None:
-        if self.width is None and self.raw_target is not None:
+        if self.raw_target is not None and not isinstance(self.raw_target, (tuple, list)):
+            self.raw_target = (
+                ensure_anchor(self.raw_target, getattr(view, "shape", None)) or self.raw_target
+            )
+        if not self._explicit_width and self.raw_target is not None:
             import build123d as bd
 
+            entity = self.raw_target
+            if isinstance(entity, Anchor):
+                entity = entity.resolve_entity(getattr(view, "shape", None))
             if (
-                isinstance(self.raw_target, bd.Edge)
-                and self.raw_target.geom_type == bd.GeomType.CIRCLE
+                entity is not None
+                and isinstance(entity, bd.Edge)
+                and entity.geom_type == bd.GeomType.CIRCLE
             ):
-                self.width = float(self.raw_target.radius) * 0.1
+                self.width = float(entity.radius) * 0.1
                 self.lines = [self._format_chamfer(self.width, self.angle_deg)]
         super()._attach_to_view(view)
 
@@ -689,7 +806,11 @@ class WeldingSymbol:
         shelf_length: float = 24.0,
         font_size: float = 2.8,
         view: Any | None = None,
+        *,
+        anchor: Any = None,
     ):
+        if target is None and anchor is not None:
+            target = anchor
         self.target_raw = target
         self.weld_type = (
             weld_type
@@ -722,6 +843,9 @@ class WeldingSymbol:
 
         self.target: tuple[float, float] = (0.0, 0.0)
         self.resolved = False
+        self._explicit_coords = False
+        self.anchor_stale = False
+        self.stale_reason: str | None = None
 
         if (
             isinstance(target, (tuple, list))
@@ -730,6 +854,7 @@ class WeldingSymbol:
         ):
             self.target = (float(target[0]), float(target[1]))
             self.resolved = True
+            self._explicit_coords = True
 
         target_view = view or CURRENT_VIEW.get()
         if target_view is not None:
@@ -739,10 +864,28 @@ class WeldingSymbol:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
+    def _rebind_to_view(self, view: Any) -> None:
+        if not self._explicit_coords:
+            self.resolved = False
+            self._attach_to_view(view)
+
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.target_raw is not None:
+            if not isinstance(self.target_raw, (tuple, list)):
+                self.target_raw = (
+                    ensure_anchor(self.target_raw, getattr(view, "shape", None)) or self.target_raw
+                )
+            prev_target = self.target
             self.target = resolve_point_to_sheet(self.target_raw, view)
+            if isinstance(self.target_raw, Anchor) and self.target_raw.is_stale:
+                self.anchor_stale = True
+                self.stale_reason = self.target_raw.stale_reason
+                if prev_target != (0.0, 0.0):
+                    self.target = prev_target
+            else:
+                self.anchor_stale = False
+                self.stale_reason = None
             self.resolved = True
         elif not self.resolved:
             self.target = (view.center_x, view.center_y)

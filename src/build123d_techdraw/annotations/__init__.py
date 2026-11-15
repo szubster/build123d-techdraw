@@ -1,5 +1,11 @@
 """Engineering annotations: ISO dimensions, GD&T, surface finish, centerlines, tables, and callouts."""
 
+from build123d_techdraw.annotations.anchors import (
+    Anchor,
+    AnchorDirection,
+    Direction,
+    SemanticFingerprint,
+)
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
     ChamferCallout,
@@ -35,6 +41,7 @@ from build123d_techdraw.annotations.gdt import (
     FeatureControlFrame,
     GDTCharacteristic,
 )
+from build123d_techdraw.annotations.resolver import ensure_anchor, resolve_point_3d
 from build123d_techdraw.annotations.surface import (
     MaterialRemoval,
     SurfaceFinishSymbol,
@@ -51,6 +58,8 @@ from build123d_techdraw.annotations.threads import (
 )
 
 __all__ = [
+    "Anchor",
+    "AnchorDirection",
     "AngularDimension",
     "BOMBalloon",
     "BaselineDimensionGroup",
@@ -63,6 +72,7 @@ __all__ = [
     "DatumFeatureSymbol",
     "DiameterDimension",
     "DimensionType",
+    "Direction",
     "FeatureControlFrame",
     "GDTCharacteristic",
     "HoleCallout",
@@ -76,6 +86,7 @@ __all__ = [
     "RawSVG",
     "Schedule",
     "SectionCuttingLine",
+    "SemanticFingerprint",
     "StepBadge",
     "SurfaceFinishSymbol",
     "Table",
@@ -85,6 +96,7 @@ __all__ = [
     "Tolerance",
     "WeldType",
     "WeldingSymbol",
+    "ensure_anchor",
     "find_threads_by_tap_drill",
     "format_dimension_value",
     "get_clearance_hole",
@@ -92,4 +104,5 @@ __all__ = [
     "get_thread_spec",
     "list_standard_threads",
     "render_projection_cone_svg",
+    "resolve_point_3d",
 ]
