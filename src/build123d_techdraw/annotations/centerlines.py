@@ -5,7 +5,9 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from build123d_techdraw.annotations.anchors import Anchor
 from build123d_techdraw.annotations.resolver import (
+    ensure_anchor,
     is_topological_entity,
     resolve_circle_or_cylinder_to_sheet,
     resolve_point_to_sheet,
@@ -25,18 +27,31 @@ class Centerline:
         end: tuple[float, float] | None = None,
         overhang: float = 4.0,
         view: Any | None = None,
+        *,
+        anchor: Any = None,
+        anchor1: Any = None,
+        anchor2: Any = None,
     ):
+        if target_or_start is None:
+            target_or_start = anchor1 if anchor1 is not None else anchor
+        if target2_or_end is None and anchor2 is not None:
+            target2_or_end = anchor2
+
         self.stroke_width = stroke_width
         self.overhang = overhang
         self.view = view
         self.target: Any = None
         self.target2: Any = None
         self.resolved = False
+        self._explicit_coords = False
+        self.anchor_stale = False
+        self.stale_reason: str | None = None
 
         if start is not None and end is not None:
             self.start = (float(start[0]), float(start[1]))
             self.end = (float(end[0]), float(end[1]))
             self.resolved = True
+            self._explicit_coords = True
         elif (
             target_or_start is not None
             and target2_or_end is not None
@@ -48,6 +63,7 @@ class Centerline:
             self.start = (float(target_or_start[0]), float(target_or_start[1]))
             self.end = (float(target2_or_end[0]), float(target2_or_end[1]))
             self.resolved = True
+            self._explicit_coords = True
         else:
             self.start = (0.0, 0.0)
             self.end = (0.0, 0.0)
@@ -62,15 +78,35 @@ class Centerline:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
+    def _rebind_to_view(self, view: Any) -> None:
+        if not self._explicit_coords:
+            self.resolved = False
+            self._attach_to_view(view)
+
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             import build123d as bd
 
-            if isinstance(self.target, bd.Face) and self.target.geom_type == bd.GeomType.CYLINDER:
-                axis = self.target.axis_of_rotation
+            v_shape = getattr(view, "shape", None)
+            if not isinstance(self.target, (tuple, list)):
+                self.target = ensure_anchor(self.target, v_shape) or self.target
+            if self.target2 is not None and not isinstance(self.target2, (tuple, list)):
+                self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
+
+            prev_start = self.start
+            prev_end = self.end
+
+            eff_target = (
+                self.target.resolve_entity(v_shape)
+                if isinstance(self.target, Anchor) and self.target2 is None
+                else self.target
+            )
+
+            if isinstance(eff_target, bd.Face) and eff_target.geom_type == bd.GeomType.CYLINDER:
+                axis = eff_target.axis_of_rotation
                 if axis:
-                    bb = self.target.bounding_box()
+                    bb = eff_target.bounding_box()
                     p0 = view.to_sheet_3d(
                         float(axis.position.X), float(axis.position.Y), float(bb.min.Z)
                     )
@@ -94,6 +130,27 @@ class Centerline:
                 p1 = resolve_point_to_sheet(self.target2, view)
                 self.start = p0
                 self.end = p1
+
+            stale1 = isinstance(self.target, Anchor) and self.target.is_stale
+            stale2 = isinstance(self.target2, Anchor) and self.target2.is_stale
+            if stale1 or stale2:
+                self.anchor_stale = True
+                r1 = (
+                    self.target.stale_reason
+                    if isinstance(self.target, Anchor) and self.target.is_stale
+                    else None
+                )
+                r2 = (
+                    self.target2.stale_reason
+                    if isinstance(self.target2, Anchor) and self.target2.is_stale
+                    else None
+                )
+                self.stale_reason = r1 or r2
+                if prev_start != (0.0, 0.0) or prev_end != (0.0, 0.0):
+                    self.start, self.end = prev_start, prev_end
+            else:
+                self.anchor_stale = False
+                self.stale_reason = None
             self.resolved = True
         elif not self.resolved and self.target is None:
             self.start = (view.min_x - self.overhang, view.center_y)
@@ -126,19 +183,30 @@ class CenterMark:
         center: tuple[float, float] | None = None,
         cy: float | None = None,
         view: Any | None = None,
+        *,
+        anchor: Any = None,
     ):
+        if target_or_center is None and anchor is not None:
+            target_or_center = anchor
+
+        self._explicit_size = size is not None
         self.size = size if size is not None else 6.0
         self.stroke_width = stroke_width
         self.view = view
         self.target: Any = None
         self.resolved = False
+        self._explicit_coords = False
+        self.anchor_stale = False
+        self.stale_reason: str | None = None
 
         if center is not None:
             self.center = (float(center[0]), float(center[1]))
             self.resolved = True
+            self._explicit_coords = True
         elif cy is not None and isinstance(target_or_center, (int, float)):
             self.center = (float(target_or_center), float(cy))
             self.resolved = True
+            self._explicit_coords = True
         elif (
             target_or_center is not None
             and not is_topological_entity(target_or_center)
@@ -147,6 +215,7 @@ class CenterMark:
         ):
             self.center = (float(target_or_center[0]), float(target_or_center[1]))
             self.resolved = True
+            self._explicit_coords = True
         else:
             self.center = (0.0, 0.0)
             self.target = target_or_center
@@ -159,16 +228,39 @@ class CenterMark:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
+    def _rebind_to_view(self, view: Any) -> None:
+        if not self._explicit_coords:
+            self.resolved = False
+            if not self._explicit_size:
+                self.size = 6.0
+            self._attach_to_view(view)
+
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
+            if not isinstance(self.target, (tuple, list)):
+                self.target = (
+                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
+                )
+            prev_center = self.center
+            prev_size = self.size
             try:
                 paper_c, paper_r, _ = resolve_circle_or_cylinder_to_sheet(self.target, view)
                 self.center = paper_c
-                if self.size == 6.0:  # Default unset size
+                if not self._explicit_size:
                     self.size = (paper_r + 2.0) * 2.0
             except TypeError:
                 self.center = resolve_point_to_sheet(self.target, view)
+
+            if isinstance(self.target, Anchor) and self.target.is_stale:
+                self.anchor_stale = True
+                self.stale_reason = self.target.stale_reason
+                if prev_center != (0.0, 0.0):
+                    self.center = prev_center
+                    self.size = prev_size
+            else:
+                self.anchor_stale = False
+                self.stale_reason = None
             self.resolved = True
         elif not self.resolved and self.target is None:
             self.center = (view.center_x, view.center_y)
@@ -204,7 +296,12 @@ class BoltCircle:
         stroke_width: float = 0.25,
         center: tuple[float, float] | None = None,
         view: Any | None = None,
+        *,
+        anchor: Any = None,
     ):
+        if target_or_center is None and anchor is not None:
+            target_or_center = anchor
+
         self.num_holes = num_holes
         self.start_angle_deg = start_angle_deg
         self.hole_cross_size = hole_cross_size
@@ -212,11 +309,16 @@ class BoltCircle:
         self.view = view
         self.target: Any = None
         self.resolved = False
+        self._explicit_diameter = diameter is not None
+        self._explicit_coords = False
+        self.anchor_stale = False
+        self.stale_reason: str | None = None
 
         if center is not None and diameter is not None:
             self.center = (float(center[0]), float(center[1]))
             self.diameter = float(diameter)
             self.resolved = True
+            self._explicit_coords = True
         elif (
             target_or_center is not None
             and diameter is not None
@@ -226,6 +328,7 @@ class BoltCircle:
             self.center = (float(target_or_center[0]), float(target_or_center[1]))
             self.diameter = float(diameter)
             self.resolved = True
+            self._explicit_coords = True
         else:
             self.center = (0.0, 0.0)
             self.diameter = float(diameter or 0.0)
@@ -239,9 +342,22 @@ class BoltCircle:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
+    def _rebind_to_view(self, view: Any) -> None:
+        if not self._explicit_coords:
+            self.resolved = False
+            if not self._explicit_diameter:
+                self.diameter = 0.0
+            self._attach_to_view(view)
+
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
+            if not isinstance(self.target, (tuple, list)):
+                self.target = (
+                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
+                )
+            prev_center = self.center
+            prev_diameter = self.diameter
             try:
                 paper_c, paper_r, _ = resolve_circle_or_cylinder_to_sheet(self.target, view)
                 self.center = paper_c
@@ -249,6 +365,17 @@ class BoltCircle:
                     self.diameter = 2.0 * paper_r
             except TypeError:
                 self.center = resolve_point_to_sheet(self.target, view)
+
+            if isinstance(self.target, Anchor) and self.target.is_stale:
+                self.anchor_stale = True
+                self.stale_reason = self.target.stale_reason
+                if prev_center != (0.0, 0.0):
+                    self.center = prev_center
+                if prev_diameter > 0.0:
+                    self.diameter = prev_diameter
+            else:
+                self.anchor_stale = False
+                self.stale_reason = None
             self.resolved = True
         elif not self.resolved and self.target is None:
             self.center = (view.center_x, view.center_y)

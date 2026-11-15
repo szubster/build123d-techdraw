@@ -400,6 +400,13 @@ class DrawingSheet:
                 self.annotations.append(ann)
         return view
 
+    def update_shape(self, new_shape: Any) -> Self:
+        """Update the 3D model across all views on the sheet and re-bind anchored annotations."""
+        for view in self.views:
+            if hasattr(view, "update_shape"):
+                view.update_shape(new_shape)
+        return self
+
     def add_section_view(
         self,
         shape: bd.Solid | bd.Compound | Any,
