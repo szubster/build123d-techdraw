@@ -157,3 +157,31 @@ def test_find_threads_by_tap_drill_and_recognize_holes() -> None:
 
     all_threads = list_standard_threads()
     assert len(all_threads) > 50
+
+
+def test_bd_warehouse_object_oob_integration() -> None:
+    """Verify bd_warehouse IsoThread and fastener objects work OOB in callouts and recognition."""
+    from bd_warehouse.fastener import HexNut, SocketHeadCapScrew
+    from bd_warehouse.thread import IsoThread
+
+    iso_m8 = IsoThread(major_diameter=8, pitch=1.25, length=10, simple=True)
+    screw = SocketHeadCapScrew("M6-1", length=20, simple=True)
+    nut = HexNut("M6-1", simple=True)
+
+    assert get_thread_spec(iso_m8).designation == "M8x1.25"
+    assert get_thread_spec(screw).designation == "M6x1.0"
+    assert get_clearance_hole(screw, fit="medium") == pytest.approx(6.6)
+
+    tc = ThreadCallout((40.0, 40.0), thread=iso_m8)
+    hc = HoleCallout((60.0, 40.0), clearance_for=screw, fit="close")
+    assert tc.thread == "M8x1.25"
+    assert hc.diameter == pytest.approx(6.4)
+
+    # Assembly compound containing a plate hole + bd_warehouse nut detects thread OOB
+    plate = bd.Box(80.0, 60.0, 10.0) - bd.Cylinder(radius=2.5, height=20.0)
+    assembly = bd.Compound(children=[plate, nut])
+    holes = recognize_holes(assembly)
+    assert len(holes) == 1
+    assert holes[0].is_threaded is True
+    assert holes[0].thread_spec == "M6x1.0"
+    assert holes[0].thread_source == "bd_warehouse"

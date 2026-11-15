@@ -14,7 +14,12 @@ from build123d_techdraw.annotations.resolver import (
     resolve_circle_or_cylinder_to_sheet,
     resolve_point_to_sheet,
 )
-from build123d_techdraw.annotations.threads import ThreadSpec, get_clearance_hole, get_thread_spec
+from build123d_techdraw.annotations.threads import (
+    ThreadSpec,
+    coerce_thread_designation,
+    get_clearance_hole,
+    get_thread_spec,
+)
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
 
@@ -153,7 +158,7 @@ class HoleCallout(LeaderNote):
         counterbore_depth: float | None = None,
         quantity: int | None = None,
         tolerance: str | None = None,
-        clearance_for: str | None = None,
+        clearance_for: Any | None = None,
         fit: str = "medium",
         center: Any = None,
         target: Any = None,
@@ -241,7 +246,7 @@ class ThreadCallout(LeaderNote):
     def __init__(
         self,
         target_or_center: Any = None,
-        thread: str = "M5x0.8",
+        thread: str | Any = "M5x0.8",
         depth: float | str | None = "THRU",
         class_fit: str | None = None,
         quantity: int | None = None,
@@ -264,10 +269,11 @@ class ThreadCallout(LeaderNote):
         self.pitch: float | None = None
         self.tap_drill: float | None = None
         self.major_diameter: float | None = None
+        thread_str = coerce_thread_designation(thread)
         try:
-            spec = get_thread_spec(thread)
+            spec = get_thread_spec(thread_str)
         except ValueError:
-            self.thread = thread
+            self.thread = thread_str
         else:
             self.thread_spec = spec
             self.thread = spec.designation
