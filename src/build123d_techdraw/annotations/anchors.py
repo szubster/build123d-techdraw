@@ -95,12 +95,11 @@ def _entity_center_3d(entity: Any) -> tuple[float, float, float]:
         return (float(mid.X), float(mid.Y), float(mid.Z))
     if isinstance(entity, bd.Face):
         if entity.geom_type == bd.GeomType.CYLINDER and entity.axis_of_rotation is not None:
-            axis = entity.axis_of_rotation
-            fc = entity.center()
-            pos = axis.position + axis.direction * (fc - axis.position).dot(axis.direction)
+            pos = entity.axis_of_rotation.position
             return (float(pos.X), float(pos.Y), float(pos.Z))
-        c = entity.center()
-        return (float(c.X), float(c.Y), float(c.Z))
+        bb = entity.bounding_box()
+        mid = (bb.min + bb.max) * 0.5
+        return (float(mid.X), float(mid.Y), float(mid.Z))
     if hasattr(entity, "bounding_box"):
         bb = entity.bounding_box()
         mid = (bb.min + bb.max) * 0.5

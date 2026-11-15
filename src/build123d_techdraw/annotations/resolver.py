@@ -48,9 +48,7 @@ def resolve_point_3d(
         return (float(mid.X), float(mid.Y), float(mid.Z))
     if isinstance(target, bd.Face):
         if target.geom_type == bd.GeomType.CYLINDER and target.axis_of_rotation:
-            axis = target.axis_of_rotation
-            fc = target.center()
-            pos = axis.position + axis.direction * (fc - axis.position).dot(axis.direction)
+            pos = target.axis_of_rotation.position
             return (float(pos.X), float(pos.Y), float(pos.Z))
         bb = target.bounding_box()
         mid = (bb.min + bb.max) / 2.0
@@ -131,11 +129,7 @@ def resolve_circle_or_cylinder_to_sheet(
 
     if isinstance(target, bd.Face) and target.geom_type == bd.GeomType.CYLINDER:
         axis = target.axis_of_rotation
-        if axis is not None:
-            fc = target.center()
-            c = axis.position + axis.direction * (fc - axis.position).dot(axis.direction)
-        else:
-            c = (target.bounding_box().min + target.bounding_box().max) / 2.0
+        c = axis.position if axis else (target.bounding_box().min + target.bounding_box().max) / 2.0
         r_val = getattr(target, "radius", None)
         r = float(r_val) if r_val is not None else 5.0
         paper_center = view.to_sheet_3d(float(c.X), float(c.Y), float(c.Z))
