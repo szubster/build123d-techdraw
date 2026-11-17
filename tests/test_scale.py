@@ -8,8 +8,11 @@ from build123d_techdraw.core.scale import (
     STANDARD_SCALES,
     calculate_auto_scale,
     find_closest_iso_scale,
+    format_iso_ratio,
     format_iso_scale,
 )
+from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
+from build123d_techdraw.layout.multiview import add_standard_multiview
 
 
 def test_format_iso_scale() -> None:
@@ -21,6 +24,33 @@ def test_format_iso_scale() -> None:
     assert format_iso_scale(1.5) == "SCALE 3:2"
     assert format_iso_scale(2.5) == "SCALE 5:2"
     assert format_iso_scale(5.0) == "SCALE 5:1"
+
+
+def test_format_iso_ratio_is_bare() -> None:
+    assert format_iso_ratio(1.0) == "1:1"
+    assert format_iso_ratio(0.5) == "1:2"
+    assert format_iso_ratio(0.1) == "1:10"
+    assert format_iso_ratio(2.0) == "2:1"
+    assert format_iso_ratio(1.5) == "3:2"
+    assert format_iso_ratio(2.5) == "5:2"
+
+
+@pytest.mark.parametrize(("scale", "expected"), [(1.0, "1:1"), (0.5, "1:2"), (2.0, "2:1")])
+def test_multiview_title_block_scale_is_bare_ratio(scale: float, expected: str) -> None:
+    sheet = DrawingSheet(sheet_size=SheetSize.A3_LANDSCAPE)
+    add_standard_multiview(
+        sheet=sheet,
+        shape=bd.Box(40.0, 20.0, 10.0),
+        scale=scale,
+        show_scale_label=True,
+    )
+
+    assert sheet.title_info.scale == expected
+    svg = sheet.to_svg()
+    assert f'class="tb-field-val-sm">{expected}</text>' in svg
+    assert f'class="tb-field-val-sm">SCALE {expected}</text>' not in svg
+    # View labels keep the "SCALE " prefix.
+    assert f"SCALE {expected}" in svg
 
 
 def test_find_closest_iso_scale() -> None:

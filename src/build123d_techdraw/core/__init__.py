@@ -4,6 +4,7 @@ from build123d_techdraw.core.booklet import DrawingBooklet
 from build123d_techdraw.core.scale import (
     calculate_auto_scale,
     find_closest_iso_scale,
+    format_iso_ratio,
     format_iso_scale,
 )
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
@@ -21,5 +22,6 @@ __all__ = [
     "ViewType",
     "calculate_auto_scale",
     "find_closest_iso_scale",
+    "format_iso_ratio",
     "format_iso_scale",
 ]
