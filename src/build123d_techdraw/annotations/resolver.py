@@ -57,6 +57,32 @@ def resolve_point_3d(
     return None
 
 
+def stale_point_to_sheet(target: Any, view: SheetView) -> tuple[float, float] | None:
+    """Return the last-known sheet position of a stale anchor in the view's *current* placement.
+
+    When ``target`` is a stale :class:`Anchor` with a remembered 3D model point, that point is
+    projected through ``view`` as it is now (after any ``locate``/``scale_to``), so stale
+    annotations follow the view instead of staying at stale paper coordinates. Returns ``None``
+    if ``target`` is not a stale anchor or no model point was ever resolved.
+    """
+    if not (isinstance(target, Anchor) and target.is_stale):
+        return None
+    pt = target.last_resolved_point_3d
+    if pt is None:
+        return None
+    return view.to_sheet_3d(pt[0], pt[1], pt[2])
+
+
+def stale_radius_to_paper(target: Any, view: SheetView) -> float | None:
+    """Return the last-known radius of a stale anchor in paper mm at the view's current scale."""
+    if not (isinstance(target, Anchor) and target.is_stale):
+        return None
+    r = target.last_resolved_radius
+    if r is None:
+        return None
+    return float(r) * view.scale
+
+
 def resolve_point_to_sheet(target: Any, view: SheetView) -> tuple[float, float]:
     """Resolve a semantic Anchor, 3D vertex, vector, edge, or face to 2D sheet coordinates."""
     if isinstance(target, Anchor):
@@ -82,6 +108,10 @@ def resolve_edge_to_sheet(
     if isinstance(edge, Anchor):
         shape = view.shape
         ent = edge.resolve_entity(shape, prefer_kind="edge")
+        if ent is None and edge.is_stale:
+            # Fall back to the last-known model-space edge; it is projected through the
+            # view's *current* placement below, so stale dimensions follow locate/scale_to.
+            ent = edge.last_resolved_entity
         if isinstance(ent, bd.Edge):
             edge = ent
         elif edge.fingerprint is not None and edge.fingerprint.start_3d and edge.fingerprint.end_3d:
@@ -167,6 +197,9 @@ def resolve_angle_to_sheet(
     def as_edge(t: Any) -> Any:
         if isinstance(t, Anchor):
             ent = t.resolve_entity(shape, prefer_kind="edge")
+            if ent is None and t.is_stale:
+                # Last-known model-space entity; projected through the current view below.
+                ent = t.last_resolved_entity
             return t if ent is None else ent
         return t
 

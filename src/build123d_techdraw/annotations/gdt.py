@@ -14,6 +14,7 @@ from build123d_techdraw.annotations.resolver import (
     ensure_anchor,
     is_topological_entity,
     resolve_point_to_sheet,
+    stale_point_to_sheet,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
@@ -120,15 +121,11 @@ class FeatureControlFrame(Annotation):
         if not self.resolved and self.target is not None:
             if not isinstance(self.target, (tuple, list)):
                 self.target = ensure_anchor(self.target, view.shape) or self.target
-            prev_lt = self.leader_target
-            prev_pos = self.position
-
             target_pt = resolve_point_to_sheet(self.target, view)
             if isinstance(self.target, Anchor) and self.target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.target.stale_reason
-                if prev_lt is not None:
-                    target_pt = prev_lt
+                target_pt = stale_point_to_sheet(self.target, view) or target_pt
             else:
                 self.anchor_stale = False
                 self.stale_reason = None
@@ -139,8 +136,6 @@ class FeatureControlFrame(Annotation):
                     target_pt[0] + self.leader_offset[0],
                     target_pt[1] + self.leader_offset[1],
                 )
-            elif self.anchor_stale and prev_pos != (100.0, 100.0):
-                self.position = prev_pos
             self.resolved = True
         elif not self.resolved and self.target is None and not self.position_explicit:
             self.position = (view.center_x, view.center_y)
@@ -264,13 +259,11 @@ class DatumFeatureSymbol(Annotation):
         if not self.resolved and self.raw_target is not None:
             if not isinstance(self.raw_target, (tuple, list)):
                 self.raw_target = ensure_anchor(self.raw_target, view.shape) or self.raw_target
-            prev_target = self.target
             self.target = resolve_point_to_sheet(self.raw_target, view)
             if isinstance(self.raw_target, Anchor) and self.raw_target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.raw_target.stale_reason
-                if prev_target != (0.0, 0.0):
-                    self.target = prev_target
+                self.target = stale_point_to_sheet(self.raw_target, view) or self.target
             else:
                 self.anchor_stale = False
                 self.stale_reason = None

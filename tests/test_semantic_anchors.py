@@ -30,6 +30,7 @@ from build123d_techdraw import (
     SectionCuttingLine,
     SemanticFingerprint,
     SheetSize,
+    SheetView,
     SurfaceFinishSymbol,
     TopView,
     ViewType,
@@ -255,9 +256,88 @@ def test_stale_anchor_fallback_and_linter_warning() -> None:
     assert hole_anchor.is_stale
     assert dia.anchor_stale
     assert hc.anchor_stale
-    assert dia.center == prev_center  # Preserved last known coordinates
+    assert dia.center == pytest.approx(prev_center)  # Last known model point, re-projected
 
     issues = run_sheet_lint(sheet)
     stale_issues = [i for i in issues if i.code == "STALE_ANCHOR"]
     assert len(stale_issues) >= 2
     assert all(i.severity == "WARNING" for i in stale_issues)
+
+
+def _hole_anchor_on_stale_view() -> tuple[Anchor, DrawingSheet, SheetView]:
+    """Return a hole anchor plus a sheet/view whose shape no longer has that hole."""
+    part_with_hole = _make_bracket(length=100.0, hole_radius=8.0, hole_x=25.0)
+    hole_face = [
+        f
+        for f in part_with_hole.faces()
+        if f.geom_type == bd.GeomType.CYLINDER and abs(f.bounding_box().center().X - 25.0) < 1.0
+    ][0]
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    top = sheet.add_view(part_with_hole, ViewType.TOP, center=(180.0, 140.0), scale=1.0)
+    return Anchor.of(hole_face), sheet, top
+
+
+def test_stale_leader_note_follows_view_locate() -> None:
+    hole_anchor, sheet, top = _hole_anchor_on_stale_view()
+    note = LeaderNote(anchor=hole_anchor, text="SEE NOTE 1", view=top)
+    sheet.update_shape(bd.Part() + bd.Box(100.0, 60.0, 20.0))
+    assert note.anchor_stale
+
+    tx, ty = note.target
+    top.locate((top.center_x + 40.0, top.center_y - 15.0))
+    assert note.anchor_stale
+    assert note.target == pytest.approx((tx + 40.0, ty - 15.0))
+
+
+def test_stale_diameter_follows_view_scale_to() -> None:
+    hole_anchor, sheet, top = _hole_anchor_on_stale_view()
+    dia = DiameterDimension(hole_anchor, view=top)
+    sheet.update_shape(bd.Part() + bd.Box(100.0, 60.0, 20.0))
+    assert dia.anchor_stale
+    assert dia.diameter == pytest.approx(16.0)
+
+    cx, cy = dia.center
+    top.scale_to(0.5)
+    assert dia.anchor_stale
+    assert dia.diameter == pytest.approx(8.0)
+    assert dia.text == "⌀16"
+    # Hole sits 25 mm right of the view centre in model space -> 12.5 mm on paper at 1:2
+    assert dia.center[0] - top.center_x == pytest.approx((cx - top.center_x) / 2.0)
+    assert dia.center[1] == pytest.approx(cy)
+
+
+def _ordinate_values(group: OrdinateDimensionGroup) -> list[float]:
+    vals = []
+    for o in group.ordinates:
+        assert o.view is not None
+        vals.append(abs(o.point[0] - o.datum_coord) / o.view.scale)
+    return vals
+
+
+@pytest.mark.parametrize("use_datum_anchor", [True, False])
+def test_ordinate_group_values_survive_locate_and_scale_to(use_datum_anchor: bool) -> None:
+    part = _make_bracket(length=100.0, width=60.0, thickness=20.0, hole_radius=6.0, hole_x=20.0)
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    front = sheet.add_view(part, ViewType.FRONT, center=(160.0, 140.0), scale=1.0)
+    grp = OrdinateDimensionGroup(
+        datum_target=Anchor.min("X") if use_datum_anchor else None,
+        direction="horizontal",
+        view=front,
+    )
+    grp.add_ordinate(Anchor.hole(radius=6.0))
+    grp.add_ordinate(Anchor.max("X"))
+
+    before = _ordinate_values(grp)
+    assert before == pytest.approx([0.0, 70.0, 100.0], abs=0.01)
+    svg_before = grp.to_svg()
+
+    front.locate((210.0, 120.0))
+    assert _ordinate_values(grp) == pytest.approx(before, abs=0.01)
+    assert grp.ordinates[0].point[0] == pytest.approx(front.min_x, abs=0.01)
+    for txt in ("70", "100"):
+        assert f">{txt}<" in grp.to_svg()
+    assert grp.to_svg() != svg_before  # geometry moved with the view
+
+    front.scale_to(0.5)
+    assert _ordinate_values(grp) == pytest.approx(before, abs=0.01)
+    assert grp.ordinates[0].point[0] == pytest.approx(front.min_x, abs=0.01)
