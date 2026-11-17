@@ -213,6 +213,6 @@ def test_section_view_iso_hatch_patterns(tmp_path) -> None:
 
     # Also test PDF export with hatch patterns
     pdf_path = str(tmp_path / "section_hatches.pdf")
-    sheet.sheet.export_pdf(pdf_path)
+    sheet.export_pdf(pdf_path)
     assert Path(pdf_path).exists()
     assert Path(pdf_path).stat().st_size > 0

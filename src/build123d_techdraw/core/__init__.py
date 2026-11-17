@@ -1,6 +1,7 @@
 """Core technical drawing primitives, sheets, views, and title blocks."""
 
 from build123d_techdraw.core.booklet import DrawingBooklet
+from build123d_techdraw.core.directive import SheetDirective
 from build123d_techdraw.core.scale import (
     calculate_auto_scale,
     find_closest_iso_scale,
@@ -16,6 +17,7 @@ __all__ = [
     "DrawingBooklet",
     "DrawingSheet",
     "RevisionEntry",
+    "SheetDirective",
     "SheetSize",
     "SheetView",
     "TitleBlockInfo",
