@@ -865,7 +865,7 @@ class StandardMultiview(MultiviewLayout):
         shape: bd.Solid | bd.Compound | Any,
         sheet: DrawingSheet | None = None,
         views: list[ViewType] | None = None,
-        layout: str = "third_angle",
+        layout: str = "first_angle",
         scale: float | str = "auto",
         spacing: float = 25.0,
         center: tuple[float, float] | None = None,

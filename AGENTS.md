@@ -42,6 +42,19 @@ For code navigation, `.claude/settings.json` enables the `pyright-lsp` plugin (d
 references, hover types, diagnostics). Prefer it over grep when tracing build123d/OCP types or
 call sites.
 
+## Standards policy: we follow ISO
+
+When ISO and ASME/ANSI differ, the **ISO behaviour is the default** and the ASME/US behaviour is
+an explicit opt-in. Never describe an ASME convention as "ISO" or "standard ISO".
+
+- **Projection method:** first-angle (ISO 128-3 / ISO 5456-2, "method E") is the default:
+  `add_standard_multiview(layout="first_angle")`, `StandardMultiview`,
+  `TitleBlockInfo.third_angle = False`. Third-angle (ASME Y14.3) is opt-in via
+  `layout="third_angle"` / `third_angle=True`.
+- Hand-placed views in examples and docs (`FrontView`, `TopView`, `align_to`, ...) are arranged
+  in first-angle (Top view *below* the Front view) unless they set `third_angle=True` on purpose.
+- Cite the specific standard in docstrings and docs, and check the citation is right.
+
 ## Rules
 
 - **Typing is strict.** Every function is fully annotated. build123d, OCP (via
