@@ -261,3 +261,89 @@ def test_stale_anchor_fallback_and_linter_warning() -> None:
     stale_issues = [i for i in issues if i.code == "STALE_ANCHOR"]
     assert len(stale_issues) >= 2
     assert all(i.severity == "WARNING" for i in stale_issues)
+
+
+def _make_plate_with_bore(small_hole_diameter: float | None = 5.0) -> bd.Part:
+    """120x80x10 plate with a central ⌀50 bore and an optional small hole at (40, 25)."""
+    with bd.BuildPart() as bp:
+        bd.Box(120.0, 80.0, 10.0)
+        bd.Cylinder(radius=25.0, height=14.0, mode=bd.Mode.SUBTRACT)
+        if small_hole_diameter is not None:
+            with bd.Locations((40.0, 25.0, 0.0)):
+                bd.Cylinder(radius=small_hole_diameter / 2.0, height=14.0, mode=bd.Mode.SUBTRACT)
+    assert bp.part is not None
+    return bp.part
+
+
+def test_hole_anchor_goes_stale_when_small_hole_removed_despite_large_bore() -> None:
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    top = sheet.add_view(_make_plate_with_bore(5.0), ViewType.TOP, center=(180.0, 140.0))
+    anchor = Anchor.hole(diameter=5)
+    hc = HoleCallout(anchor=anchor, view=top)
+
+    assert not anchor.is_stale
+    assert "⌀5" in hc.lines[0]
+    assert not any(i.code == "STALE_ANCHOR" for i in run_sheet_lint(sheet))
+
+    sheet.update_shape(_make_plate_with_bore(None))
+
+    assert anchor.is_stale
+    assert hc.anchor_stale
+    assert "⌀50" not in hc.lines[0]
+    assert any(i.code == "STALE_ANCHOR" for i in run_sheet_lint(sheet))
+
+
+def test_hole_anchor_rebinds_after_modest_resize() -> None:
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    top = sheet.add_view(_make_plate_with_bore(5.0), ViewType.TOP, center=(180.0, 140.0))
+    anchor = Anchor.hole(diameter=5)
+    hc = HoleCallout(anchor=anchor, view=top)
+
+    sheet.update_shape(_make_plate_with_bore(5.5))
+
+    assert not anchor.is_stale
+    assert not hc.anchor_stale
+    assert anchor.last_resolved_radius == pytest.approx(2.75)
+    assert "⌀5.5" in hc.lines[0]
+
+
+def test_hole_anchor_index_out_of_range_is_stale() -> None:
+    part = _make_plate_with_bore(5.0)
+    assert Anchor.hole(diameter=5, index=0).resolve_entity(part) is not None
+
+    anchor = Anchor.hole(diameter=5, index=1)
+    assert anchor.resolve_entity(part) is None
+    assert anchor.is_stale
+    assert anchor.stale_reason is not None and "index" in anchor.stale_reason
+
+    unfiltered = Anchor.hole(index=5)  # only two internal cylinders exist
+    assert unfiltered.resolve_entity(part) is None
+    assert unfiltered.is_stale
+
+
+def test_fingerprint_anchor_does_not_rebind_to_much_larger_hole() -> None:
+    part_v1 = _make_plate_with_bore(5.0)
+    small = [
+        f
+        for f in part_v1.faces()
+        if f.geom_type == bd.GeomType.CYLINDER and abs((f.radius or 0.0) - 2.5) < 1e-6
+    ]
+    assert len(small) == 1
+    anchor = Anchor.of(small[0], shape=part_v1)
+    assert anchor.resolve_entity(part_v1) is not None and not anchor.is_stale
+
+    # The ⌀5 hole is gone; an unrelated ⌀12 hole sits 15 mm away. Position alone would
+    # make it the best match, but a >2x radius change means it is a different feature.
+    other_hole = bd.Pos(25.0, 25.0, 0.0) * bd.Cylinder(radius=6.0, height=14.0)
+    part_v2 = _make_plate_with_bore(None) - other_hole
+    assert anchor.resolve_entity(part_v2) is None
+    assert anchor.is_stale
+
+    # The bore alone is never a match either.
+    assert anchor.resolve_entity(_make_plate_with_bore(None)) is None
+    assert anchor.is_stale
+
+    # A modest resize of the captured hole still follows it.
+    resized = anchor.resolve_entity(_make_plate_with_bore(6.0))
+    assert resized is not None and not anchor.is_stale
+    assert anchor.last_resolved_radius == pytest.approx(3.0)

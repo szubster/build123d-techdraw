@@ -15,6 +15,36 @@ from build123d_techdraw.recognizers.features import _is_internal_cylinder
 if TYPE_CHECKING:
     from build123d_techdraw.core.view import SheetView
 
+#: Declarative cylinder/hole anchors (``Anchor.hole`` / ``Anchor.cylinder``) only bind to
+#: cylinders whose radius is within this fraction of the requested radius ...
+CYLINDER_RADIUS_REL_TOL = 0.25
+#: ... or within this absolute amount (model units), so tiny holes tolerate small resizes.
+CYLINDER_RADIUS_ABS_TOL = 0.25
+
+#: Fingerprint anchors (``Anchor.of``) follow a captured feature through edits, so a resize is
+#: expected; a candidate whose radius differs from the captured one by more than this factor
+#: (in either direction) is treated as a different feature rather than a re-bind.
+FINGERPRINT_RADIUS_MAX_RATIO = 2.0
+#: Best fingerprint match score above which the captured entity is considered deleted.
+FINGERPRINT_MAX_SCORE = 0.85
+
+
+def _radius_within_tolerance(target: float, candidate: float) -> bool:
+    """Whether ``candidate`` is close enough to ``target`` for a declarative cylinder anchor."""
+    return abs(candidate - target) <= max(
+        abs(target) * CYLINDER_RADIUS_REL_TOL, CYLINDER_RADIUS_ABS_TOL
+    )
+
+
+def _radius_ratio_ok(ref: float, candidate: float) -> bool:
+    """Whether two radii are within :data:`FINGERPRINT_RADIUS_MAX_RATIO` of each other."""
+    lo, hi = sorted((abs(ref), abs(candidate)))
+    if hi <= 0.0:
+        return True
+    if lo <= 0.0:
+        return False
+    return hi / lo <= FINGERPRINT_RADIUS_MAX_RATIO
+
 
 class AnchorDirection(Enum):
     """Direction along an axis for semantic extreme queries."""
@@ -657,7 +687,16 @@ class Anchor:
             ):
                 continue
 
-            # 3. Orientation check
+            # 3. Radius gate: a gross radius change means a different feature (e.g. the
+            #    captured hole was deleted and only a much larger bore remains).
+            if (
+                fp.radius is not None
+                and cand_fp.radius is not None
+                and not _radius_ratio_ok(fp.radius, cand_fp.radius)
+            ):
+                continue
+
+            # 4. Orientation check
             orient_penalty = 0.0
             if fp.orientation is not None and cand_fp.orientation is not None:
                 dot = (
@@ -670,7 +709,7 @@ class Anchor:
                     continue
                 orient_penalty = (1.0 - eff_dot) * 2.0
 
-            # 4. Normalized & absolute position score
+            # 5. Normalized & absolute position score
             if fp.normalized_pos is not None and cand_fp.normalized_pos is not None:
                 norm_dist = math.dist(fp.normalized_pos, cand_fp.normalized_pos)
             else:
@@ -679,7 +718,7 @@ class Anchor:
             abs_dist = math.dist(fp.center_3d, cand_fp.center_3d) / diag
             pos_score = 0.65 * norm_dist + 0.35 * abs_dist
 
-            # 5. Characteristic size score (radius, length, area)
+            # 6. Characteristic size score (radius, length, area)
             size_score = 0.0
             if fp.radius is not None and cand_fp.radius is not None:
                 size_score = abs(fp.radius - cand_fp.radius) / max(fp.radius, 1.0) * 0.25
@@ -696,7 +735,7 @@ class Anchor:
                 best_ent = cand
 
         # If no candidate matched or best score is unreasonably far (feature was deleted)
-        if best_ent is None or best_score > 0.85:
+        if best_ent is None or best_score > FINGERPRINT_MAX_SCORE:
             self.is_stale = True
             self.stale_reason = (
                 f"Could not re-bind {fp.entity_kind} ({fp.geom_type}) on updated shape "
@@ -828,6 +867,26 @@ class Anchor:
             self.stale_reason = "No matching cylindrical face found on shape."
             return None
 
+        if self.radius is not None:
+            target_r = self.radius
+            in_tol = [
+                f
+                for f in cyls
+                if _radius_within_tolerance(target_r, float(getattr(f, "radius", 0.0) or 0.0))
+            ]
+            if not in_tol:
+                closest = min(
+                    (float(getattr(f, "radius", 0.0) or 0.0) for f in cyls),
+                    key=lambda r: abs(r - target_r),
+                )
+                self.is_stale = True
+                self.stale_reason = (
+                    f"No cylindrical face with radius {target_r:.2f} "
+                    f"(\u00b1{CYLINDER_RADIUS_REL_TOL:.0%}); closest is {closest:.2f}."
+                )
+                return None
+            cyls = in_tol
+
         def cyl_score(f: bd.Face) -> tuple[float, float, float, float, float]:
             r_val = float(getattr(f, "radius", 0.0) or 0.0)
             r_diff = abs(r_val - self.radius) if self.radius is not None else 0.0
@@ -842,19 +901,14 @@ class Anchor:
             )
 
         cyls_sorted = sorted(cyls, key=cyl_score)
-        idx = min(max(0, self.index), len(cyls_sorted) - 1)
-        chosen = cyls_sorted[idx]
-
-        # If target radius was specified and closest match differs wildly (> 3x), mark stale
-        if self.radius is not None:
-            chosen_r = float(getattr(chosen, "radius", 0.0) or 0.0)
-            if abs(chosen_r - self.radius) > max(self.radius * 2.0, 25.0):
-                self.is_stale = True
-                self.stale_reason = (
-                    f"Closest cylindrical face radius ({chosen_r:.2f}) differs excessively "
-                    f"from anchored radius ({self.radius:.2f})."
-                )
-                return None
+        if not 0 <= self.index < len(cyls_sorted):
+            self.is_stale = True
+            self.stale_reason = (
+                f"Cylinder index {self.index} out of range: only {len(cyls_sorted)} "
+                "matching cylindrical face(s) found."
+            )
+            return None
+        chosen = cyls_sorted[self.index]
 
         self.last_resolved_entity = chosen
         self.last_resolved_point_3d = _entity_center_3d(chosen)
