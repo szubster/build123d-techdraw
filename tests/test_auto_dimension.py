@@ -85,11 +85,13 @@ def test_iso_stacking_10mm_7mm_and_inner_to_outer() -> None:
     spans = [abs(d.end[0] - d.start[0]) for d in by_offset]
     assert spans == sorted(spans)
 
-    # With view labels enabled, bottom dimension avoids the FRONT label at max_y + 7mm
+    # With view labels enabled, bottom dimension avoids the FRONT label at max_y + 7mm.
+    # Third-angle puts the Top view above the Front view, so Front dims go below it.
     sheet_lbl = DrawingSheet(sheet_size=SheetSize.A3_LANDSCAPE)
     layout_lbl = add_standard_multiview(
         sheet=sheet_lbl,
         shape=part,
+        layout="third_angle",
         scale=1.0,
         show_labels=True,
         auto_dimensions=True,

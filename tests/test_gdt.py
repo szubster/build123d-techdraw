@@ -180,6 +180,13 @@ def test_projection_cone_symbols() -> None:
     assert 'class="projection-symbol"' in svg_first
     assert "<polygon" in svg_first
 
+    # Same geometry as the title block symbol; default is ISO first-angle.
+    assert render_projection_cone_svg((100.0, 100.0)) == svg_first
+    assert 'points="-8,-7 0,-4 0,4 -8,7"' in svg_third
+    assert '<circle cx="8"' in svg_third
+    assert 'points="0,-7 8,-4 8,4 0,7"' in svg_first
+    assert '<circle cx="-8"' in svg_first
+
 
 def test_sheet_direct_annotation_methods() -> None:
     sheet = DrawingSheet(sheet_size=SheetSize.A4_PORTRAIT)

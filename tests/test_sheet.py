@@ -121,18 +121,40 @@ def test_theme_print_and_html_steering() -> None:
     assert "<script" not in svg_dark
 
 
+def _projection_symbol_geometry(svg: str) -> tuple[float, float, float]:
+    """Return (large-end x, small-end x, end-view circle cx) of an ISO 5456-2 symbol."""
+    import re
+
+    pts_match = re.search(r'<polygon points="([^"]+)"', svg)
+    assert pts_match is not None
+    pts = [tuple(float(c) for c in p.split(",")) for p in pts_match.group(1).split()]
+    large_x = {x for x, y in pts if abs(y) == 7.0}
+    small_x = {x for x, y in pts if abs(y) == 4.0}
+    assert len(large_x) == 1 and len(small_x) == 1
+    circle_cx = {float(c) for c in re.findall(r'<circle cx="([-\d.]+)" cy="0" r="[47]"', svg)}
+    assert len(circle_cx) == 1
+    return large_x.pop(), small_x.pop(), circle_cx.pop()
+
+
 def test_iso_projection_symbols() -> None:
     from build123d_techdraw.core.title_block import render_title_block_svg
 
-    # Third angle (ISO-A): circle on left (cx="-8"), frustum on right
+    # ISO 5456-2: the truncated cone is drawn with its large end on the left. Its end
+    # view (two visible circles) is the view from the small end.
+    # Third angle (method A): end view placed on the side it is seen from -> circles right.
     ti_third = TitleBlockInfo(drawing_title="TITLE", drawing_no="DWG-001", third_angle=True)
     svg_third = render_title_block_svg(ti_third, 100.0, 100.0)
-    assert 'cx="-8"' in svg_third
-    assert 'points="0,-4 8,-7 8,7 0,4"' in svg_third
+    large_x, small_x, circle_cx = _projection_symbol_geometry(svg_third)
+    assert large_x < small_x < circle_cx
     assert 'stroke-dasharray="8,1.5,1.5,1.5"' in svg_third
 
-    # First angle (ISO-E): frustum on left, circle on right (cx="8")
+    # First angle (method E, ISO default): end view placed opposite -> circles left.
     ti_first = TitleBlockInfo(drawing_title="TITLE", drawing_no="DWG-001", third_angle=False)
     svg_first = render_title_block_svg(ti_first, 100.0, 100.0)
-    assert 'cx="8"' in svg_first
-    assert 'points="-8,-4 0,-7 0,7 -8,4"' in svg_first
+    large_x, small_x, circle_cx = _projection_symbol_geometry(svg_first)
+    assert circle_cx < large_x < small_x
+
+
+def test_title_block_defaults_to_iso_first_angle() -> None:
+    assert TitleBlockInfo(drawing_title="T", drawing_no="D").third_angle is False
+    assert DrawingSheet(sheet_size=SheetSize.A4_LANDSCAPE).title_info.third_angle is False

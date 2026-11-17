@@ -21,6 +21,11 @@ from build123d_techdraw.core.scale import (
 from build123d_techdraw.core.title_block import BOMItem
 from build123d_techdraw.core.view import VIEW_VECTORS, SheetView, ViewType
 
+FIRST_ANGLE = "first_angle"
+"""ISO 128-3 / ISO 5456-2 default projection method (ISO "method E")."""
+THIRD_ANGLE = "third_angle"
+"""ASME Y14.3 / US default projection method (ISO "method A")."""
+
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
 
@@ -129,7 +134,7 @@ def add_standard_multiview(
     sheet: DrawingSheet,
     shape: bd.Solid | bd.Compound | Any,
     views: list[ViewType] | None = None,
-    layout: str = "third_angle",
+    layout: str = FIRST_ANGLE,
     scale: float | str = "auto",
     spacing: float = 25.0,
     center: tuple[float, float] | None = None,
@@ -152,7 +157,18 @@ def add_standard_multiview(
     views:
         List of ViewTypes to generate. Defaults to Front, Top, Right, Isometric.
     layout:
-        'third_angle' (standard ISO / ANSI) or 'first_angle'.
+        Projection method used to arrange the views (ISO 5456-2):
+
+        * ``'first_angle'`` (default) -- ISO 128-3 / ISO 5456-2 default
+          ("method E"): Top view **below** the Front view, Right view to the
+          **left** of it, Left view to its right.
+        * ``'third_angle'`` -- ASME Y14.3 / US default ("method A"): Top view
+          **above** the Front view, Right view to its **right**, Left view to
+          its left.
+
+        The Isometric view is placed in the free corner of the grid. The
+        projection symbol in the title block (``sheet.title_info.third_angle``)
+        is set to match the chosen method.
     scale:
         Explicit float scale (e.g. 0.5 for 1:2) or 'auto' to fit available sheet area.
     spacing:
@@ -166,46 +182,65 @@ def add_standard_multiview(
     auto_dimensions:
         Whether to add overall bounding envelope dimensions automatically.
     """
+    layout_key = layout.lower()
+    if layout_key not in (FIRST_ANGLE, THIRD_ANGLE):
+        raise ValueError(
+            f"Unknown projection layout {layout!r}; use {FIRST_ANGLE!r} or {THIRD_ANGLE!r}."
+        )
+    is_third_angle = layout_key == THIRD_ANGLE
+
     if views is None:
         views = [ViewType.FRONT, ViewType.TOP, ViewType.RIGHT, ViewType.ISOMETRIC]
-
-    is_third_angle = layout.lower() != "first_angle"
 
     # Exact unscaled 2D extent (width, height) of every requested view, measured in
     # the same projection frame that SheetView uses when drawing it.
     extents = {v: projected_view_extent(shape, v) for v in views}
 
-    # Grid membership. Column 1 holds the principal views stacked over/under the
-    # front view; column 2 holds the side view and the pictorial (isometric) view.
-    col1_views = {ViewType.FRONT, ViewType.TOP, ViewType.BOTTOM, ViewType.REAR}
-    col2_views = {ViewType.RIGHT, ViewType.LEFT, ViewType.ISOMETRIC}
-    if is_third_angle:
-        # Upper row: Top + Isometric; lower row: Front + Right (+ Left)
-        upper_views = {ViewType.TOP, ViewType.ISOMETRIC}
-        lower_views = {ViewType.FRONT, ViewType.RIGHT, ViewType.LEFT, ViewType.REAR}
-    else:
-        # Upper row: Front + Right (+ Left); lower row: Top + Isometric
-        upper_views = {ViewType.FRONT, ViewType.RIGHT, ViewType.LEFT, ViewType.REAR}
-        lower_views = {ViewType.TOP, ViewType.ISOMETRIC}
+    # Standard arrangement grid (ISO 5456-2 / ASME Y14.3).
+    #
+    # Columns (width = widest projected view in the column):
+    #   "main": Front / Top
+    #   "side": Right view + Isometric
+    #   "far":  Left view, on the opposite side of the main column
+    # Rows (height = tallest projected view in the row):
+    #   "elev": Front / Right / Left / Rear elevations
+    #   "plan": Top view + Isometric
+    #
+    # Third-angle places each view on the side it is seen from:
+    #   columns [far, main, side], rows [plan, elev] -> Top above, Right on the right.
+    # First-angle places each view on the opposite side:
+    #   columns [side, main, far], rows [elev, plan] -> Top below, Right on the left.
+    # In both, the Isometric view fills the otherwise empty corner of the grid.
+    col_members: dict[str, tuple[ViewType, ...]] = {
+        "main": (ViewType.FRONT, ViewType.TOP, ViewType.BOTTOM, ViewType.REAR),
+        "side": (ViewType.RIGHT, ViewType.ISOMETRIC),
+        "far": (ViewType.LEFT,),
+    }
+    row_members: dict[str, tuple[ViewType, ...]] = {
+        "elev": (ViewType.FRONT, ViewType.RIGHT, ViewType.LEFT, ViewType.REAR),
+        "plan": (ViewType.TOP, ViewType.ISOMETRIC),
+    }
+    col_widths: dict[str, float] = {
+        col: max(extents[v][0] for v in views if v in members)
+        for col, members in col_members.items()
+        if any(v in members for v in views)
+    }
+    row_heights: dict[str, float] = {
+        row: max(extents[v][1] for v in views if v in members)
+        for row, members in row_members.items()
+        if any(v in members for v in views)
+    }
 
-    def _max_extent(members: set[ViewType], axis: int) -> float:
-        return max((extents[v][axis] for v in views if v in members), default=0.0)
+    col_order = ["far", "main", "side"] if is_third_angle else ["side", "main", "far"]
+    row_order = ["plan", "elev"] if is_third_angle else ["elev", "plan"]
+    cols = [c for c in col_order if c in col_widths]
+    rows = [r for r in row_order if r in row_heights]
 
-    has_col1 = any(v in col1_views for v in views)
-    has_col2 = any(v in col2_views for v in views)
-    has_row1 = any(v in upper_views for v in views)
-    has_row2 = any(v in lower_views for v in views)
+    num_cols = len(cols)
+    num_rows = len(rows)
 
-    unscaled_w_col1 = _max_extent(col1_views, 0)
-    unscaled_w_col2 = _max_extent(col2_views, 0)
-    unscaled_h_row1 = _max_extent(upper_views, 1)
-    unscaled_h_row2 = _max_extent(lower_views, 1)
-
-    num_cols = (1 if has_col1 else 0) + (1 if has_col2 else 0)
-    num_rows = (1 if has_row1 else 0) + (1 if has_row2 else 0)
-
-    total_unscaled_w = unscaled_w_col1 + unscaled_w_col2
-    total_unscaled_h = unscaled_h_row1 + unscaled_h_row2
+    total_unscaled_w = sum(col_widths.values())
+    total_unscaled_h = sum(row_heights.values())
 
     # Exclusion zone at bottom-right for title block and optional stacked BOM table
     has_bom = bool(sheet.bom_items) or any(c.label for c in extract_assembly_components(shape))
@@ -240,38 +275,33 @@ def add_standard_multiview(
 
     scale_str = format_iso_scale(calculated_scale)
 
-    # Scaled dimensions
-    w_col1 = unscaled_w_col1 * calculated_scale
-    w_col2 = unscaled_w_col2 * calculated_scale
-    h_row1 = unscaled_h_row1 * calculated_scale
-    h_row2 = unscaled_h_row2 * calculated_scale
+    # Scaled grid geometry
+    total_group_w = calculated_scale * total_unscaled_w + spacing * max(num_cols - 1, 0)
+    total_group_h = calculated_scale * total_unscaled_h + spacing * max(num_rows - 1, 0)
 
-    total_group_w = w_col1 + (spacing if num_cols > 1 else 0.0) + w_col2
-    total_group_h = h_row1 + (spacing if num_rows > 1 else 0.0) + h_row2
+    col_cx: dict[str, float] = {}
+    cursor = center_x - total_group_w / 2.0
+    for col in cols:
+        w = col_widths[col] * calculated_scale
+        col_cx[col] = cursor + w / 2.0
+        cursor += w + spacing
 
-    min_x = center_x - total_group_w / 2.0
-    min_y = center_y - total_group_h / 2.0
+    row_cy: dict[str, float] = {}
+    cursor = center_y - total_group_h / 2.0
+    for row in rows:
+        h = row_heights[row] * calculated_scale
+        row_cy[row] = cursor + h / 2.0
+        cursor += h + spacing
 
-    if has_col1 and has_col2:
-        col1_cx = min_x + w_col1 / 2.0
-        col2_cx = min_x + w_col1 + spacing + w_col2 / 2.0
-    else:
-        col1_cx = col2_cx = center_x
-
-    if has_row1 and has_row2:
-        row1_cy = min_y + h_row1 / 2.0
-        row2_cy = min_y + h_row1 + spacing + h_row2 / 2.0
-    else:
-        row1_cy = row2_cy = center_y
-
-    # Ensure lower-row labels and dimensions do not encroach on bottom-right exclusion zone
-    lower_h = h_row2 if has_row2 else h_row1
-    lower_bottom = row2_cy + lower_h / 2.0 + 16.0
-    max_allowed_lower_bottom = sheet.height_mm - bottom_excl + 10.0
-    if lower_bottom > max_allowed_lower_bottom:
-        dy_shift = lower_bottom - max_allowed_lower_bottom
-        row1_cy -= dy_shift
-        row2_cy -= dy_shift
+    # Ensure bottom-row labels and dimensions do not encroach on bottom-right exclusion zone
+    if rows:
+        bottom_row = rows[-1]
+        bottom_edge = row_cy[bottom_row] + row_heights[bottom_row] * calculated_scale / 2.0 + 16.0
+        max_allowed_bottom = sheet.height_mm - bottom_excl + 10.0
+        if bottom_edge > max_allowed_bottom:
+            dy_shift = bottom_edge - max_allowed_bottom
+            for row in rows:
+                row_cy[row] -= dy_shift
 
     layout_obj = MultiviewLayout(
         scale=calculated_scale,
@@ -282,32 +312,16 @@ def add_standard_multiview(
     sheet.title_info.third_angle = is_third_angle
     sheet.title_info.scale = format_iso_ratio(calculated_scale)
 
-    # Positioning mapping (row1 = upper row, row2 = lower row)
-    pos_map: dict[ViewType, tuple[float, float]] = {}
-
-    if is_third_angle:
-        if ViewType.TOP in views:
-            pos_map[ViewType.TOP] = (col1_cx, row1_cy)
-        if ViewType.FRONT in views:
-            pos_map[ViewType.FRONT] = (col1_cx, row2_cy)
-        if ViewType.RIGHT in views:
-            pos_map[ViewType.RIGHT] = (col2_cx, row2_cy)
-        if ViewType.LEFT in views:
-            pos_map[ViewType.LEFT] = (
-                col1_cx - w_col1 / 2.0 - spacing - w_col2 / 2.0,
-                row2_cy,
-            )
-        if ViewType.ISOMETRIC in views:
-            pos_map[ViewType.ISOMETRIC] = (col2_cx, row1_cy)
-    else:
-        if ViewType.FRONT in views:
-            pos_map[ViewType.FRONT] = (col1_cx, row1_cy)
-        if ViewType.TOP in views:
-            pos_map[ViewType.TOP] = (col1_cx, row2_cy)
-        if ViewType.RIGHT in views:
-            pos_map[ViewType.RIGHT] = (col2_cx, row1_cy)
-        if ViewType.ISOMETRIC in views:
-            pos_map[ViewType.ISOMETRIC] = (col2_cx, row2_cy)
+    grid_cells: dict[ViewType, tuple[str, str]] = {
+        ViewType.FRONT: ("main", "elev"),
+        ViewType.TOP: ("main", "plan"),
+        ViewType.RIGHT: ("side", "elev"),
+        ViewType.LEFT: ("far", "elev"),
+        ViewType.ISOMETRIC: ("side", "plan"),
+    }
+    pos_map: dict[ViewType, tuple[float, float]] = {
+        v: (col_cx[col], row_cy[row]) for v, (col, row) in grid_cells.items() if v in views
+    }
 
     for v_type in views:
         v_center = pos_map.get(v_type, (center_x, center_y))

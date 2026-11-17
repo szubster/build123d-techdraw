@@ -26,10 +26,12 @@ def test_standard_multiview_auto_scale_third_angle() -> None:
     layout = add_standard_multiview(
         sheet=sheet,
         shape=part,
+        layout="third_angle",
         scale="auto",
         spacing=20.0,
         show_hidden=True,
     )
+    assert sheet.title_info.third_angle is True
 
     assert layout.front is not None
     assert layout.top is not None
@@ -74,6 +76,7 @@ def test_standard_multiview_first_angle_and_auto_dims() -> None:
     # In First Angle:
     # Top view is below Front view (greater Y in SVG)
     assert layout.top.center[1] > layout.front.center[1]
+    assert sheet.title_info.third_angle is False
     # Overall dimensions were created
     assert len(sheet.annotations) >= 3
 
@@ -81,6 +84,52 @@ def test_standard_multiview_first_angle_and_auto_dims() -> None:
     assert 'class="dim-line"' in svg
     assert "80" in svg
     assert "20" in svg
+
+
+def test_standard_multiview_defaults_to_iso_first_angle() -> None:
+    part = bd.Box(100.0, 50.0, 30.0)
+    sheet = DrawingSheet(sheet_size=SheetSize.A3_LANDSCAPE)
+    sheet.title_info.third_angle = True  # must be overwritten to match the layout
+
+    layout = add_standard_multiview(sheet=sheet, shape=part, scale="auto", spacing=20.0)
+
+    front, top, right, iso = layout.front, layout.top, layout.right, layout.isometric
+    assert front is not None and top is not None and right is not None and iso is not None
+
+    # ISO 5456-2 first-angle (method E): each view sits opposite the side it is seen from.
+    assert abs(front.center[0] - top.center[0]) < 1e-4
+    assert abs(front.center[1] - right.center[1]) < 1e-4
+    assert top.center[1] > front.center[1]  # Top view below Front view
+    assert right.center[0] < front.center[0]  # Right view left of Front view
+    # Isometric fills the free corner: below the Right view, left of the Top view
+    assert abs(iso.center[0] - right.center[0]) < 1e-4
+    assert abs(iso.center[1] - top.center[1]) < 1e-4
+
+    # Title block projection symbol matches the arrangement
+    assert sheet.title_info.third_angle is False
+
+
+def test_standard_multiview_left_view_placement() -> None:
+    part = bd.Box(100.0, 50.0, 30.0)
+    views = [ViewType.FRONT, ViewType.RIGHT, ViewType.LEFT]
+    for method, left_is_right_of_front in (("first_angle", True), ("third_angle", False)):
+        sheet = DrawingSheet(sheet_size=SheetSize.A3_LANDSCAPE)
+        layout = add_standard_multiview(
+            sheet=sheet, shape=part, views=views, layout=method, scale=1.0
+        )
+        assert layout.front is not None and layout.left is not None
+        assert layout.right is not None
+        assert abs(layout.left.center[1] - layout.front.center[1]) < 1e-4
+        assert (layout.left.center[0] > layout.front.center[0]) is left_is_right_of_front
+        assert (layout.right.center[0] < layout.front.center[0]) is left_is_right_of_front
+
+
+def test_standard_multiview_rejects_unknown_layout() -> None:
+    import pytest
+
+    sheet = DrawingSheet(sheet_size=SheetSize.A3_LANDSCAPE)
+    with pytest.raises(ValueError, match="first_angle"):
+        add_standard_multiview(sheet=sheet, shape=bd.Box(10, 10, 10), layout="second_angle")
 
 
 def test_multiview_custom_views_subset() -> None:
