@@ -11,6 +11,7 @@ from build123d.exporters import Drawing
 from build123d.topology import Shape
 
 from build123d_techdraw.annotations.callouts import BOMBalloon
+from build123d_techdraw.core.directive import SheetDirective
 from build123d_techdraw.core.part_info import get_part_info
 from build123d_techdraw.core.scale import (
     find_closest_iso_scale,
@@ -30,7 +31,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class MultiviewLayout:
+class MultiviewLayout(SheetDirective):
     """Container holding views created by add_standard_multiview."""
 
     scale: float
@@ -44,6 +45,10 @@ class MultiviewLayout:
     rear: SheetView | None = None
     isometric: SheetView | None = None
     views: dict[ViewType, SheetView] = field(default_factory=dict)
+
+    def _apply_to_sheet(self, sheet: DrawingSheet) -> None:
+        for v in self.views.values():
+            sheet.add_view(v)
 
     def add_overall_dimensions(
         self,
@@ -80,7 +85,7 @@ class MultiviewLayout:
         target_shape = shape
         if target_shape is None:
             for v in self.views.values():
-                target_shape = getattr(v, "shape", None)
+                target_shape = v.shape
                 if target_shape is not None:
                     break
         if target_shape is None:
@@ -238,19 +243,12 @@ def add_standard_multiview(
     total_unscaled_h = sum(row_heights.values())
 
     # Exclusion zone at bottom-right for title block and optional stacked BOM table
-    has_bom = bool(getattr(sheet, "bom_items", None)) or any(
-        getattr(c, "label", None) for c in extract_assembly_components(shape)
-    )
-    bom_h = (5.5 + len(sheet.bom_items) * 5.2) if getattr(sheet, "bom_items", None) else 20.0
+    has_bom = bool(sheet.bom_items) or any(c.label for c in extract_assembly_components(shape))
+    bom_h = (5.5 + len(sheet.bom_items) * 5.2) if sheet.bom_items else 20.0
     bottom_excl = (
         sheet.bottom_margin
         + 36.0
-        + (
-            bom_h + 2.0
-            if has_bom
-            and getattr(sheet, "bom_position", "above_title_block") == "above_title_block"
-            else 0.0
-        )
+        + (bom_h + 2.0 if has_bom and sheet.bom_position == "above_title_block" else 0.0)
         + 16.0  # clearance for dimension lines and view labels
     )
     top_excl = sheet.top_margin + 14.0

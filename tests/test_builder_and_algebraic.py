@@ -123,7 +123,7 @@ def test_builder_mode_complete_flow(bracket_part: bd.Compound) -> None:
             pass
 
     # Verify sheet state
-    sheet = builder.sheet
+    sheet = builder
     assert len(sheet.views) == 4
     assert sheet.title_info.drawing_title == "BRACKET BLUEPRINT"
     assert sheet.title_info.drawing_no == "DWG-BRK-001"
@@ -478,7 +478,7 @@ def test_booklet_auto_pagination(bracket_part: bd.Compound, tmp_path: Path) -> N
             sheet_size="A4", title=f"PART {i + 1}", drawing_no=f"DWG-{i + 1:03d}"
         ) as s:
             FrontView(bracket_part, center=(120.0, 100.0), scale=0.8)
-        sheets.append(s.sheet)
+        sheets.append(s)
 
     booklet = DrawingBooklet(title="AUTO PAGINATED PACKAGE", sheets=sheets)
     svg_paths = booklet.export_svgs(str(tmp_path / "svgs"))

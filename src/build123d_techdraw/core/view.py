@@ -1,19 +1,22 @@
 """SheetView representations, view projection mathematics, and coordinate transformations."""
 
+from __future__ import annotations
+
 import contextlib
 import math
 import os
 import re
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Self
+from typing import TYPE_CHECKING, Any, Self, TypeAlias
 
 import build123d as bd
 from build123d.exporters import Drawing
 from build123d.topology import Shape
 
+from build123d_techdraw.annotations.base import Annotation
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
     ChamferCallout,
@@ -44,31 +47,6 @@ from build123d_techdraw.core.scale import format_iso_scale
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
-
-
-# Layout fields copied from a fresh projection in ``SheetView.update_shape``.
-_REPROJECTED_ATTRS = (
-    "width",
-    "height",
-    "unbroken_width",
-    "unbroken_height",
-    "min_x",
-    "max_x",
-    "min_y",
-    "max_y",
-    "bottom_annotation_y",
-    "model_origin",
-    "origin_x",
-    "origin_y",
-    "projection_origin",
-    "proj_x",
-    "proj_y",
-    "orig_cx",
-    "orig_cy",
-    "svg_content",
-    "inner_svg_content",
-    "view_label_pos",
-)
 
 
 @dataclass
@@ -137,7 +115,7 @@ class SheetView:
         view_label: str | None = None,
         view_label_pos: tuple[float, float] | None = None,
         scale_label: str | None = None,
-        sheet: Optional["DrawingSheet"] = None,
+        sheet: DrawingSheet | None = None,
         shape: Any | None = None,
         enforce_iso_scale: bool = True,
         show_hidden: bool = True,
@@ -177,7 +155,7 @@ class SheetView:
         self.view_label_pos = view_label_pos
         self.scale_label = scale_label
         self.bottom_annotation_y: float = self.max_y
-        self.annotations: list[Any] = []
+        self.annotations: list[Annotation] = []
         self._ctx_token: Any = None
         self.hatch: str | None = None
         self.hatch_pitch: float | None = None
@@ -200,21 +178,22 @@ class SheetView:
             CURRENT_VIEW.reset(self._ctx_token)
             self._ctx_token = None
 
-    def __iadd__(self, item: Any) -> Self:
+    def __iadd__(self, item: Annotation | Iterable[Annotation]) -> Self:
         return self.add(item)
 
-    def __add__(self, item: Any) -> Self:
+    def __add__(self, item: Annotation | Iterable[Annotation]) -> Self:
         return self.add(item)
 
-    def add(self, item: Any) -> Self:
+    def add(self, item: Annotation | Iterable[Annotation]) -> Self:
         """Attach an annotation or collection of annotations to this view."""
-        if isinstance(item, (list, tuple, set)):
+        if not isinstance(item, Annotation):
+            if not isinstance(item, Iterable) or isinstance(item, str):
+                raise TypeError(f"Cannot add {type(item).__name__} to a SheetView.")
             for sub_item in item:
                 self.add(sub_item)
             return self
 
-        if hasattr(item, "_attach_to_view"):
-            item._attach_to_view(self)
+        item._attach_to_view(self)
 
         if item not in self.annotations:
             self.annotations.append(item)
@@ -417,7 +396,7 @@ class SheetView:
                 csink_radii.append(round(rh.counterbore_dia / 2.0, 2))
 
         # Combine edges into closed wires
-        wires: list[Any] = []
+        wires: list[bd.Wire] = []
         try:
             wires = bd.Wire.combine(edges)
         except Exception:
@@ -425,7 +404,7 @@ class SheetView:
 
         if wires:
             wires.sort(
-                key=lambda w: bd.Face(w).area if getattr(w, "is_closed", False) else 0.0,
+                key=lambda w: bd.Face(w).area if w.is_closed else 0.0,
                 reverse=True,
             )
             outer_wire = wires[0]
@@ -439,10 +418,7 @@ class SheetView:
             circle_wires: list[tuple[int, tuple[float, float], float]] = []
             for idx, iw in enumerate(inner_wires):
                 cw_edges = iw.edges()
-                if (
-                    len(cw_edges) == 1
-                    and getattr(cw_edges[0], "geom_type", None) == bd.GeomType.CIRCLE
-                ):
+                if len(cw_edges) == 1 and cw_edges[0].geom_type == bd.GeomType.CIRCLE:
                     c = cw_edges[0].arc_center
                     circle_wires.append((idx, (float(c.X), float(c.Y)), float(cw_edges[0].radius)))
 
@@ -463,7 +439,7 @@ class SheetView:
                 is_csink = idx in concentric_csinks
                 if not is_csink:
                     for edge in iw.edges():
-                        if getattr(edge, "geom_type", None) == bd.GeomType.CIRCLE:
+                        if edge.geom_type == bd.GeomType.CIRCLE:
                             r = round(float(edge.radius), 2)
                             if any(abs(r - cr) < 0.5 for cr in csink_radii):
                                 is_csink = True
@@ -477,19 +453,11 @@ class SheetView:
 
         center_layer = layer_map["centerlines"]
         has_ann_centerlines = False
-        for ann in getattr(self, "annotations", []):
-            if hasattr(ann, "line_segments"):
-                has_ann_centerlines = True
-                for p0, p1 in ann.line_segments:
-                    msp.add_line(
-                        (p0[0] * scale, p0[1] * scale),
-                        (p1[0] * scale, p1[1] * scale),
-                        dxfattribs={"layer": center_layer},
-                    )
-            elif hasattr(ann, "center"):
+        for ann in self.annotations:
+            if isinstance(ann, (CenterMark, BoltCircle, DiameterDimension, RadialDimension)):
                 has_ann_centerlines = True
                 cx, cy = ann.center
-                r = getattr(ann, "radius", 5.0)
+                r = ann.radius if isinstance(ann, RadialDimension) else 5.0
                 msp.add_line(
                     ((cx - r - 2.0) * scale, cy * scale),
                     ((cx + r + 2.0) * scale, cy * scale),
@@ -533,8 +501,30 @@ class SheetView:
     def _rebind_annotations(self) -> None:
         """Re-resolve all anchored/topological annotations attached to this view."""
         for ann in list(self.annotations):
-            if hasattr(ann, "_rebind_to_view"):
-                ann._rebind_to_view(self)
+            ann._rebind_to_view(self)
+
+    def _copy_projection_from(self, reproj: SheetView) -> None:
+        """Adopt the layout fields of a fresh projection of the same view (``update_shape``)."""
+        self.width = reproj.width
+        self.height = reproj.height
+        self.unbroken_width = reproj.unbroken_width
+        self.unbroken_height = reproj.unbroken_height
+        self.min_x = reproj.min_x
+        self.max_x = reproj.max_x
+        self.min_y = reproj.min_y
+        self.max_y = reproj.max_y
+        self.bottom_annotation_y = reproj.bottom_annotation_y
+        self.model_origin = reproj.model_origin
+        self.origin_x = reproj.origin_x
+        self.origin_y = reproj.origin_y
+        self.projection_origin = reproj.projection_origin
+        self.proj_x = reproj.proj_x
+        self.proj_y = reproj.proj_y
+        self.orig_cx = reproj.orig_cx
+        self.orig_cy = reproj.orig_cy
+        self.svg_content = reproj.svg_content
+        self.inner_svg_content = reproj.inner_svg_content
+        self.view_label_pos = reproj.view_label_pos
 
     def update_shape(self, new_shape: Any) -> Self:
         """Update the view's 3D shape, re-project geometry, and re-bind all anchored annotations."""
@@ -550,8 +540,7 @@ class SheetView:
                 view_label=self.view_label,
                 rotation_angle_deg=self.rotation_angle_deg,
             )
-            for attr in _REPROJECTED_ATTRS:
-                setattr(self, attr, getattr(reproj, attr))
+            self._copy_projection_from(reproj)
             if self.breaks:
                 self._apply_breaks()
 
@@ -603,11 +592,9 @@ class SheetView:
         max_x = self.max_x
         max_y = self.max_y
 
-        if include_annotations and hasattr(self, "annotations"):
-            from build123d_techdraw.layout.linter import get_annotation_bbox_2d
-
+        if include_annotations:
             for ann in self.annotations:
-                bbox = get_annotation_bbox_2d(ann)
+                bbox = ann.bounding_box_2d()
                 if bbox is not None:
                     min_x = min(min_x, bbox[0])
                     min_y = min(min_y, bbox[1])
@@ -615,14 +602,14 @@ class SheetView:
                     max_y = max(max_y, bbox[3])
 
         if include_label and (self.view_label or self.scale_label):
-            label_y = getattr(self, "bottom_annotation_y", self.max_y) + 8.0
+            label_y = self.bottom_annotation_y + 8.0
             max_y = max(max_y, label_y + 4.0)
 
         return (min_x, min_y, max_x, max_y)
 
     def align_to(
         self,
-        other: "SheetView | tuple[Any, ...]",
+        other: AlignSpec,
         direction: str = "right",
         spacing: float = 25.0,
         include_annotations: bool = False,
@@ -1467,7 +1454,12 @@ class SheetView:
         return tc
 
 
-def _apply_align_to(view: Any, align_spec: Any) -> Any:
+AlignSpec: TypeAlias = SheetView | tuple[Any, ...] | list[Any] | dict[str, Any]
+"""``align_to`` argument: another view, ``(view, direction[, spacing])``, or a mapping with
+``other`` / ``direction`` / ``spacing`` keys."""
+
+
+def _apply_align_to(view: SheetView, align_spec: AlignSpec | None) -> SheetView:
     """Apply an align_to specification (tuple, dict, or SheetView) to a view."""
     if align_spec is None:
         return view
@@ -1871,7 +1863,7 @@ def _clip_2d_faces_x(
         try:
             inter = face.intersect(clip_rect)
             if inter is not None:
-                for sub in inter.faces() if hasattr(inter, "faces") else [inter]:
+                for sub in inter.faces():
                     if isinstance(sub, bd.Face) and sub.area > 1e-6:
                         clipped.append(sub)
         except Exception:

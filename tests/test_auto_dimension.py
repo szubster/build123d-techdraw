@@ -152,8 +152,8 @@ def test_builder_mode_and_single_view_parity() -> None:
         mv = StandardMultiview(part, scale=1.0, auto_dimensions=True)
 
     assert mv.front is not None
-    assert len(s.sheet.annotations) >= 6
-    issues = s.sheet.lint()
+    assert len(s.annotations) >= 6
+    issues = s.lint()
     assert not [i for i in issues if i.code == "OVERLAP_ANNOTATION"]
 
     # Single-view auto_dimension() in Builder Mode
@@ -162,4 +162,4 @@ def test_builder_mode_and_single_view_parity() -> None:
         dims = v.auto_dimension()
 
     assert len(dims) >= 2
-    assert not [i for i in s2.sheet.lint() if i.code == "OVERLAP_ANNOTATION"]
+    assert not [i for i in s2.lint() if i.code == "OVERLAP_ANNOTATION"]

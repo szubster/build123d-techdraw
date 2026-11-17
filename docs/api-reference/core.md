@@ -26,6 +26,11 @@
         - set_part_info
         - get_part_info
 
+::: build123d_techdraw.core.directive
+    options:
+      members:
+        - SheetDirective
+
 ::: build123d_techdraw.core.booklet
     options:
       members:

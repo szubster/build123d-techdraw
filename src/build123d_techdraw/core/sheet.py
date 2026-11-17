@@ -1,12 +1,13 @@
 """ISO 5457 drawing sheets, standard sizes, borders, and coordinate grids."""
 
 import os
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from enum import Enum
 from typing import Any, Self
 
 import build123d as bd
 
+from build123d_techdraw.annotations.base import Annotation
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
     ChamferCallout,
@@ -42,6 +43,7 @@ from build123d_techdraw.annotations.surface import (
 )
 from build123d_techdraw.annotations.tables import RawSVG, Table
 from build123d_techdraw.context import CURRENT_SHEET
+from build123d_techdraw.core.directive import SheetDirective
 from build123d_techdraw.core.title_block import (
     BOMItem,
     RevisionEntry,
@@ -51,6 +53,7 @@ from build123d_techdraw.core.title_block import (
     render_title_block_svg,
 )
 from build123d_techdraw.core.view import (
+    AlignSpec,
     SheetView,
     ViewType,
     _apply_align_to,
@@ -63,6 +66,9 @@ from build123d_techdraw.core.view import (
 )
 from build123d_techdraw.layout.linter import LintIssue, run_sheet_lint
 from build123d_techdraw.renderers.theme import Theme, generate_theme_css
+
+SheetItem = SheetDirective | SheetView | TitleBlockInfo | Annotation
+"""Anything ``DrawingSheet.add`` accepts (besides iterables of these)."""
 
 
 class SheetSize(Enum):
@@ -202,7 +208,7 @@ class DrawingSheet:
         ]
 
         self.custom_svg_elements: list[str] = []
-        self.annotations: list[Any] = []
+        self.annotations: list[Annotation] = []
         self._ctx_token: Any = None
 
     def __enter__(self) -> Self:
@@ -219,40 +225,29 @@ class DrawingSheet:
             CURRENT_SHEET.reset(self._ctx_token)
             self._ctx_token = None
 
-    def __iadd__(self, item: Any) -> Self:
+    def __iadd__(self, item: SheetItem | Iterable[SheetItem]) -> Self:
         return self.add(item)
 
-    def __add__(self, item: Any) -> Self:
+    def __add__(self, item: SheetItem | Iterable[SheetItem]) -> Self:
         return self.add(item)
 
-    def add(self, item: Any) -> Self:
+    def add(self, item: SheetItem | Iterable[SheetItem]) -> Self:
         """Add a view, layout, annotation, title block, or notes to the drawing sheet."""
-        if isinstance(item, (list, tuple, set)):
+        if isinstance(item, SheetDirective):
+            item._apply_to_sheet(self)
+        elif isinstance(item, SheetView):
+            self.add_view(item)
+        elif isinstance(item, TitleBlockInfo):
+            self.title_info = item
+        elif isinstance(item, Annotation):
+            if item not in self.annotations:
+                self.annotations.append(item)
+            item._attach_to_sheet(self)
+        elif isinstance(item, Iterable) and not isinstance(item, str):
             for sub_item in item:
                 self.add(sub_item)
-            return self
-
-        if hasattr(item, "_apply_to_sheet"):
-            item._apply_to_sheet(self)
-            return self
-
-        if hasattr(item, "views") and isinstance(item.views, dict):
-            for v in item.views.values():
-                self.add_view(v)
-            return self
-
-        if isinstance(item, SheetView):
-            self.add_view(item)
-            return self
-
-        if isinstance(item, TitleBlockInfo):
-            self.title_info = item
-            return self
-
-        if item not in self.annotations:
-            self.annotations.append(item)
-        if hasattr(item, "sheet"):
-            item.sheet = self
+        else:
+            raise TypeError(f"Cannot add {type(item).__name__} to a DrawingSheet.")
         return self
 
     add_annotation = add
@@ -361,7 +356,7 @@ class DrawingSheet:
         rotation_angle_deg: float = 0.0,
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
     ) -> SheetView:
         """Add a projected orthographic/isometric view to the sheet."""
         if isinstance(shape_or_view, SheetView):
@@ -384,18 +379,18 @@ class DrawingSheet:
         view.sheet = self
         if view not in self.views:
             self.views.append(view)
-        for ann in getattr(view, "annotations", []):
+        for ann in view.annotations:
             if ann not in self.annotations:
                 self.annotations.append(ann)
         return view
 
-    def _register_view(self, view: SheetView, align_to: Any) -> SheetView:
+    def _register_view(self, view: SheetView, align_to: AlignSpec | None) -> SheetView:
         if align_to is not None:
             _apply_align_to(view, align_to)
         view.sheet = self
         if view not in self.views:
             self.views.append(view)
-        for ann in getattr(view, "annotations", []):
+        for ann in view.annotations:
             if ann not in self.annotations:
                 self.annotations.append(ann)
         return view
@@ -403,8 +398,7 @@ class DrawingSheet:
     def update_shape(self, new_shape: Any) -> Self:
         """Update the 3D model across all views on the sheet and re-bind anchored annotations."""
         for view in self.views:
-            if hasattr(view, "update_shape"):
-                view.update_shape(new_shape)
+            view.update_shape(new_shape)
         return self
 
     def add_section_view(
@@ -416,7 +410,7 @@ class DrawingSheet:
         view_label: str = "SECTION A-A",
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         show_background: bool = True,
         hatch: str = "steel",
         hatch_pitch: float = 4.0,
@@ -449,7 +443,7 @@ class DrawingSheet:
         view_label: str = "SECTION A-A",
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         show_background: bool = True,
         show_jog_lines: bool = False,
         hatch: str = "steel",
@@ -485,7 +479,7 @@ class DrawingSheet:
         view_label: str = "SECTION A-A",
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         show_background: bool = True,
         show_jog_lines: bool = False,
         hatch: str = "steel",
@@ -521,7 +515,7 @@ class DrawingSheet:
         view_label: str | None = None,
         label_letter: str = "A",
         view_label_y: float | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         shape: str = "circle",
         region_center: Any = None,
         label: str | None = None,
@@ -557,7 +551,7 @@ class DrawingSheet:
         show_hidden: bool = True,
         view_label: str = "AUXILIARY VIEW",
         view_label_y: float | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
     ) -> SheetView:
         """Add an auxiliary view normal to an inclined face."""
         view = project_auxiliary_view(
@@ -588,7 +582,7 @@ class DrawingSheet:
         prefix: str = "",
         suffix: str = "",
         nominal: float | None = None,
-        view: Any | None = None,
+        view: SheetView | None = None,
     ) -> LinearDimension:
         """Add a linear dimension directly in sheet paper coordinates."""
         dim = LinearDimension(
@@ -605,7 +599,7 @@ class DrawingSheet:
         )
         if dim not in self.annotations:
             self.annotations.append(dim)
-        if view is not None and hasattr(view, "annotations") and dim not in view.annotations:
+        if view is not None and dim not in view.annotations:
             view.annotations.append(dim)
         return dim
 
@@ -659,7 +653,7 @@ class DrawingSheet:
         prefix: str = "",
         suffix: str = "°",
         apex: tuple[float, float] | None = None,
-        view: Any | None = None,
+        view: SheetView | None = None,
     ) -> AngularDimension:
         """Add an angular dimension to the sheet."""
         dim = AngularDimension(
@@ -675,7 +669,7 @@ class DrawingSheet:
         )
         if dim not in self.annotations:
             self.annotations.append(dim)
-        if view is not None and hasattr(view, "annotations") and dim not in view.annotations:
+        if view is not None and dim not in view.annotations:
             view.annotations.append(dim)
         return dim
 
@@ -688,7 +682,7 @@ class DrawingSheet:
         extension_length: float = 12.0,
         prefix: str = "",
         suffix: str = "",
-        view: Any | None = None,
+        view: SheetView | None = None,
     ) -> OrdinateDimension:
         """Add an ordinate dimension point to the sheet."""
         dim = OrdinateDimension(
@@ -703,7 +697,7 @@ class DrawingSheet:
         )
         if dim not in self.annotations:
             self.annotations.append(dim)
-        if view is not None and hasattr(view, "annotations") and dim not in view.annotations:
+        if view is not None and dim not in view.annotations:
             view.annotations.append(dim)
         return dim
 
@@ -715,7 +709,7 @@ class DrawingSheet:
         style: str = "iso",
         quantity: int | None = None,
         elbow_offset: tuple[float, float] = (15.0, -12.0),
-        view: Any | None = None,
+        view: SheetView | None = None,
     ) -> ChamferCallout:
         """Add an ISO/ASME chamfer callout note to the sheet."""
         cc = ChamferCallout(
@@ -729,7 +723,7 @@ class DrawingSheet:
         )
         if cc not in self.annotations:
             self.annotations.append(cc)
-        if view is not None and hasattr(view, "annotations") and cc not in view.annotations:
+        if view is not None and cc not in view.annotations:
             view.annotations.append(cc)
         return cc
 
@@ -745,7 +739,7 @@ class DrawingSheet:
         tail_text: str | None = None,
         arrow_side: bool = True,
         elbow_offset: tuple[float, float] = (16.0, -12.0),
-        view: Any | None = None,
+        view: SheetView | None = None,
     ) -> WeldingSymbol:
         """Add an ISO 2553 welding annotation to the sheet."""
         ws = WeldingSymbol(
@@ -763,7 +757,7 @@ class DrawingSheet:
         )
         if ws not in self.annotations:
             self.annotations.append(ws)
-        if view is not None and hasattr(view, "annotations") and ws not in view.annotations:
+        if view is not None and ws not in view.annotations:
             view.annotations.append(ws)
         return ws
 
@@ -780,8 +774,7 @@ class DrawingSheet:
             round(self.height_mm - self.bottom_margin, 2),
         ]
         tb_w = 180.0
-        tb_rev_count = len(getattr(self.title_info, "revisions", [])) if self.title_info else 0
-        tb_h = 36.0 + tb_rev_count * 6.0
+        tb_h = 36.0
         tb_bounds = (
             [
                 round(self.width_mm - self.right_margin - tb_w, 2),
@@ -810,7 +803,7 @@ class DrawingSheet:
                     "visual_bounds": vis_bounds,
                     "scale": round(v.scale, 4),
                     "center": (round(v.center_x, 2), round(v.center_y, 2)),
-                    "annotations_count": len(getattr(v, "annotations", [])),
+                    "annotations_count": len(v.annotations),
                 }
             )
 
@@ -1252,11 +1245,11 @@ class DrawingSheet:
     </pattern>""",
         ]
         for v in self.views:
-            h_id = getattr(v, "hatch_id", None)
+            h_id = v.hatch_id
             if h_id and not any(f'id="{h_id}"' in p for p in patterns):
-                mat = getattr(v, "hatch", "steel")
-                pitch = getattr(v, "hatch_pitch", 4.0)
-                angle = getattr(v, "hatch_angle", 45.0)
+                mat = v.hatch or "steel"
+                pitch = v.hatch_pitch if v.hatch_pitch is not None else 4.0
+                angle = v.hatch_angle if v.hatch_angle is not None else 45.0
                 if mat in ("aluminum", "ansi38"):
                     p_svg = f"""<pattern id="{h_id}" width="{pitch:.2f}" height="{pitch:.2f}" patternTransform="rotate({angle:.1f} 0 0)" patternUnits="userSpaceOnUse">
       <line x1="0" y1="0" x2="0" y2="{pitch:.2f}" stroke="var(--hatch-color)" stroke-width="0.35"/>
@@ -1293,10 +1286,10 @@ class DrawingSheet:
         view_elements = "".join([v.svg_content for v in self.views])
 
         # Annotation SVG rendering (dimensions, leaders, GD&T, tables, raw SVG, etc.)
-        annotation_svgs = "".join([a.to_svg() for a in self.annotations if hasattr(a, "to_svg")])
+        annotation_svgs = "".join([a.to_svg() for a in self.annotations])
 
         # Position BOM table (bottom-up above title block or top-right below revisions)
-        if getattr(self, "bom_position", "above_title_block") == "top_right":
+        if self.bom_position == "top_right":
             rev_h = 10.0 if self.revision_rows else 0.0
             bom_top_y = self.top_margin + rev_h + 2.0
         else:
@@ -1394,7 +1387,7 @@ class DrawingSheet:
         if flat_pattern:
             unique_shapes: list[Any] = []
             for v in self.views:
-                if hasattr(v, "shape") and v.shape is not None and v.shape not in unique_shapes:
+                if v.shape is not None and v.shape not in unique_shapes:
                     unique_shapes.append(v.shape)
 
             if unique_shapes:

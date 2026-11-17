@@ -13,7 +13,7 @@ def test_duplicate_annotation_registration_fix() -> None:
         view = FrontView(box, center=(100.0, 100.0))
         dim = view.add_overall_horizontal()
 
-    sheet = s.sheet
+    sheet = s
     assert len(sheet.annotations) == 1
     assert dim in sheet.annotations
     assert dim in view.annotations
@@ -29,7 +29,7 @@ def test_duplicate_annotation_registration_fix() -> None:
         v2.dim_vertical(0.0, 25.0, model_x=0.0, offset_x=-5.0)
         v2.add_overall_vertical()
 
-    sheet2 = s2.sheet
+    sheet2 = s2
     assert len(sheet2.annotations) == 3
     issues2 = sheet2.lint()
     assert len([i for i in issues2 if i.code == "OVERLAP_ANNOTATION"]) == 0

@@ -6,6 +6,7 @@ from build123d_techdraw.annotations.anchors import (
     Direction,
     SemanticFingerprint,
 )
+from build123d_techdraw.annotations.base import Annotation
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
     ChamferCallout,
@@ -81,6 +82,7 @@ from build123d_techdraw.builder import (
     View,
 )
 from build123d_techdraw.core.booklet import DrawingBooklet
+from build123d_techdraw.core.directive import SheetDirective
 from build123d_techdraw.core.part_info import PartInfo, get_part_info, set_part_info
 from build123d_techdraw.core.scale import (
     calculate_auto_scale,
@@ -119,6 +121,7 @@ __all__ = [
     "Anchor",
     "AnchorDirection",
     "AngularDimension",
+    "Annotation",
     "AssemblyBOM",
     "AuxiliaryView",
     "BOMBalloon",
@@ -174,6 +177,7 @@ __all__ = [
     "SectionCuttingLine",
     "SectionView",
     "SemanticFingerprint",
+    "SheetDirective",
     "SheetSize",
     "SheetView",
     "StandardMultiview",

@@ -61,6 +61,13 @@ an explicit opt-in. Never describe an ASME convention as "ISO" or "standard ISO"
   `cadquery-ocp-stubs`), ezdxf, matplotlib and Pillow are all typed — do not add them to
   `ignore_missing_imports`, and do not add `# type: ignore` without a specific error code and a
   reason it cannot be fixed. Only `svgelements` is untyped.
+- **No duck typing on our own objects.** Do not probe project types with `hasattr`, `getattr(obj,
+  "name", default)` or `setattr`, and do not type parameters `Any` only to probe them later. Type
+  them as `SheetView` / `DrawingSheet` (import under `TYPE_CHECKING` to break import cycles), use
+  the `Annotation` base (`annotations/base.py`) or `SheetDirective` (`core/directive.py`), or a
+  `typing.Protocol`, and branch with `isinstance`. New annotations subclass `Annotation` and
+  override `bounding_box_2d()` so the linter sees them. Dynamic access is only allowed for untyped
+  third-party objects, behind one helper (`renderers/svg_elements.py` for `svgelements`).
 - **Units:** annotation geometry is paper-space mm. Model geometry is model units; convert with the
   view's scale, never hard-code a scale factor.
 - **Theme colours** come from `renderers/theme.py` tokens / CSS variables — never hard-code hex

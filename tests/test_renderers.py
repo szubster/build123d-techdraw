@@ -11,6 +11,7 @@ from matplotlib.colors import to_rgba
 from build123d_techdraw.core.booklet import DrawingBooklet
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.view import ViewType
+from build123d_techdraw.renderers import dxf as dxf_module
 from build123d_techdraw.renderers.dxf import DXFRenderer
 from build123d_techdraw.renderers.pdf import MM_TO_PT, PDFRenderer
 from build123d_techdraw.renderers.svg import SVGRenderer
@@ -255,21 +256,17 @@ def test_dxf_3d_plate_plane_adaptive_and_strict() -> None:
         assert len(polys) >= 1
         assert len(polys[0]) > 20
 
-        class _BrokenEdge:
-            geom_type = "LINE"
+        def _broken_add_edge(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("broken edge")
 
-            def start_point(self) -> None:
-                raise RuntimeError("broken edge")
-
-        class _BrokenShape:
-            def edges(self) -> list[_BrokenEdge]:
-                return [_BrokenEdge()]
-
+        line = bd.Edge.make_line((0.0, 0.0, 0.0), (10.0, 0.0, 0.0))
         broken_dxf = os.path.join(tmpdir, "broken.dxf")
-        with pytest.warns(RuntimeWarning, match="Failed to export edge 0"):
-            DXFRenderer.export_shape_to_dxf(_BrokenShape(), broken_dxf)
-        with pytest.raises(RuntimeError, match="broken edge"):
-            DXFRenderer.export_shape_to_dxf(_BrokenShape(), broken_dxf, strict=True)
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(dxf_module, "add_edge_to_dxf", _broken_add_edge)
+            with pytest.warns(RuntimeWarning, match="Failed to export edge 0"):
+                DXFRenderer.export_shape_to_dxf(line, broken_dxf)
+            with pytest.raises(RuntimeError, match="broken edge"):
+                DXFRenderer.export_shape_to_dxf(line, broken_dxf, strict=True)
 
 
 def test_borderless_svg_fragment_pdf_ergonomics_and_nested_svg() -> None:
@@ -278,8 +275,8 @@ def test_borderless_svg_fragment_pdf_ergonomics_and_nested_svg() -> None:
 
     box = bd.Box(30.0, 20.0, 10.0)
     with BuildDrawing(sheet_size=SheetSize.A4_PORTRAIT, borderless=True) as bs:
-        assert bs.sheet.show_border is False
-        assert bs.sheet.show_title_block is False
+        assert bs.show_border is False
+        assert bs.show_title_block is False
 
     frag = project_shape_to_svg_fragment(box, view_type=ViewType.ISOMETRIC, center=(80.0, 80.0))
     assert "<g " in frag

@@ -27,8 +27,8 @@ def test_booklet_pdf_export_with_bookmarks(tmp_path: Path) -> None:
         FrontView(cyl, center=(100.0, 100.0))
 
     booklet = DrawingBooklet(title="PROJECT MASTER BOOKLET")
-    booklet.add_sheet(s1.sheet)
-    booklet.add_sheet(s2.sheet)
+    booklet.add_sheet(s1)
+    booklet.add_sheet(s2)
 
     pdf_file = str(tmp_path / "booklet_with_bookmarks.pdf")
     booklet.export_pdf(pdf_file, bookmarks=True)
@@ -63,7 +63,7 @@ def test_booklet_pdf_export_without_bookmarks(tmp_path: Path) -> None:
         FrontView(box, center=(100.0, 100.0))
 
     booklet = DrawingBooklet(title="NO BOOKMARKS")
-    booklet.add_sheet(s.sheet)
+    booklet.add_sheet(s)
 
     pdf_file = str(tmp_path / "booklet_no_bookmarks.pdf")
     booklet.export_pdf(pdf_file, bookmarks=False)
