@@ -1,17 +1,22 @@
 """SheetView representations, view projection mathematics, and coordinate transformations."""
 
+from __future__ import annotations
+
 import contextlib
 import math
 import os
 import re
 import tempfile
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Self
+from typing import TYPE_CHECKING, Any, Self, TypeAlias
 
 import build123d as bd
+from build123d.exporters import Drawing
+from build123d.topology import Shape
 
+from build123d_techdraw.annotations.base import Annotation
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
     ChamferCallout,
@@ -42,31 +47,6 @@ from build123d_techdraw.core.scale import format_iso_scale
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
-
-
-# Layout fields copied from a fresh projection in ``SheetView.update_shape``
-# (``bottom_annotation_y`` is handled separately to keep space reserved by dimensions).
-_REPROJECTED_ATTRS = (
-    "width",
-    "height",
-    "unbroken_width",
-    "unbroken_height",
-    "min_x",
-    "max_x",
-    "min_y",
-    "max_y",
-    "model_origin",
-    "origin_x",
-    "origin_y",
-    "projection_origin",
-    "proj_x",
-    "proj_y",
-    "orig_cx",
-    "orig_cy",
-    "svg_content",
-    "inner_svg_content",
-    "view_label_pos",
-)
 
 
 @dataclass
@@ -135,7 +115,7 @@ class SheetView:
         view_label: str | None = None,
         view_label_pos: tuple[float, float] | None = None,
         scale_label: str | None = None,
-        sheet: Optional["DrawingSheet"] = None,
+        sheet: DrawingSheet | None = None,
         shape: Any | None = None,
         enforce_iso_scale: bool = True,
         show_hidden: bool = True,
@@ -175,7 +155,7 @@ class SheetView:
         self.view_label_pos = view_label_pos
         self.scale_label = scale_label
         self.bottom_annotation_y: float = self.max_y
-        self.annotations: list[Any] = []
+        self.annotations: list[Annotation] = []
         self._ctx_token: Any = None
         self.hatch: str | None = None
         self.hatch_pitch: float | None = None
@@ -205,21 +185,22 @@ class SheetView:
             CURRENT_VIEW.reset(self._ctx_token)
             self._ctx_token = None
 
-    def __iadd__(self, item: Any) -> Self:
+    def __iadd__(self, item: Annotation | Iterable[Annotation]) -> Self:
         return self.add(item)
 
-    def __add__(self, item: Any) -> Self:
+    def __add__(self, item: Annotation | Iterable[Annotation]) -> Self:
         return self.add(item)
 
-    def add(self, item: Any) -> Self:
+    def add(self, item: Annotation | Iterable[Annotation]) -> Self:
         """Attach an annotation or collection of annotations to this view."""
-        if isinstance(item, (list, tuple, set)):
+        if not isinstance(item, Annotation):
+            if not isinstance(item, Iterable) or isinstance(item, str):
+                raise TypeError(f"Cannot add {type(item).__name__} to a SheetView.")
             for sub_item in item:
                 self.add(sub_item)
             return self
 
-        if hasattr(item, "_attach_to_view"):
-            item._attach_to_view(self)
+        item._attach_to_view(self)
 
         if item not in self.annotations:
             self.annotations.append(item)
@@ -409,7 +390,7 @@ class SheetView:
             return
 
         look_from, look_up = VIEW_VECTORS.get(self.view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
-        dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=False)
+        dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=False)
         edges = dwg.visible_lines.edges()
 
         # Identify holes/countersinks via feature recognizer
@@ -422,7 +403,7 @@ class SheetView:
                 csink_radii.append(round(rh.counterbore_dia / 2.0, 2))
 
         # Combine edges into closed wires
-        wires: list[Any] = []
+        wires: list[bd.Wire] = []
         try:
             wires = bd.Wire.combine(edges)
         except Exception:
@@ -430,7 +411,7 @@ class SheetView:
 
         if wires:
             wires.sort(
-                key=lambda w: bd.Face(w).area if getattr(w, "is_closed", False) else 0.0,
+                key=lambda w: bd.Face(w).area if w.is_closed else 0.0,
                 reverse=True,
             )
             outer_wire = wires[0]
@@ -444,10 +425,7 @@ class SheetView:
             circle_wires: list[tuple[int, tuple[float, float], float]] = []
             for idx, iw in enumerate(inner_wires):
                 cw_edges = iw.edges()
-                if (
-                    len(cw_edges) == 1
-                    and getattr(cw_edges[0], "geom_type", None) == bd.GeomType.CIRCLE
-                ):
+                if len(cw_edges) == 1 and cw_edges[0].geom_type == bd.GeomType.CIRCLE:
                     c = cw_edges[0].arc_center
                     circle_wires.append((idx, (float(c.X), float(c.Y)), float(cw_edges[0].radius)))
 
@@ -468,7 +446,7 @@ class SheetView:
                 is_csink = idx in concentric_csinks
                 if not is_csink:
                     for edge in iw.edges():
-                        if getattr(edge, "geom_type", None) == bd.GeomType.CIRCLE:
+                        if edge.geom_type == bd.GeomType.CIRCLE:
                             r = round(float(edge.radius), 2)
                             if any(abs(r - cr) < 0.5 for cr in csink_radii):
                                 is_csink = True
@@ -482,19 +460,11 @@ class SheetView:
 
         center_layer = layer_map["centerlines"]
         has_ann_centerlines = False
-        for ann in getattr(self, "annotations", []):
-            if hasattr(ann, "line_segments"):
-                has_ann_centerlines = True
-                for p0, p1 in ann.line_segments:
-                    msp.add_line(
-                        (p0[0] * scale, p0[1] * scale),
-                        (p1[0] * scale, p1[1] * scale),
-                        dxfattribs={"layer": center_layer},
-                    )
-            elif hasattr(ann, "center"):
+        for ann in self.annotations:
+            if isinstance(ann, (CenterMark, BoltCircle, DiameterDimension, RadialDimension)):
                 has_ann_centerlines = True
                 cx, cy = ann.center
-                r = getattr(ann, "radius", 5.0)
+                r = ann.radius if isinstance(ann, RadialDimension) else 5.0
                 msp.add_line(
                     ((cx - r - 2.0) * scale, cy * scale),
                     ((cx + r + 2.0) * scale, cy * scale),
@@ -538,8 +508,30 @@ class SheetView:
     def _rebind_annotations(self) -> None:
         """Re-resolve all anchored/topological annotations attached to this view."""
         for ann in list(self.annotations):
-            if hasattr(ann, "_rebind_to_view"):
-                ann._rebind_to_view(self)
+            ann._rebind_to_view(self)
+
+    def _copy_projection_from(self, reproj: SheetView) -> None:
+        """Adopt the layout fields of a fresh projection of the same view (``update_shape``)."""
+        self.width = reproj.width
+        self.height = reproj.height
+        self.unbroken_width = reproj.unbroken_width
+        self.unbroken_height = reproj.unbroken_height
+        self.min_x = reproj.min_x
+        self.max_x = reproj.max_x
+        self.min_y = reproj.min_y
+        self.max_y = reproj.max_y
+        self.bottom_annotation_y = reproj.bottom_annotation_y
+        self.model_origin = reproj.model_origin
+        self.origin_x = reproj.origin_x
+        self.origin_y = reproj.origin_y
+        self.projection_origin = reproj.projection_origin
+        self.proj_x = reproj.proj_x
+        self.proj_y = reproj.proj_y
+        self.orig_cx = reproj.orig_cx
+        self.orig_cy = reproj.orig_cy
+        self.svg_content = reproj.svg_content
+        self.inner_svg_content = reproj.inner_svg_content
+        self.view_label_pos = reproj.view_label_pos
 
     def can_regenerate(self) -> bool:
         """Return True if ``update_shape`` is able to re-project this view's geometry."""
@@ -555,7 +547,7 @@ class SheetView:
             return self.view_label_pos[1]
         return None
 
-    def _reproject(self, new_shape: Any) -> "SheetView":
+    def _reproject(self, new_shape: Any) -> SheetView:
         """Re-run the factory this view was built with against ``new_shape``."""
         kwargs = dict(self._regen_kwargs)
         kwargs["view_label_y"] = self._regen_label_y()
@@ -625,8 +617,7 @@ class SheetView:
         reproj = self._reproject(new_shape)
 
         self.shape = reproj.shape if self.view_type == ViewType.DETAIL else new_shape
-        for attr in _REPROJECTED_ATTRS:
-            setattr(self, attr, getattr(reproj, attr))
+        self._copy_projection_from(reproj)
         if reproj.hatch_id is not None:
             self.hatch = reproj.hatch
             self.hatch_pitch = reproj.hatch_pitch
@@ -689,11 +680,9 @@ class SheetView:
         max_x = self.max_x
         max_y = self.max_y
 
-        if include_annotations and hasattr(self, "annotations"):
-            from build123d_techdraw.layout.linter import get_annotation_bbox_2d
-
+        if include_annotations:
             for ann in self.annotations:
-                bbox = get_annotation_bbox_2d(ann)
+                bbox = ann.bounding_box_2d()
                 if bbox is not None:
                     min_x = min(min_x, bbox[0])
                     min_y = min(min_y, bbox[1])
@@ -701,14 +690,14 @@ class SheetView:
                     max_y = max(max_y, bbox[3])
 
         if include_label and (self.view_label or self.scale_label):
-            label_y = getattr(self, "bottom_annotation_y", self.max_y) + 8.0
+            label_y = self.bottom_annotation_y + 8.0
             max_y = max(max_y, label_y + 4.0)
 
         return (min_x, min_y, max_x, max_y)
 
     def align_to(
         self,
-        other: "SheetView | tuple[Any, ...]",
+        other: AlignSpec,
         direction: str = "right",
         spacing: float = 25.0,
         include_annotations: bool = False,
@@ -1553,7 +1542,12 @@ class SheetView:
         return tc
 
 
-def _apply_align_to(view: Any, align_spec: Any) -> Any:
+AlignSpec: TypeAlias = SheetView | tuple[Any, ...] | list[Any] | dict[str, Any]
+"""``align_to`` argument: another view, ``(view, direction[, spacing])``, or a mapping with
+``other`` / ``direction`` / ``spacing`` keys."""
+
+
+def _apply_align_to(view: SheetView, align_spec: AlignSpec | None) -> SheetView:
     """Apply an align_to specification (tuple, dict, or SheetView) to a view."""
     if align_spec is None:
         return view
@@ -1596,7 +1590,7 @@ def project_shape_to_view(
     look_from, look_up = VIEW_VECTORS.get(view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
 
     # Use build123d.Drawing to project B-Rep edges
-    dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
+    dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
 
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
 
@@ -1966,7 +1960,7 @@ def _clip_2d_faces_x(
         try:
             inter = face.intersect(clip_rect)
             if inter is not None:
-                for sub in inter.faces() if hasattr(inter, "faces") else [inter]:
+                for sub in inter.faces():
                     if isinstance(sub, bd.Face) and sub.area > 1e-6:
                         clipped.append(sub)
         except Exception:
@@ -1984,6 +1978,35 @@ def _unify_2d_faces(faces: list[bd.Face]) -> list[bd.Face]:
         return result if result else faces
     except Exception:
         return faces
+
+
+def _section_local(shape: Shape[Any], plane: bd.Plane) -> Shape[Any]:
+    """Slice ``shape`` with ``plane`` and return the cut in the plane's local 2D frame."""
+    # build123d annotates ``section(obj: Part)``, but it slices any Solid / Compound.
+    sec = bd.section(shape, section_by=plane)  # pyright: ignore[reportArgumentType]
+    sec_local = plane.to_local_coords(sec)
+    if not isinstance(sec_local, Shape):
+        raise TypeError(f"Unexpected section result {type(sec_local).__name__}")
+    return sec_local
+
+
+def _split_keep_bottom(shape: Shape[Any], plane: bd.Plane) -> Shape[Any]:
+    """Return the half of ``shape`` behind ``plane`` (the material seen in a section view)."""
+    # build123d's ``SplitType`` omits Compound, but ``split`` handles compounds (multi-solid parts).
+    half = bd.split(shape, bisect_by=plane, keep=bd.Keep.BOTTOM)  # pyright: ignore[reportArgumentType]
+    if not isinstance(half, Shape):
+        raise TypeError(f"Unexpected split result {type(half).__name__}")
+    return half
+
+
+def _intersect_to_compound(shape: Shape[Any], tool: Shape[Any]) -> bd.Compound | None:
+    """Intersect two shapes and wrap the result in a single Compound.
+
+    ``Shape.intersect`` returns a ``ShapeList`` (or None), which cannot be rotated or
+    projected with ``Drawing`` directly.
+    """
+    result = shape.intersect(tool)
+    return bd.Compound(list(result)) if result else None
 
 
 def _make_plane_slab_box(
@@ -2019,16 +2042,15 @@ def project_section_to_view(
     hatch_angle: float = 45.0,
 ) -> SheetView:
     """Project a 2D section slice through 3D shape with ISO/ANSI material hatching and background visible lines."""
-    sec = bd.section(shape, section_by=cutting_plane)
-    sec_2d = cutting_plane.to_local_coords(sec)
+    sec_2d = _section_local(shape, cutting_plane)
 
     bg_shapes: list[Any] = []
     if show_background:
         with contextlib.suppress(Exception):
             look_from = cutting_plane.z_dir
             look_up = cutting_plane.y_dir
-            split_half = bd.split(shape, bisect_by=cutting_plane, keep=bd.Keep.BOTTOM)
-            dwg_bg = bd.Drawing(split_half, look_from=look_from, look_up=look_up, with_hidden=False)
+            split_half = _split_keep_bottom(shape, cutting_plane)
+            dwg_bg = Drawing(split_half, look_from=look_from, look_up=look_up, with_hidden=False)
             if len(dwg_bg.visible_lines.edges()) > 0:
                 bg_shapes.append(dwg_bg.visible_lines)
 
@@ -2105,18 +2127,18 @@ def project_offset_section_to_view(
             x_dir=base_plane.x_dir,
             z_dir=base_plane.z_dir,
         )
-        sec_k = bd.section(shape, section_by=plane_k)
-        sec_2d_k = plane_k.to_local_coords(sec_k)
-        clipped_k = _clip_2d_faces_x(list(sec_2d_k.faces()), u_min, u_max, extent)
+        clipped_k = _clip_2d_faces_x(
+            list(_section_local(shape, plane_k).faces()), u_min, u_max, extent
+        )
         all_faces.extend(clipped_k)
 
         if show_background:
             with contextlib.suppress(Exception):
-                split_half = bd.split(shape, bisect_by=plane_k, keep=bd.Keep.BOTTOM)
+                split_half = _split_keep_bottom(shape, plane_k)
                 slab_box = _make_plane_slab_box(base_plane, u_min, u_max, extent)
-                slab_bg = split_half.intersect(slab_box)
+                slab_bg = _intersect_to_compound(split_half, slab_box)
                 if slab_bg is not None:
-                    dwg_bg = bd.Drawing(
+                    dwg_bg = Drawing(
                         slab_bg,
                         look_from=base_plane.z_dir,
                         look_up=base_plane.y_dir,
@@ -2207,24 +2229,24 @@ def project_aligned_section_to_view(
         leg_z = r_dir.cross(base_plane.y_dir)
         leg_plane = bd.Plane(origin=pivot_3d, x_dir=r_dir, z_dir=leg_z)
 
-        sec_leg = bd.section(shape, section_by=leg_plane)
-        sec_2d_leg = leg_plane.to_local_coords(sec_leg)
-        clipped_leg = _clip_2d_faces_x(list(sec_2d_leg.faces()), 0.0, extent, extent)
+        clipped_leg = _clip_2d_faces_x(
+            list(_section_local(shape, leg_plane).faces()), 0.0, extent, extent
+        )
 
         place_negative = (leg_idx == 0 and du <= 0.0) or (
             leg_idx == 1 and du < 0.0 and leg_targets[0][0] >= u_piv
         )
         for face in clipped_leg:
-            oriented = bd.mirror(face, about=bd.Plane.YZ) if place_negative else face
+            oriented = face.mirror(bd.Plane.YZ) if place_negative else face
             if abs(u_piv) > 1e-6:
                 oriented = bd.Pos(u_piv, 0.0, 0.0) * oriented
             all_faces.append(oriented)
 
         if show_background:
             with contextlib.suppress(Exception):
-                split_half = bd.split(shape, bisect_by=leg_plane, keep=bd.Keep.BOTTOM)
+                split_half = _split_keep_bottom(shape, leg_plane)
                 half_box = _make_plane_slab_box(leg_plane, 0.0, extent, extent)
-                leg_bg = split_half.intersect(half_box)
+                leg_bg = _intersect_to_compound(split_half, half_box)
                 if leg_bg is not None:
                     target_dir = -base_plane.x_dir if place_negative else base_plane.x_dir
                     angle_rad = math.atan2(
@@ -2233,7 +2255,7 @@ def project_aligned_section_to_view(
                     )
                     axis = bd.Axis(pivot_3d, base_plane.y_dir)
                     rotated_bg = leg_bg.rotate(axis, math.degrees(angle_rad))
-                    dwg_bg = bd.Drawing(
+                    dwg_bg = Drawing(
                         rotated_bg,
                         look_from=base_plane.z_dir,
                         look_up=base_plane.y_dir,
@@ -2439,7 +2461,7 @@ def project_auxiliary_view(
     look_up_vec = bd.Vector(0, 1, 0) if look_up_vec.length < 1e-4 else look_up_vec.normalized()
     look_up = (float(look_up_vec.X), float(look_up_vec.Y), float(look_up_vec.Z))
 
-    dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
+    dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
     if show_hidden and len(dwg.hidden_lines.edges()) > 0:
         exporter.add_layer(

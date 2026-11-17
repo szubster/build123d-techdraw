@@ -29,7 +29,7 @@ layout = add_standard_multiview(
     sheet=sheet,
     shape=part,
     views=[ViewType.FRONT, ViewType.TOP, ViewType.RIGHT, ViewType.ISOMETRIC],
-    layout="third_angle",  # Or "first_angle"
+    layout="first_angle",  # ISO default; use "third_angle" for ASME / US drawings
     scale="auto",
     spacing=25.0,
     show_hidden=True,
@@ -43,14 +43,28 @@ print(f"Chosen scale: {layout.scale_str}")  # e.g. "SCALE 1:2"
 
 ## 📐 Projection Standards
 
-### Third-Angle Projection (`layout="third_angle"`)
-Standard in North America and ISO default:
-- **Top View** is placed directly **above** the Front View.
-- **Right View** is placed directly to the **right** of the Front View.
-- **Isometric View** is placed at the top-right.
+`build123d-techdraw` follows ISO, so the default is **first-angle projection**
+(`layout="first_angle"`). Pass `layout="third_angle"` for ASME / US drawings.
+Any other value raises `ValueError`.
 
-### First-Angle Projection (`layout="first_angle"`)
-Traditional European ISO standard:
-- **Top View** is projected **below** the Front View.
-- **Right View** is placed to the **right** or left according to first-angle rules.
-- **Isometric View** is placed at the bottom-right.
+| `layout` | Standard | Top view | Right view | Left view | Isometric |
+|---|---|---|---|---|---|
+| `"first_angle"` *(default)* | ISO 128-3 / ISO 5456-2 (method E). Default in Europe and most of the world | **below** the Front view | to the **left** of the Front view | to the **right** of the Front view | bottom-left (free corner) |
+| `"third_angle"` | ASME Y14.3 (method A). Default in the USA and Canada | **above** the Front view | to the **right** of the Front view | to the **left** of the Front view | top-right (free corner) |
+
+In first-angle projection each view sits on the side *opposite* the one it is
+seen from. In third-angle projection it sits on the *same* side.
+
+### Projection symbol
+
+`add_standard_multiview` sets `sheet.title_info.third_angle` to match the chosen
+`layout`, so the ISO 5456-2 symbol in the title block always agrees with the view
+arrangement. The symbol shows a truncated cone (large end on the left) next to its end view:
+
+- **First-angle:** the end-view circles are to the **left** of the cone.
+- **Third-angle:** the end-view circles are to the **right** of the cone.
+
+If you place views by hand (`FrontView(...)`, `align_to(...)`) instead of using
+`add_standard_multiview`, arrange them for first-angle projection (for example
+`top.align_to(front, direction="below")`), or set
+`TitleBlock(..., third_angle=True)` when you lay them out in third-angle projection.

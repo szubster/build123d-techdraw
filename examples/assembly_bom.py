@@ -6,10 +6,12 @@ import build123d as bd
 
 from build123d_techdraw import (
     DrawingSheet,
+    PartInfo,
     SheetSize,
     Theme,
     add_assembly_bom_and_balloons,
     add_standard_multiview,
+    set_part_info,
 )
 
 
@@ -20,20 +22,17 @@ def generate_assembly_bom(output_dir: Path) -> None:
     base = bd.Box(120.0, 80.0, 20.0)
     base.label = "Machined Baseplate"
     base.material = "alu_g6061_t6"
-    base.material_spec = "AL 6061-T6"
-    base.part_no = "BP-001"
+    set_part_info(base, PartInfo(part_no="BP-001", material_spec="AL 6061-T6"))
 
     pin1 = bd.Cylinder(radius=6.0, height=30.0).move(bd.Location((30.0, 20.0, 25.0)))
     pin1.label = "Dowel Pin"
     pin1.material = "alloy_steel"
-    pin1.material_spec = "STEEL A2"
-    pin1.part_no = "DP-002"
+    set_part_info(pin1, PartInfo(part_no="DP-002", material_spec="STEEL A2"))
 
     pin2 = bd.Cylinder(radius=6.0, height=30.0).move(bd.Location((-30.0, -20.0, 25.0)))
     pin2.label = "Dowel Pin"
     pin2.material = "alloy_steel"
-    pin2.material_spec = "STEEL A2"
-    pin2.part_no = "DP-002"
+    set_part_info(pin2, PartInfo(part_no="DP-002", material_spec="STEEL A2"))
 
     assembly = bd.Compound(children=[base, pin1, pin2])
 

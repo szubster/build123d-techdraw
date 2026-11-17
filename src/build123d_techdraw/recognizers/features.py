@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import build123d as bd
+from build123d.topology import Shape
 
 
 @dataclass
@@ -97,31 +98,25 @@ def _detect_bd_warehouse_threads(shape: Any) -> list[tuple[tuple[float, float, f
 
     fastener_mod, thread_mod = _require_bd_warehouse()
     iso_cls = thread_mod.IsoThread
-    fastener_cls = (fastener_mod.Screw, fastener_mod.Nut)
+    fastener_cls = (fastener_mod.Screw, fastener_mod.Nut, fastener_mod.Washer)
 
     found: list[tuple[tuple[float, float, float], str]] = []
-    queue: list[Any] = [shape]
+    queue: list[Shape[Any]] = [shape] if isinstance(shape, Shape) else []
     visited: set[int] = set()
     while queue:
         obj = queue.pop(0)
         if id(obj) in visited:
             continue
         visited.add(id(obj))
-        if isinstance(obj, (iso_cls, *fastener_cls)) or hasattr(obj, "thread_size"):
-            loc = (
-                obj.location.position
-                if hasattr(obj, "location") and obj.location
-                else bd.Vector(0, 0, 0)
-            )
+        if isinstance(obj, (iso_cls, *fastener_cls)):
+            loc = obj.location.position if obj.location else bd.Vector(0, 0, 0)
             raw_spec = coerce_thread_designation(obj)
             try:
                 spec_str = get_thread_spec(raw_spec).designation
             except ValueError:
                 spec_str = raw_spec
             found.append(((float(loc.X), float(loc.Y), float(loc.Z)), spec_str))
-        children = getattr(obj, "children", None)
-        if isinstance(children, (list, tuple)):
-            queue.extend(children)
+        queue.extend(obj.children)
     return found
 
 
@@ -131,7 +126,7 @@ def recognize_holes(
     infer_threads: bool = False,
 ) -> list[RecognizedHole]:
     """Inspect build123d topological faces to detect hole features, counterbores, and countersinks."""
-    if not hasattr(shape, "faces"):
+    if not isinstance(shape, Shape):
         return []
 
     try:
@@ -156,7 +151,7 @@ def recognize_holes(
         if axis is None:
             continue
 
-        r = getattr(f, "radius", None)
+        r = f.radius
         if r is None or float(r) <= 0.0:
             continue
         radius = float(r)
@@ -361,7 +356,7 @@ def recognize_bolt_circles(shape: bd.Solid | bd.Compound | Any) -> list[Recogniz
 
 def recognize_bosses(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedBoss]:
     """Detect external cylindrical bosses and shafts."""
-    if not hasattr(shape, "faces"):
+    if not isinstance(shape, Shape):
         return []
 
     try:
@@ -380,7 +375,7 @@ def recognize_bosses(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedBoss
 
     for f in boss_faces:
         axis = f.axis_of_rotation
-        r = getattr(f, "radius", None)
+        r = f.radius
         if axis is None or r is None or float(r) <= 0.0:
             continue
         dia = round(2.0 * float(r), 2)
@@ -412,7 +407,7 @@ def recognize_bosses(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedBoss
 
 def recognize_steps(shape: bd.Solid | bd.Compound | Any) -> list[RecognizedStep]:
     """Detect interior planar steps/shoulders aligned with principal axes (X, Y, Z)."""
-    if not hasattr(shape, "faces"):
+    if not isinstance(shape, Shape):
         return []
 
     try:

@@ -26,6 +26,23 @@ pin2.label = "Alignment Pin"
 assembly = bd.Compound(children=[base, pin1, pin2])
 ```
 
+### Part numbers and materials
+
+The BOM groups components by `label`. Part number and material text come from a typed
+`PartInfo` attached with `set_part_info`. When `material_spec` is empty, the BOM uses the
+shape's build123d `material` (e.g. `"alu_g6061_t6"` -> `ALU G6061 T6`), else `STANDARD`:
+
+```python
+from build123d_techdraw import PartInfo, set_part_info
+
+base.material = "alu_g6061_t6"  # build123d's own material field
+set_part_info(base, PartInfo(part_no="BP-001", material_spec="AL 6061-T6"))
+set_part_info(pin1, PartInfo(part_no="DP-002"))  # material from pin1.material, if set
+```
+
+`PartInfo` survives `copy`/`moved()`, but a boolean operation (`a - b`) returns a new shape
+without it, so attach it to the finished component.
+
 ---
 
 ## 📋 Generating the BOM Table

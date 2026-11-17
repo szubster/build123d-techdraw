@@ -6,6 +6,7 @@ from build123d_techdraw.annotations.anchors import (
     Direction,
     SemanticFingerprint,
 )
+from build123d_techdraw.annotations.base import Annotation
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
     ChamferCallout,
@@ -61,6 +62,7 @@ __all__ = [
     "Anchor",
     "AnchorDirection",
     "AngularDimension",
+    "Annotation",
     "BOMBalloon",
     "BaselineDimensionGroup",
     "BoltCircle",

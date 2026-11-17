@@ -4,15 +4,19 @@ from __future__ import annotations
 
 import html
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from build123d_techdraw.annotations.anchors import Anchor
+from build123d_techdraw.annotations.base import Annotation
 from build123d_techdraw.annotations.resolver import (
     ensure_anchor,
     is_topological_entity,
     resolve_point_to_sheet,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
+
+if TYPE_CHECKING:
+    from build123d_techdraw.core.view import SheetView
 
 
 class MaterialRemoval(Enum):
@@ -21,7 +25,7 @@ class MaterialRemoval(Enum):
     PROHIBITED = "prohibited"  # Circle in vertex (no material removal)
 
 
-class SurfaceFinishSymbol:
+class SurfaceFinishSymbol(Annotation):
     """ISO 1302 surface texture / roughness symbol."""
 
     def __init__(
@@ -33,7 +37,7 @@ class SurfaceFinishSymbol:
         scale: float = 1.0,
         position: tuple[float, float] | None = None,
         target: Any = None,
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
     ):
@@ -78,18 +82,16 @@ class SurfaceFinishSymbol:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         if not self._explicit_coords:
             self.resolved = False
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             if not isinstance(self.target, (tuple, list)):
-                self.target = (
-                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
-                )
+                self.target = ensure_anchor(self.target, view.shape) or self.target
             prev_pos = self.position
             self.position = resolve_point_to_sheet(self.target, view)
             if isinstance(self.target, Anchor) and self.target.is_stale:
@@ -105,11 +107,7 @@ class SurfaceFinishSymbol:
             self.position = (view.center_x, view.min_y)
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
 
     def to_svg(self) -> str:
         x, y = self.position

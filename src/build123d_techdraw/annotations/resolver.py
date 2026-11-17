@@ -6,6 +6,7 @@ import math
 from typing import TYPE_CHECKING, Any
 
 import build123d as bd
+from build123d.topology import Shape
 
 from build123d_techdraw.annotations.anchors import Anchor, entity_center_3d
 
@@ -20,7 +21,7 @@ def is_topological_entity(obj: Any) -> bool:
     return isinstance(obj, (Anchor, bd.Edge, bd.Vertex, bd.Face, bd.Solid, bd.Compound, bd.Vector))
 
 
-def ensure_anchor(target: Any, shape: Any = None) -> Anchor | None:
+def ensure_anchor(target: Any, shape: Shape[Any] | None = None) -> Anchor | None:
     """Return ``target`` if it is an ``Anchor``, or wrap a 3D topological entity in ``Anchor.of``."""
     if isinstance(target, Anchor):
         target._ensure_normalized_fingerprint(shape)
@@ -46,7 +47,7 @@ def resolve_point_3d(
     target: Any, view: SheetView | None = None
 ) -> tuple[float, float, float] | None:
     """Resolve an Anchor, topological entity, or 3D tuple to a 3D model point (X, Y, Z)."""
-    shape = getattr(view, "shape", None) if view is not None else None
+    shape = view.shape if view is not None else None
     if isinstance(target, Anchor):
         return target.resolve_point_3d(shape)
     if isinstance(target, (bd.Vertex, bd.Vector, bd.Edge, bd.Face, bd.Solid, bd.Compound)):
@@ -79,7 +80,7 @@ def resolve_edge_to_sheet(
 ) -> tuple[tuple[float, float], tuple[float, float], float]:
     """Resolve an Edge or semantic Anchor to its projected sheet start/end points and 3D model length."""
     if isinstance(edge, Anchor):
-        shape = getattr(view, "shape", None)
+        shape = view.shape
         ent = edge.resolve_entity(shape, prefer_kind="edge")
         if isinstance(ent, bd.Edge):
             edge = ent
@@ -106,7 +107,7 @@ def resolve_circle_or_cylinder_to_sheet(
 ) -> tuple[tuple[float, float], float, float]:
     """Resolve a circular Edge, cylindrical Face, or Anchor to (center_on_sheet, paper_radius, model_radius)."""
     if isinstance(target, Anchor):
-        shape = getattr(view, "shape", None)
+        shape = view.shape
         ent = target.resolve_entity(shape)
         if ent is not None and isinstance(ent, (bd.Edge, bd.Face)):
             target = ent
@@ -124,7 +125,7 @@ def resolve_circle_or_cylinder_to_sheet(
     if isinstance(target, bd.Face) and target.geom_type == bd.GeomType.CYLINDER:
         axis = target.axis_of_rotation
         c = axis.position if axis else (target.bounding_box().min + target.bounding_box().max) / 2.0
-        r_val = getattr(target, "radius", None)
+        r_val = target.radius
         r = float(r_val) if r_val is not None else 5.0
         paper_center = view.to_sheet_3d(float(c.X), float(c.Y), float(c.Z))
         return paper_center, r * view.scale, r
@@ -161,7 +162,7 @@ def resolve_angle_to_sheet(
     target_apex: Any = None,
 ) -> tuple[tuple[float, float], float, float, float]:
     """Resolve two edges, faces, anchors, or points to (apex_2d, start_angle_deg, end_angle_deg, angle_deg)."""
-    shape = getattr(view, "shape", None)
+    shape = view.shape
 
     def as_edge(t: Any) -> Any:
         if isinstance(t, Anchor):
