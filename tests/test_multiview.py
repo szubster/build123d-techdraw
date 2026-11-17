@@ -1,6 +1,9 @@
 """Unit and integration tests for multi-view declarative layouts and BOM callouts."""
 
+from typing import Any
+
 import build123d as bd
+import pytest
 
 from build123d_techdraw import (
     DrawingSheet,
@@ -10,6 +13,7 @@ from build123d_techdraw import (
     add_standard_multiview,
     generate_assembly_bom,
 )
+from build123d_techdraw.layout.multiview import projected_view_extent
 
 
 def test_standard_multiview_auto_scale_third_angle() -> None:
@@ -164,3 +168,63 @@ def test_auto_centerlines_and_exact_dimensions() -> None:
     # Check centerlines and centermarks
     assert 'class="centermark"' in svg
     assert 'stroke-dasharray="10,2,2,2"' in svg
+
+
+def _stepped_block() -> bd.Part:
+    return bd.Box(80.0, 40.0, 20.0) - bd.Pos(20.0, 0.0, 5.0) * bd.Box(40.0, 40.0, 10.0)
+
+
+@pytest.mark.parametrize("auto_dims", [False, True], ids=["plain", "dims"])
+@pytest.mark.parametrize("layout_name", ["third_angle", "first_angle"])
+@pytest.mark.parametrize(
+    "make_shape",
+    [
+        _stepped_block,
+        lambda: bd.Box(100.0, 50.0, 30.0),
+        lambda: bd.Cylinder(radius=30.0, height=50.0),
+        lambda: bd.Box(120.0, 120.0, 8.0),
+        lambda: bd.Box(200.0, 20.0, 20.0),
+        lambda: bd.Box(30.0, 30.0, 150.0),
+    ],
+    ids=["stepped_block", "box", "cylinder", "flat_plate", "long_bar", "tall_post"],
+)
+def test_multiview_auto_scale_views_inside_frame(
+    make_shape: Any, layout_name: str, auto_dims: bool
+) -> None:
+    """Every view (with its dimensions and label) stays inside the frame and off the title block."""
+    sheet = DrawingSheet(sheet_size=SheetSize.A3_LANDSCAPE)
+    layout = add_standard_multiview(
+        sheet=sheet, shape=make_shape(), layout=layout_name, auto_dimensions=auto_dims
+    )
+    info = sheet.inspect_layout()
+    fx0, fy0, fx1, fy1 = info["drawable_bounds"]
+    tx0, ty0, tx1, ty1 = info["title_block_bounds"]
+
+    geom = {}
+    for v_type, view in layout.views.items():
+        name = v_type.value
+        x0, y0, x1, y1 = view.get_visual_bounds(include_annotations=True, include_label=True)
+        assert x0 >= fx0, f"{name} crosses left frame ({x0:.1f} < {fx0})"
+        assert y0 >= fy0, f"{name} crosses top frame ({y0:.1f} < {fy0})"
+        assert x1 <= fx1, f"{name} crosses right frame ({x1:.1f} > {fx1})"
+        assert y1 <= fy1, f"{name} crosses bottom frame ({y1:.1f} > {fy1})"
+        hits_tb = x0 < tx1 and tx0 < x1 and y0 < ty1 and ty0 < y1
+        assert not hits_tb, f"{name} overlaps the title block"
+        geom[name] = (view.min_x, view.min_y, view.max_x, view.max_y)
+
+    items = list(geom.items())
+    for i, (na, a) in enumerate(items):
+        for nb, b in items[i + 1 :]:
+            overlap = a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+            assert not overlap, f"{na} overlaps {nb}"
+
+
+def test_projected_isometric_extent_matches_drawn_view() -> None:
+    part = _stepped_block()
+    w, h = projected_view_extent(part, ViewType.ISOMETRIC)
+    sheet = DrawingSheet(sheet_size=SheetSize.A3_LANDSCAPE)
+    view = sheet.add_view(part, view_type=ViewType.ISOMETRIC, center=(200.0, 150.0), scale=1.0)
+    assert abs(view.width - w) < 0.05
+    assert abs(view.height - h) < 0.05
+    # The old diagonal heuristic (|bbox| * 0.75 ≈ 69 mm) underestimated the width.
+    assert w > 85.0
