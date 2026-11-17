@@ -11,6 +11,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Self
 
 import build123d as bd
+from build123d.exporters import Drawing
+from build123d.topology import Shape
 
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
@@ -42,6 +44,31 @@ from build123d_techdraw.core.scale import format_iso_scale
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
+
+
+# Layout fields copied from a fresh projection in ``SheetView.update_shape``.
+_REPROJECTED_ATTRS = (
+    "width",
+    "height",
+    "unbroken_width",
+    "unbroken_height",
+    "min_x",
+    "max_x",
+    "min_y",
+    "max_y",
+    "bottom_annotation_y",
+    "model_origin",
+    "origin_x",
+    "origin_y",
+    "projection_origin",
+    "proj_x",
+    "proj_y",
+    "orig_cx",
+    "orig_cy",
+    "svg_content",
+    "inner_svg_content",
+    "view_label_pos",
+)
 
 
 @dataclass
@@ -343,12 +370,12 @@ class SheetView:
         dxfversion: str = "R2010",
     ) -> None:
         """Export 1:1 CAM manufacturing DXF from this 2D view (outer profile, holes, centerlines)."""
-        import ezdxf
+        from ezdxf.filemanagement import new as ezdxf_new
 
         from build123d_techdraw.recognizers.features import recognize_holes
 
         os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
-        doc = ezdxf.new(dxfversion=dxfversion)  # type: ignore[attr-defined]
+        doc = ezdxf_new(dxfversion=dxfversion)
         msp = doc.modelspace()
 
         layer_map = {
@@ -377,7 +404,7 @@ class SheetView:
             return
 
         look_from, look_up = VIEW_VECTORS.get(self.view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
-        dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=False)
+        dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=False)
         edges = dwg.visible_lines.edges()
 
         # Identify holes/countersinks via feature recognizer
@@ -523,26 +550,8 @@ class SheetView:
                 view_label=self.view_label,
                 rotation_angle_deg=self.rotation_angle_deg,
             )
-            self.width = reproj.width
-            self.height = reproj.height
-            self.unbroken_width = reproj.unbroken_width
-            self.unbroken_height = reproj.unbroken_height
-            self.min_x = reproj.min_x
-            self.max_x = reproj.max_x
-            self.min_y = reproj.min_y
-            self.max_y = reproj.max_y
-            self.bottom_annotation_y = reproj.bottom_annotation_y
-            self.model_origin = reproj.model_origin
-            self.origin_x = reproj.origin_x
-            self.origin_y = reproj.origin_y
-            self.projection_origin = reproj.projection_origin
-            self.proj_x = reproj.proj_x
-            self.proj_y = reproj.proj_y
-            self.orig_cx = reproj.orig_cx
-            self.orig_cy = reproj.orig_cy
-            self.svg_content = reproj.svg_content
-            self.inner_svg_content = reproj.inner_svg_content
-            self.view_label_pos = reproj.view_label_pos
+            for attr in _REPROJECTED_ATTRS:
+                setattr(self, attr, getattr(reproj, attr))
             if self.breaks:
                 self._apply_breaks()
 
@@ -1501,7 +1510,7 @@ def project_shape_to_view(
     look_from, look_up = VIEW_VECTORS.get(view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
 
     # Use build123d.Drawing to project B-Rep edges
-    dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
+    dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
 
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
 
@@ -1882,6 +1891,35 @@ def _unify_2d_faces(faces: list[bd.Face]) -> list[bd.Face]:
         return faces
 
 
+def _section_local(shape: Shape[Any], plane: bd.Plane) -> Shape[Any]:
+    """Slice ``shape`` with ``plane`` and return the cut in the plane's local 2D frame."""
+    # build123d annotates ``section(obj: Part)``, but it slices any Solid / Compound.
+    sec = bd.section(shape, section_by=plane)  # pyright: ignore[reportArgumentType]
+    sec_local = plane.to_local_coords(sec)
+    if not isinstance(sec_local, Shape):
+        raise TypeError(f"Unexpected section result {type(sec_local).__name__}")
+    return sec_local
+
+
+def _split_keep_bottom(shape: Shape[Any], plane: bd.Plane) -> Shape[Any]:
+    """Return the half of ``shape`` behind ``plane`` (the material seen in a section view)."""
+    # build123d's ``SplitType`` omits Compound, but ``split`` handles compounds (multi-solid parts).
+    half = bd.split(shape, bisect_by=plane, keep=bd.Keep.BOTTOM)  # pyright: ignore[reportArgumentType]
+    if not isinstance(half, Shape):
+        raise TypeError(f"Unexpected split result {type(half).__name__}")
+    return half
+
+
+def _intersect_to_compound(shape: Shape[Any], tool: Shape[Any]) -> bd.Compound | None:
+    """Intersect two shapes and wrap the result in a single Compound.
+
+    ``Shape.intersect`` returns a ``ShapeList`` (or None), which cannot be rotated or
+    projected with ``Drawing`` directly.
+    """
+    result = shape.intersect(tool)
+    return bd.Compound(list(result)) if result else None
+
+
 def _make_plane_slab_box(
     base_plane: bd.Plane, u_min: float, u_max: float, extent: float
 ) -> bd.Solid:
@@ -1908,16 +1946,15 @@ def project_section_to_view(
     hatch_angle: float = 45.0,
 ) -> SheetView:
     """Project a 2D section slice through 3D shape with ISO/ANSI material hatching and background visible lines."""
-    sec = bd.section(shape, section_by=cutting_plane)
-    sec_2d = cutting_plane.to_local_coords(sec)
+    sec_2d = _section_local(shape, cutting_plane)
 
     bg_shapes: list[Any] = []
     if show_background:
         with contextlib.suppress(Exception):
             look_from = cutting_plane.z_dir
             look_up = cutting_plane.y_dir
-            split_half = bd.split(shape, bisect_by=cutting_plane, keep=bd.Keep.BOTTOM)
-            dwg_bg = bd.Drawing(split_half, look_from=look_from, look_up=look_up, with_hidden=False)
+            split_half = _split_keep_bottom(shape, cutting_plane)
+            dwg_bg = Drawing(split_half, look_from=look_from, look_up=look_up, with_hidden=False)
             if len(dwg_bg.visible_lines.edges()) > 0:
                 bg_shapes.append(dwg_bg.visible_lines)
 
@@ -1981,18 +2018,18 @@ def project_offset_section_to_view(
             x_dir=base_plane.x_dir,
             z_dir=base_plane.z_dir,
         )
-        sec_k = bd.section(shape, section_by=plane_k)
-        sec_2d_k = plane_k.to_local_coords(sec_k)
-        clipped_k = _clip_2d_faces_x(list(sec_2d_k.faces()), u_min, u_max, extent)
+        clipped_k = _clip_2d_faces_x(
+            list(_section_local(shape, plane_k).faces()), u_min, u_max, extent
+        )
         all_faces.extend(clipped_k)
 
         if show_background:
             with contextlib.suppress(Exception):
-                split_half = bd.split(shape, bisect_by=plane_k, keep=bd.Keep.BOTTOM)
+                split_half = _split_keep_bottom(shape, plane_k)
                 slab_box = _make_plane_slab_box(base_plane, u_min, u_max, extent)
-                slab_bg = split_half.intersect(slab_box)
+                slab_bg = _intersect_to_compound(split_half, slab_box)
                 if slab_bg is not None:
-                    dwg_bg = bd.Drawing(
+                    dwg_bg = Drawing(
                         slab_bg,
                         look_from=base_plane.z_dir,
                         look_up=base_plane.y_dir,
@@ -2068,24 +2105,24 @@ def project_aligned_section_to_view(
         leg_z = r_dir.cross(base_plane.y_dir)
         leg_plane = bd.Plane(origin=pivot_3d, x_dir=r_dir, z_dir=leg_z)
 
-        sec_leg = bd.section(shape, section_by=leg_plane)
-        sec_2d_leg = leg_plane.to_local_coords(sec_leg)
-        clipped_leg = _clip_2d_faces_x(list(sec_2d_leg.faces()), 0.0, extent, extent)
+        clipped_leg = _clip_2d_faces_x(
+            list(_section_local(shape, leg_plane).faces()), 0.0, extent, extent
+        )
 
         place_negative = (leg_idx == 0 and du <= 0.0) or (
             leg_idx == 1 and du < 0.0 and leg_targets[0][0] >= u_piv
         )
         for face in clipped_leg:
-            oriented = bd.mirror(face, about=bd.Plane.YZ) if place_negative else face
+            oriented = face.mirror(bd.Plane.YZ) if place_negative else face
             if abs(u_piv) > 1e-6:
                 oriented = bd.Pos(u_piv, 0.0, 0.0) * oriented
             all_faces.append(oriented)
 
         if show_background:
             with contextlib.suppress(Exception):
-                split_half = bd.split(shape, bisect_by=leg_plane, keep=bd.Keep.BOTTOM)
+                split_half = _split_keep_bottom(shape, leg_plane)
                 half_box = _make_plane_slab_box(leg_plane, 0.0, extent, extent)
-                leg_bg = split_half.intersect(half_box)
+                leg_bg = _intersect_to_compound(split_half, half_box)
                 if leg_bg is not None:
                     target_dir = -base_plane.x_dir if place_negative else base_plane.x_dir
                     angle_rad = math.atan2(
@@ -2094,7 +2131,7 @@ def project_aligned_section_to_view(
                     )
                     axis = bd.Axis(pivot_3d, base_plane.y_dir)
                     rotated_bg = leg_bg.rotate(axis, math.degrees(angle_rad))
-                    dwg_bg = bd.Drawing(
+                    dwg_bg = Drawing(
                         rotated_bg,
                         look_from=base_plane.z_dir,
                         look_up=base_plane.y_dir,
@@ -2269,7 +2306,7 @@ def project_auxiliary_view(
     look_up_vec = bd.Vector(0, 1, 0) if look_up_vec.length < 1e-4 else look_up_vec.normalized()
     look_up = (float(look_up_vec.X), float(look_up_vec.Y), float(look_up_vec.Z))
 
-    dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
+    dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
     if show_hidden and len(dwg.hidden_lines.edges()) > 0:
         exporter.add_layer(

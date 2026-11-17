@@ -56,6 +56,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
     "twine>=5.0.0",
+    "cadquery-ocp-stubs>=8.0.1.1.0",
 ]
 docs = [
     "mkdocs>=1.6.0",
@@ -95,6 +96,18 @@ ignore = ["E501"]
 quote-style = "double"
 indent-style = "space"
 
+[tool.pyright]
+include = ["src", "examples", "tests"]
+pythonVersion = "3.11"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+# svgelements ships no type information, so (like mypy) it is treated as untyped via the
+# catch-all stub in typings/svgelements/. Without it pyright infers types from the library's
+# source and reports ~70 false positives in the PDF/DXF renderers (e.g. every
+# ``PathSegment.end`` as Optional, although parsed path segments always have an end point).
+stubPath = "typings"
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
@@ -110,27 +123,8 @@ warn_unused_ignores = true
 warn_no_return = true
 
 [[tool.mypy.overrides]]
-module = [
-    "build123d.*",
-    "bd_warehouse.*",
-    "OCP.*",
-    "ezdxf.*",
-    "svgelements.*",
-    "matplotlib.*",
-    "PIL.*",
-    "reportlab.*",
-    "pypdfium2.*",
-]
+module = ["svgelements.*"]
 ignore_missing_imports = true
-
-[tool.pyright]
-# Used by the Pyright language server (editor / Claude Code LSP). mypy remains the CI gate.
-include = ["src", "tests", "examples"]
-venvPath = "."
-venv = ".venv"
-pythonVersion = "3.11"
-typeCheckingMode = "standard"
-reportMissingTypeStubs = false
 
 [tool.pytest.ini_options]
 minversion = "7.0"

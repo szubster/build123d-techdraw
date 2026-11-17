@@ -11,6 +11,7 @@ from build123d_techdraw.annotations.resolver import (
     is_topological_entity,
     resolve_point_3d,
     resolve_point_to_sheet,
+    stale_reason_of,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
@@ -243,10 +244,8 @@ class LinearDimension:
             from build123d_techdraw.annotations.resolver import resolve_edge_to_sheet
 
             v_shape = getattr(view, "shape", None)
-            if not isinstance(self.target, (tuple, list)):
-                self.target = ensure_anchor(self.target, v_shape) or self.target
-            if self.target2 is not None and not isinstance(self.target2, (tuple, list)):
-                self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
+            self.target = ensure_anchor(self.target, v_shape) or self.target
+            self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
             prev_start = self.start
             prev_end = self.end
@@ -285,24 +284,23 @@ class LinearDimension:
             else:
                 p0_3d = resolve_point_3d(self.target, view)
                 p1_3d = resolve_point_3d(self.target2, view)
-                s0 = resolve_point_to_sheet(self.target, view)
-                s1 = resolve_point_to_sheet(self.target2, view)
+                # Reuse the resolved 3D points; only 2D tuples need resolve_point_to_sheet
+                s0 = (
+                    view.to_sheet_3d(*p0_3d)
+                    if p0_3d is not None
+                    else resolve_point_to_sheet(self.target, view)
+                )
+                s1 = (
+                    view.to_sheet_3d(*p1_3d)
+                    if p1_3d is not None
+                    else resolve_point_to_sheet(self.target2, view)
+                )
 
                 stale1 = isinstance(self.target, Anchor) and self.target.is_stale
                 stale2 = isinstance(self.target2, Anchor) and self.target2.is_stale
                 if stale1 or stale2:
                     self.anchor_stale = True
-                    r1 = (
-                        self.target.stale_reason
-                        if isinstance(self.target, Anchor) and self.target.is_stale
-                        else None
-                    )
-                    r2 = (
-                        self.target2.stale_reason
-                        if isinstance(self.target2, Anchor) and self.target2.is_stale
-                        else None
-                    )
-                    self.stale_reason = r1 or r2
+                    self.stale_reason = stale_reason_of(self.target, self.target2)
                     if stale1 and prev_start != (0.0, 0.0):
                         s0 = prev_start
                     if stale2 and prev_end != (0.0, 0.0):
@@ -965,10 +963,8 @@ class AngularDimension:
             from build123d_techdraw.annotations.resolver import resolve_angle_to_sheet
 
             v_shape = getattr(view, "shape", None)
-            if not isinstance(self.target1, (tuple, list)):
-                self.target1 = ensure_anchor(self.target1, v_shape) or self.target1
-            if not isinstance(self.target2, (tuple, list)):
-                self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
+            self.target1 = ensure_anchor(self.target1, v_shape) or self.target1
+            self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
             prev_apex = self.apex
             prev_a1 = self.start_angle_deg
@@ -981,17 +977,7 @@ class AngularDimension:
             stale2 = isinstance(self.target2, Anchor) and self.target2.is_stale
             if stale1 or stale2:
                 self.anchor_stale = True
-                r1 = (
-                    self.target1.stale_reason
-                    if isinstance(self.target1, Anchor) and self.target1.is_stale
-                    else None
-                )
-                r2 = (
-                    self.target2.stale_reason
-                    if isinstance(self.target2, Anchor) and self.target2.is_stale
-                    else None
-                )
-                self.stale_reason = r1 or r2
+                self.stale_reason = stale_reason_of(self.target1, self.target2)
                 if prev_apex != (0.0, 0.0):
                     ap, a1, a2 = prev_apex, prev_a1, prev_a2
                 if prev_text is not None and not self._explicit_text:
@@ -1353,19 +1339,24 @@ class OrdinateDimensionSet:
         )
 
         # Compute paper locations and auto-jogging
+        # A coordinate datum is mapped through the view (honours view breaks). A topological
+        # datum (``Anchor``) only has a resolved sheet point, so offset linearly from that.
+        view = self.view
+        datum = self.datum_origin
+        model_datum = datum if isinstance(datum, (tuple, list)) else None
         paper_locs: list[float] = []
         for c in sorted_coords:
             val = float(c) if isinstance(c, (int, float)) else 0.0
             if is_x:
                 p_coord = (
-                    self.view.to_sheet_x(float(self.datum_origin[0]) + val)
-                    if self.view
+                    view.to_sheet_x(float(model_datum[0]) + val)
+                    if view and model_datum is not None
                     else (self.datum_sheet[0] + val * scale)
                 )
             else:
                 p_coord = (
-                    self.view.to_sheet_y(float(self.datum_origin[1]) + val)
-                    if self.view
+                    view.to_sheet_y(float(model_datum[1]) + val)
+                    if view and model_datum is not None
                     else (self.datum_sheet[1] - val * scale)
                 )
             paper_locs.append(p_coord)

@@ -6,7 +6,7 @@ import os
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 # Set MPLCONFIGDIR before importing matplotlib so it does not probe ~/.config/matplotlib.
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
@@ -22,6 +22,12 @@ import svgelements as se  # noqa: E402
 from matplotlib.backends.backend_pdf import Name, PdfPages  # noqa: E402
 
 from build123d_techdraw.renderers.theme import THEME_COLORS, Theme, ThemeColors  # noqa: E402
+
+if TYPE_CHECKING:
+    from build123d_techdraw.core.sheet import DrawingSheet
+
+SheetInput: TypeAlias = "tuple[float, float, str] | DrawingSheet | str | os.PathLike[str]"
+"""A sheet to render: (width_mm, height_mm, svg), a ``DrawingSheet``, or an SVG path/string."""
 
 MM_TO_PT: float = 72.0 / 25.4
 # Contours (ISO 128 Type A): 0.50mm -> 1.42pt
@@ -466,14 +472,17 @@ class PDFRenderer:
     @classmethod
     def _coerce_sheet_input(
         cls,
-        item: tuple[float, float, str] | Any,
+        item: SheetInput,
         theme: Theme,
     ) -> tuple[float, float, str]:
         """Normalize a tuple, DrawingSheet, SVG path, or SVG string into (width_mm, height_mm, svg_str)."""
+        # Runtime import: core.sheet imports this module lazily for export_pdf().
+        from build123d_techdraw.core.sheet import DrawingSheet
+
         if isinstance(item, tuple) and len(item) == 3:
             return (float(item[0]), float(item[1]), str(item[2]))
-        if hasattr(item, "to_svg") and hasattr(item, "width_mm") and hasattr(item, "height_mm"):
-            return (float(item.width_mm), float(item.height_mm), str(item.to_svg(theme=theme)))
+        if isinstance(item, DrawingSheet):
+            return (item.width_mm, item.height_mm, item.to_svg(theme=theme))
         if isinstance(item, (str, os.PathLike)):
             path_or_svg = os.fspath(item)
             if os.path.isfile(path_or_svg):
@@ -490,7 +499,7 @@ class PDFRenderer:
     @classmethod
     def render_sheets_to_pdf(
         cls,
-        sheets_data: Sequence[tuple[float, float, str] | Any],
+        sheets_data: Sequence[SheetInput],
         output_path: str,
         theme: Theme = Theme.DARK_BLUEPRINT,
         bookmarks: bool = False,

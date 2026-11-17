@@ -1,6 +1,7 @@
 """Tests for OrdinateDimensionSet functionality."""
 
 import build123d as bd
+import pytest
 
 from build123d_techdraw import (
     BuildDrawing,
@@ -80,3 +81,23 @@ def test_ordinate_dimension_set_y_direction() -> None:
     assert ">25</text>" in svg or ">25.00</text>" in svg
     assert ">50</text>" in svg or ">50.00</text>" in svg
     assert ">100</text>" in svg or ">100.00</text>" in svg
+
+
+def test_ordinate_dimension_set_topological_datum() -> None:
+    """A vertex datum (resolved to an ``Anchor``) renders offsets from its sheet position."""
+    plate = bd.Box(150.0, 80.0, 10.0)
+    datum_vertex = plate.vertices().sort_by(bd.Axis.X)[0]
+
+    with (
+        BuildDrawing(sheet_size="A3"),
+        FrontView(plate, center=(120.0, 100.0), scale=1.0),
+    ):
+        ords = OrdinateDimensionSet(
+            anchor=datum_vertex, direction="X", coordinates=[0.0, 50.0], jog=False
+        )
+
+    # Left edge of a 150 mm plate centred at x=120 on the sheet.
+    assert ords.datum_sheet[0] == pytest.approx(45.0)
+    svg = ords.to_svg()
+    assert 'x="45.00"' in svg
+    assert 'x="95.00"' in svg

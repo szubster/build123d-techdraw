@@ -1,72 +1,77 @@
 # AGENTS.md
 
-Guidance for AI coding agents (Claude Code, Codex, etc.) working in this repo.
-`CLAUDE.md` is a symlink to this file — edit `AGENTS.md` only.
+Instructions for AI coding agents working in this repository (Claude Code, Codex, Cursor, etc.).
+Human contributors: see `CONTRIBUTING.md`.
+
+> `CLAUDE.md` is a symlink to this file so Claude Code loads it; edit `AGENTS.md` only and never
+> replace the symlink with a separate `CLAUDE.md`. Agent skills live in `.agents/skills/`
+> (`.claude/skills` is a symlink to it).
 
 ## Project
 
-`build123d-techdraw` is a 2D technical-drawing engine for [build123d](https://github.com/gumyr/build123d)
-(OpenCASCADE via `OCP`). 3D shapes are projected to 2D paths; all annotations (dimensions, GD&T,
-title blocks, BOMs…) are drawn directly in **2D paper space, in millimetres**, so text and arrow
-sizes stay invariant regardless of view scale. Outputs: SVG (themed), PDF, DXF.
+`build123d-techdraw` is a 2D technical-drawing engine for build123d (Python CAD). 3D shapes are
+projected to 2D paths; annotations (dimensions, GD&T, surface finish, balloons, title blocks) are
+drawn in **paper space, in millimetres**, so text height and arrowheads do not scale with the view.
+Outputs: themed SVG (dark blueprint / ISO white via CSS custom properties), PDF, DXF.
+
+Layout of `src/build123d_techdraw/`:
+
+- `core/` – `DrawingSheet` (`sheet.py`), `SheetView` projection (`view.py`), scales, title block, booklets
+- `annotations/` – dimensions, GD&T, callouts, threads, tables, centerlines, surface symbols;
+  `anchors.py` + `resolver.py` map 3D topology / semantic anchors to 2D view coordinates
+- `layout/` – auto multi-view layout, auto-dimensioning, sheet linter (`linter.py`)
+- `renderers/` – SVG / PDF / DXF writers and `theme.py` colour tokens
+- `recognizers/` – feature recognition (holes, etc.)
+- `builder.py` – build123d builder-mode (`with` context) API
 
 ## Commands
 
-Environment is managed with `uv` (`uv sync --all-groups`). CI runs all of these:
+Always go through `uv`; never `pip install` into the env.
 
 ```bash
-uv run ruff check .            # lint (ruff config in pyproject.toml, line length 100)
-uv run ruff format --check .   # format
-uv run mypy src examples       # strict mypy — the type-checking gate in CI
-uv run pytest                  # tests (+ coverage); pass --no-cov for quick single-file runs
-uv run pytest tests/test_dimensions.py -q --no-cov
-uv run python examples/generate_all.py   # regenerate example outputs
+uv sync --all-groups                   # install everything
+uv run pytest                          # tests + coverage
+uv run pytest tests/test_dimensions.py -k diameter -q --no-cov   # focused run
+uv run ruff check --fix . && uv run ruff format .
+uv run mypy src examples               # strict; must be clean
+uv run pyright                         # also configured; backs the pyright-lsp plugin
+uv run python examples/generate_all.py # regenerate example drawings (see below)
 ```
 
-`pyright` is also installed (dev group) and configured in `pyproject.toml` for the language
-server; mypy strict remains the authoritative check.
+For code navigation, `.claude/settings.json` enables the `pyright-lsp` plugin (definitions,
+references, hover types, diagnostics). Prefer it over grep when tracing build123d/OCP types or
+call sites.
 
-## Layout (`src/build123d_techdraw/`)
+## Rules
 
-- `core/` — `sheet.py` (`DrawingSheet`, ISO 5457 sizes/borders), `view.py` (`SheetView`, all
-  projection math: section/offset/aligned/detail/auxiliary views, breaks), `title_block.py`
-  (ISO 7200), `scale.py` (ISO 5455 scales), `booklet.py` (multi-page).
-- `annotations/` — `dimensions.py` (ISO 129: linear/radial/diameter/angular/ordinate/chain/baseline),
-  `gdt.py` (ISO 1101 FCFs, datums), `callouts.py` (leaders, hole/thread callouts, balloons, section
-  lines, welding), `centerlines.py`, `surface.py` (ISO 1302), `tables.py`, `threads.py`
-  (`bd_warehouse`-backed thread DB), `anchors.py` + `resolver.py` (semantic topological anchoring
-  and 3D→sheet resolution; see below).
-- `layout/` — `multiview.py` (auto multiview + assembly BOM), `auto_dimension.py`
-  (collision-avoiding placement), `linter.py` (`run_sheet_lint`).
-- `recognizers/features.py` — B-Rep feature recognition (holes, bolt circles, bosses, steps).
-- `renderers/` — `svg.py`, `pdf.py`, `dxf.py`, `theme.py` (CSS-variable dark/white themes).
-- `builder.py` + `context.py` — Builder mode (`with BuildDrawing(): with FrontView(): ...`) and
-  algebraic mode (`sheet += view`), with a thread-safe context stack.
-- `__init__.py` — the public API surface; export new public names there.
+- **Typing is strict.** Every function is fully annotated. build123d, OCP (via
+  `cadquery-ocp-stubs`), ezdxf, matplotlib and Pillow are all typed — do not add them to
+  `ignore_missing_imports`, and do not add `# type: ignore` without a specific error code and a
+  reason it cannot be fixed. Only `svgelements` is untyped.
+- **Units:** annotation geometry is paper-space mm. Model geometry is model units; convert with the
+  view's scale, never hard-code a scale factor.
+- **Theme colours** come from `renderers/theme.py` tokens / CSS variables — never hard-code hex
+  colours in SVG output.
+- **Golden SVGs.** `examples/output/*.svg` and `docs/assets/examples/*.svg` are compared
+  byte-for-byte in CI. Any change to rendering, layout or annotation code must be followed by
+  regenerating them (skill: `regen-examples`) and committing the SVG diff together with the code.
+  Never hand-edit these files to make CI pass.
+- PDF/DXF outputs are not byte-deterministic (timestamps/handles). Do not commit PDF/DXF churn
+  unless the change is meant to affect those formats.
+- Generated, never edited by hand: `uv.lock` (use `uv add`/`uv lock`),
+  `src/build123d_techdraw/_version.py` (hatch-vcs), everything in `examples/output/` and
+  `docs/assets/examples/`.
+- New public API needs a test in `tests/` and, if user-facing, a mention in `docs/user-guide/`.
+- Drafting behaviour must follow the ISO standards listed in the `drafting-conventions` skill.
+  Load it before touching `annotations/`, `layout/` or `renderers/`.
 
-## Conventions
+## Commits and PRs
 
-- **Typing:** full strict annotations on everything (mypy `strict = true`). Third-party CAD libs
-  (`build123d`, `OCP`, `bd_warehouse`, `ezdxf`, …) are untyped — `ignore_missing_imports` is set.
-- **Units:** sheet/paper-space values are mm; model-space values are scaled by the view scale.
-  Keep the two clearly separated.
-- **Topological references:** annotations may target build123d `Edge`/`Face`/`Vertex` objects.
-  These go through `annotations/anchors.py` (semantic fingerprints that survive model rebuilds,
-  i.e. defense against the Topological Naming Problem) and `annotations/resolver.py`. Don't
-  resolve topology to coordinates ad hoc elsewhere.
-- **Examples are tested:** `tests/test_examples.py` requires every `examples/*.py` to be wired
-  into `examples/generate_all.py`, and CI fails if committed SVGs in `examples/output/` and
-  `docs/assets/examples/` differ from regenerated ones. If you change rendering output, regenerate
-  and commit them.
-- **Commits / PR titles:** Conventional Commits, e.g. `feat(core): …`, `fix(renderers): …`
-  (enforced by `semantic-pr.yml`; drives semantic-release versioning).
-- Docs live in `docs/` (mkdocs-material + mkdocstrings); update user-guide pages for new features.
+Conventional Commits, enforced on PR titles: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`,
+optional scope (`core`, `annotations`, `layout`, `renderers`, `dimensions`, …), `!` for breaking
+changes. `feat` → minor, `fix` → patch. Fill in `.github/PULL_REQUEST_TEMPLATE.md`.
 
-## Agent tooling (`.claude/`)
-
-- `settings.json` enables the `pyright-lsp` plugin (go-to-definition, find-references, hover
-  types, diagnostics). Prefer it over grep when tracing build123d/OCP types or call sites.
-- `hooks/ruff-on-edit.sh` runs `ruff format` + `ruff check --fix` on every edited `.py` file and
-  reports unfixable lint back to the agent.
-- `hooks/session-start.sh` (cloud sessions only) installs OCP's system libs and runs
-  `uv sync --all-groups`, skipping work when `uv.lock`/`pyproject.toml` are unchanged.
+Versioning follows Semantic Versioning. The project is **pre-1.0**: breaking API and behaviour
+changes are allowed and preferred over compatibility shims, deprecation wrappers or aliases kept
+only for old callers. Mark them with `!` / `BREAKING CHANGE:`; while on `0.x` they bump the minor
+version, not the major.
