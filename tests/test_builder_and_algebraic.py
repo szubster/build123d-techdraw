@@ -40,7 +40,9 @@ def bracket_part() -> bd.Compound:
     flange = bd.Box(30.0, 50.0, 40.0).move(bd.Location((-25.0, 0.0, 20.0)))
     part = base + flange
     hole = bd.Cylinder(radius=5.5, height=60.0).move(bd.Location((-25.0, 0.0, 20.0)))
-    return part - hole
+    result = part - hole
+    assert isinstance(result, bd.Compound)
+    return result
 
 
 @pytest.fixture

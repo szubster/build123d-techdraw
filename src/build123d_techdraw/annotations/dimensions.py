@@ -1339,19 +1339,24 @@ class OrdinateDimensionSet:
         )
 
         # Compute paper locations and auto-jogging
+        # A coordinate datum is mapped through the view (honours view breaks). A topological
+        # datum (``Anchor``) only has a resolved sheet point, so offset linearly from that.
+        view = self.view
+        datum = self.datum_origin
+        model_datum = datum if isinstance(datum, (tuple, list)) else None
         paper_locs: list[float] = []
         for c in sorted_coords:
             val = float(c) if isinstance(c, (int, float)) else 0.0
             if is_x:
                 p_coord = (
-                    self.view.to_sheet_x(float(self.datum_origin[0]) + val)
-                    if self.view
+                    view.to_sheet_x(float(model_datum[0]) + val)
+                    if view and model_datum is not None
                     else (self.datum_sheet[0] + val * scale)
                 )
             else:
                 p_coord = (
-                    self.view.to_sheet_y(float(self.datum_origin[1]) + val)
-                    if self.view
+                    view.to_sheet_y(float(model_datum[1]) + val)
+                    if view and model_datum is not None
                     else (self.datum_sheet[1] - val * scale)
                 )
             paper_locs.append(p_coord)
