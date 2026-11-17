@@ -43,14 +43,19 @@ print(f"Chosen scale: {layout.scale_str}")  # e.g. "SCALE 1:2"
 
 ## 📐 Projection Standards
 
-### Third-Angle Projection (`layout="third_angle"`)
-Standard in North America and ISO default:
+### Third-Angle Projection (`layout="third_angle"`, default)
+ISO 5456-2 projection method A; the ASME / North American convention:
 - **Top View** is placed directly **above** the Front View.
-- **Right View** is placed directly to the **right** of the Front View.
+- **Right View** is placed directly to the **right** of the Front View (a Left View goes on the left).
 - **Isometric View** is placed at the top-right.
+- The title block shows the third-angle symbol (end-view circles to the left of the frustum).
 
 ### First-Angle Projection (`layout="first_angle"`)
-Traditional European ISO standard:
-- **Top View** is projected **below** the Front View.
-- **Right View** is placed to the **right** or left according to first-angle rules.
-- **Isometric View** is placed at the bottom-right.
+ISO 5456-2 projection method E; the usual choice under ISO in Europe and most of Asia:
+- **Top View** is placed directly **below** the Front View.
+- **Right View** is placed directly to the **left** of the Front View (a Left View goes on the right).
+- **Isometric View** is placed at the bottom-left, in the free grid cell.
+- The title block shows the first-angle symbol (frustum to the left of the end-view circles).
+
+Both methods are valid ISO drawings as long as the symbol in the title block matches the view
+arrangement, which `add_standard_multiview` keeps in sync.

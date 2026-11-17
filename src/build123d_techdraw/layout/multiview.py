@@ -11,6 +11,7 @@ import build123d as bd
 from build123d_techdraw.annotations.callouts import BOMBalloon
 from build123d_techdraw.core.scale import (
     find_closest_iso_scale,
+    format_iso_ratio,
     format_iso_scale,
 )
 from build123d_techdraw.core.title_block import BOMItem
@@ -111,7 +112,8 @@ def add_standard_multiview(
     views:
         List of ViewTypes to generate. Defaults to Front, Top, Right, Isometric.
     layout:
-        'third_angle' (standard ISO / ANSI) or 'first_angle'.
+        'third_angle' (ISO 5456-2 method A; the ASME / North American default) or
+        'first_angle' (method E; the usual choice under ISO in Europe and most of Asia).
     scale:
         Explicit float scale (e.g. 0.5 for 1:2) or 'auto' to fit available sheet area.
     spacing:
@@ -136,47 +138,53 @@ def add_standard_multiview(
     # Diagonal approximation for isometric unscaled size
     iso_diag = math.sqrt(sx * sx + sy * sy + sz * sz) * 0.75
 
-    # Determine unscaled column and row dimensions
-    # In standard layouts:
-    # Column 1: Front / Top / Bottom (width = sx)
-    # Column 2: Right / Left / Isometric (width = max(sy, iso_diag))
-    has_col1 = any(
-        v in [ViewType.FRONT, ViewType.TOP, ViewType.BOTTOM, ViewType.REAR] for v in views
-    )
-    has_col2 = any(v in [ViewType.RIGHT, ViewType.LEFT, ViewType.ISOMETRIC] for v in views)
+    is_first_angle = layout.lower() == "first_angle"
 
-    has_row1 = any(v in [ViewType.TOP, ViewType.ISOMETRIC] for v in views)
-    has_row2 = any(
-        v in [ViewType.FRONT, ViewType.RIGHT, ViewType.LEFT, ViewType.REAR] for v in views
-    )
+    # The views sit on a 2x2 grid:
+    #   main column: Front / Top / Bottom / Rear (width = sx)
+    #   side column: Right / Left / Isometric (width = max(sy, iso_diag))
+    #   front row:   Front / Right / Left / Rear (height = sz)
+    #   plan row:    Top / Isometric (height = max(sy, iso_diag))
+    # Third angle (ISO 5456-2 method A): plan row above, side column right of the front view.
+    # First angle (method E): plan row below, side column left of the front view, because the
+    # view from the right is placed on the left.
+    main_views = (ViewType.FRONT, ViewType.TOP, ViewType.BOTTOM, ViewType.REAR)
+    side_views = (ViewType.RIGHT, ViewType.LEFT, ViewType.ISOMETRIC)
+    front_row_views = (ViewType.FRONT, ViewType.RIGHT, ViewType.LEFT, ViewType.REAR)
+    plan_row_views = (ViewType.TOP, ViewType.ISOMETRIC)
 
-    unscaled_w_col1 = sx if has_col1 else 0.0
-    unscaled_w_col2 = (
+    has_main = any(v in main_views for v in views)
+    has_side = any(v in side_views for v in views)
+    has_front_row = any(v in front_row_views for v in views)
+    has_plan_row = any(v in plan_row_views for v in views)
+
+    unscaled_w_main = sx if has_main else 0.0
+    unscaled_w_side = (
         max(
-            sy if any(v in [ViewType.RIGHT, ViewType.LEFT] for v in views) else 0.0,
+            sy if any(v in (ViewType.RIGHT, ViewType.LEFT) for v in views) else 0.0,
             iso_diag if ViewType.ISOMETRIC in views else 0.0,
         )
-        if has_col2
+        if has_side
+        else 0.0
+    )
+    unscaled_h_front = sz if has_front_row else 0.0
+    unscaled_h_plan = (
+        max(sy if ViewType.TOP in views else 0.0, iso_diag if ViewType.ISOMETRIC in views else 0.0)
+        if has_plan_row
         else 0.0
     )
 
-    unscaled_h_row1 = (
-        max(sy if ViewType.TOP in views else 0.0, iso_diag if ViewType.ISOMETRIC in views else 0.0)
-        if has_row1
-        else 0.0
-    )
-    unscaled_h_row2 = (
-        max(
-            sz
-            if any(
-                v in [ViewType.FRONT, ViewType.RIGHT, ViewType.LEFT, ViewType.REAR] for v in views
-            )
-            else 0.0,
-            0.0,
-        )
-        if has_row2
-        else 0.0
-    )
+    # Column 1 is the left column, row 1 the upper row.
+    if is_first_angle:
+        has_col1, has_col2 = has_side, has_main
+        unscaled_w_col1, unscaled_w_col2 = unscaled_w_side, unscaled_w_main
+        has_row1, has_row2 = has_front_row, has_plan_row
+        unscaled_h_row1, unscaled_h_row2 = unscaled_h_front, unscaled_h_plan
+    else:
+        has_col1, has_col2 = has_main, has_side
+        unscaled_w_col1, unscaled_w_col2 = unscaled_w_main, unscaled_w_side
+        has_row1, has_row2 = has_plan_row, has_front_row
+        unscaled_h_row1, unscaled_h_row2 = unscaled_h_plan, unscaled_h_front
 
     num_cols = (1 if has_col1 else 0) + (1 if has_col2 else 0)
     num_rows = (1 if has_row1 else 0) + (1 if has_row2 else 0)
@@ -237,10 +245,10 @@ def add_standard_multiview(
     min_y = center_y - total_group_h / 2.0
 
     col1_cx = min_x + w_col1 / 2.0
-    col2_cx = min_x + w_col1 + spacing + w_col2 / 2.0 if num_cols > 1 else col1_cx
+    col2_cx = min_x + (w_col1 + spacing if has_col1 else 0.0) + w_col2 / 2.0
 
     row1_cy = min_y + h_row1 / 2.0
-    row2_cy = min_y + h_row1 + spacing + h_row2 / 2.0 if num_rows > 1 else row1_cy
+    row2_cy = min_y + (h_row1 + spacing if has_row1 else 0.0) + h_row2 / 2.0
 
     # Ensure row2 labels and dimensions do not encroach on bottom-right exclusion zone
     if has_row2:
@@ -257,42 +265,28 @@ def add_standard_multiview(
         sheet=sheet,
     )
 
-    is_third_angle = layout.lower() != "first_angle"
-    sheet.title_info.third_angle = is_third_angle
-    sheet.title_info.scale = scale_str
+    sheet.title_info.third_angle = not is_first_angle
+    # The title block already labels the field SCALE, so it takes the bare ratio.
+    sheet.title_info.scale = format_iso_ratio(calculated_scale)
 
-    # Positioning mapping
-    pos_map: dict[ViewType, tuple[float, float]] = {}
-
-    if is_third_angle:
-        # Third Angle:
-        # Row 1 (top): Top view (Col 1), Isometric (Col 2)
-        # Row 2 (bottom): Front view (Col 1), Right view (Col 2)
-        if ViewType.TOP in views:
-            pos_map[ViewType.TOP] = (col1_cx, row1_cy)
-        if ViewType.FRONT in views:
-            pos_map[ViewType.FRONT] = (col1_cx, row2_cy if has_row1 else row1_cy)
-        if ViewType.RIGHT in views:
-            pos_map[ViewType.RIGHT] = (col2_cx, row2_cy if has_row1 else row1_cy)
-        if ViewType.LEFT in views:
-            pos_map[ViewType.LEFT] = (
-                col1_cx - w_col1 / 2.0 - spacing - w_col2 / 2.0,
-                row2_cy if has_row1 else row1_cy,
-            )
-        if ViewType.ISOMETRIC in views:
-            pos_map[ViewType.ISOMETRIC] = (col2_cx, row1_cy)
+    if is_first_angle:
+        main_cx, side_cx = col2_cx, col1_cx
+        front_cy, plan_cy = row1_cy, row2_cy
+        # The view from the left goes on the right of the front view, outside the grid.
+        left_cx = main_cx + w_col2 / 2.0 + spacing + w_col1 / 2.0
     else:
-        # First Angle:
-        # Row 1 (top): Front view (Col 1), Isometric (Col 2)
-        # Row 2 (bottom): Top view (Col 1), Right/Left view
-        if ViewType.FRONT in views:
-            pos_map[ViewType.FRONT] = (col1_cx, row1_cy)
-        if ViewType.TOP in views:
-            pos_map[ViewType.TOP] = (col1_cx, row2_cy if has_row2 else row1_cy)
-        if ViewType.RIGHT in views:
-            pos_map[ViewType.RIGHT] = (col2_cx, row1_cy)
-        if ViewType.ISOMETRIC in views:
-            pos_map[ViewType.ISOMETRIC] = (col2_cx, row2_cy if has_row2 else row1_cy)
+        main_cx, side_cx = col1_cx, col2_cx
+        front_cy, plan_cy = row2_cy, row1_cy
+        # The view from the left goes on the left of the front view, outside the grid.
+        left_cx = main_cx - w_col1 / 2.0 - spacing - w_col2 / 2.0
+
+    pos_map: dict[ViewType, tuple[float, float]] = {
+        ViewType.FRONT: (main_cx, front_cy),
+        ViewType.TOP: (main_cx, plan_cy),
+        ViewType.RIGHT: (side_cx, front_cy),
+        ViewType.LEFT: (left_cx, front_cy),
+        ViewType.ISOMETRIC: (side_cx, plan_cy),
+    }
 
     for v_type in views:
         v_center = pos_map.get(v_type, (center_x, center_y))
