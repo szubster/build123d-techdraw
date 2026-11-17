@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import build123d as bd
+from build123d.exporters import Drawing
 
 from build123d_techdraw.annotations.callouts import BOMBalloon
 from build123d_techdraw.core.scale import (
@@ -342,7 +343,7 @@ def add_standard_multiview(
                 continue
             look_from, look_up = VIEW_VECTORS.get(v_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
             try:
-                dwg_v = bd.Drawing(shape, look_from=look_from, look_up=look_up)
+                dwg_v = Drawing(shape, look_from=look_from, look_up=look_up)
                 for edge in dwg_v.visible_lines.edges():
                     if edge.geom_type == bd.GeomType.CIRCLE:
                         c = edge.arc_center

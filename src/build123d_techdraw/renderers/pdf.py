@@ -472,7 +472,12 @@ class PDFRenderer:
         """Normalize a tuple, DrawingSheet, SVG path, or SVG string into (width_mm, height_mm, svg_str)."""
         if isinstance(item, tuple) and len(item) == 3:
             return (float(item[0]), float(item[1]), str(item[2]))
-        if hasattr(item, "to_svg") and hasattr(item, "width_mm") and hasattr(item, "height_mm"):
+        if (
+            not isinstance(item, tuple)
+            and hasattr(item, "to_svg")
+            and hasattr(item, "width_mm")
+            and hasattr(item, "height_mm")
+        ):
             return (float(item.width_mm), float(item.height_mm), str(item.to_svg(theme=theme)))
         if isinstance(item, (str, os.PathLike)):
             path_or_svg = os.fspath(item)

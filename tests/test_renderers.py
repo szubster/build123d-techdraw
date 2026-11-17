@@ -6,6 +6,7 @@ import tempfile
 import build123d as bd
 import matplotlib.pyplot as plt
 import pytest
+from matplotlib.colors import to_rgba
 
 from build123d_techdraw.core.booklet import DrawingBooklet
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
@@ -116,9 +117,9 @@ def test_pdf_lineweight_calibration_stroke_guard_and_dim_knockout() -> None:
         # 3. Borders (0.70mm -> 1.98pt)
         assert user_patches[2].get_linewidth() == pytest.approx(0.70 * MM_TO_PT)
         # 4. Filled shape without explicit stroke -> no accidental stroke (alpha == 0.0)
-        assert user_patches[3].get_edgecolor()[3] == pytest.approx(0.0)
+        assert to_rgba(user_patches[3].get_edgecolor())[3] == pytest.approx(0.0)
         # 5. dim-arrow -> solid fill without stroke outline
-        assert user_patches[4].get_edgecolor()[3] == pytest.approx(0.0)
+        assert to_rgba(user_patches[4].get_edgecolor())[3] == pytest.approx(0.0)
         # 6. Explicit inline stroke -> scaled by MM_TO_PT
         assert user_patches[5].get_linewidth() == pytest.approx(0.40 * MM_TO_PT)
         # 7. Unfilled shape without explicit stroke -> fallback 0.35 * MM_TO_PT
@@ -129,7 +130,7 @@ def test_pdf_lineweight_calibration_stroke_guard_and_dim_knockout() -> None:
         title_txt = next(t for t in ax.texts if t.get_text() == "FRONT")
         bbox_patch = dim_txt.get_bbox_patch()
         assert bbox_patch is not None
-        assert bbox_patch.get_edgecolor()[3] == pytest.approx(0.0)
+        assert to_rgba(bbox_patch.get_edgecolor())[3] == pytest.approx(0.0)
         assert title_txt.get_bbox_patch() is None
     finally:
         plt.close(fig)
@@ -230,7 +231,7 @@ def test_pdf_import_sets_mplconfigdir_before_matplotlib() -> None:
 
 def test_dxf_3d_plate_plane_adaptive_and_strict() -> None:
     """Verify DXFRenderer auto-detects primary flat face, projects on plane, and surfaces errors."""
-    import ezdxf
+    from ezdxf.filemanagement import readfile
 
     plate = bd.Rot(90, 0, 0) * bd.Box(60.0, 40.0, 5.0)
     ellipse = bd.Ellipse(20.0, 10.0)
@@ -238,18 +239,18 @@ def test_dxf_3d_plate_plane_adaptive_and_strict() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         plate_dxf = os.path.join(tmpdir, "plate.dxf")
         DXFRenderer.export_shape_to_dxf(plate, plate_dxf)
-        doc = ezdxf.readfile(plate_dxf)
+        doc = readfile(plate_dxf)
         lines = list(doc.modelspace().query("LINE"))
         assert len(lines) == 4
 
         plane_dxf = os.path.join(tmpdir, "plane.dxf")
         DXFRenderer.export_shape_to_dxf(plate, plane_dxf, plane=bd.Plane.XZ)
-        doc2 = ezdxf.readfile(plane_dxf)
+        doc2 = readfile(plane_dxf)
         assert len(list(doc2.modelspace())) >= 4
 
         ellipse_dxf = os.path.join(tmpdir, "ellipse.dxf")
         DXFRenderer.export_shape_to_dxf(ellipse, ellipse_dxf, tolerance=0.001)
-        doc_e = ezdxf.readfile(ellipse_dxf)
+        doc_e = readfile(ellipse_dxf)
         polys = list(doc_e.modelspace().query("LWPOLYLINE"))
         assert len(polys) >= 1
         assert len(polys[0]) > 20
