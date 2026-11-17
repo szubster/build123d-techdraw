@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import svgelements as se  # noqa: E402
 from matplotlib.backends.backend_pdf import Name, PdfPages  # noqa: E402
 
+from build123d_techdraw.renderers.svg_elements import has_hidden_ancestor, svg_property  # noqa: E402
 from build123d_techdraw.renderers.theme import THEME_COLORS, Theme, ThemeColors  # noqa: E402
 
 if TYPE_CHECKING:
@@ -236,17 +237,12 @@ class PDFRenderer:
                         or "line-hidden" in raw_stroke
                     )
                     if not is_hidden:
-                        parent = getattr(el, "parent", None)
-                        while parent:
-                            p_id = getattr(parent, "id", "") or parent.values.get("id", "")
-                            p_cls = getattr(parent, "class", "") or parent.values.get("class", "")
-                            if "hidden" in p_id or "hidden" in p_cls:
-                                is_hidden = True
-                                break
-                            parent = getattr(parent, "parent", None)
+                        is_hidden = has_hidden_ancestor(el)
 
                     # Check for section hatch
-                    fill_str = str(getattr(el, "fill", "")) + " " + str(el.values.get("fill", ""))
+                    fill_str = (
+                        str(svg_property(el, "fill", "")) + " " + str(el.values.get("fill", ""))
+                    )
                     is_hatch = (
                         "section-hatch-fill" in cls_list
                         or "sectionHatch" in fill_str
@@ -404,7 +400,7 @@ class PDFRenderer:
                         color = colors.text
 
                     anchor_map = {"start": "left", "middle": "center", "end": "right"}
-                    ha = anchor_map.get(getattr(el, "anchor", "start"), "left")
+                    ha = anchor_map.get(svg_property(el, "anchor", "start"), "left")
                     va = "center" if rotation != 0 else "baseline"
                     bbox_props = (
                         {"boxstyle": "square,pad=0.15", "facecolor": colors.bg, "edgecolor": "none"}

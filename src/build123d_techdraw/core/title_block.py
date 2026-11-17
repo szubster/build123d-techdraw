@@ -77,7 +77,41 @@ class TitleBlockInfo:
             self.fields[str_k] = str_v
             norm_k = str_k.upper()
             if norm_k in _STANDARD_FIELD_MAP:
-                setattr(self, _STANDARD_FIELD_MAP[norm_k], str_v)
+                self._set_standard_field(_STANDARD_FIELD_MAP[norm_k], str_v)
+
+    def _set_standard_field(self, name: str, value: str) -> None:
+        """Assign one of the built-in title block cells named in ``_STANDARD_FIELD_MAP``."""
+        match name:
+            case "project":
+                self.project = value
+            case "drawing_title":
+                self.drawing_title = value
+            case "subtitle":
+                self.subtitle = value
+            case "drawing_no":
+                self.drawing_no = value
+            case "rev":
+                self.rev = value
+            case "material":
+                self.material = value
+            case "finish":
+                self.finish = value
+            case "scale":
+                self.scale = value
+            case "sheet_no":
+                self.sheet_no = value
+            case "total_sheets":
+                self.total_sheets = value
+            case "date":
+                self.date = value
+            case "author":
+                self.author = value
+            case "status":
+                self.status = value
+            case "units":
+                self.units = value
+            case _:
+                raise KeyError(name)
 
     @property
     def extra_fields(self) -> list[tuple[str, str]]:

@@ -1,11 +1,14 @@
 """ISO 129 compliant engineering dimensioning in true 2D paper space."""
 
+from __future__ import annotations
+
 import html
 import math
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from build123d_techdraw.annotations.anchors import Anchor
+from build123d_techdraw.annotations.base import Annotation, BBox2D
 from build123d_techdraw.annotations.resolver import (
     ensure_anchor,
     is_topological_entity,
@@ -14,6 +17,9 @@ from build123d_techdraw.annotations.resolver import (
     stale_reason_of,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
+
+if TYPE_CHECKING:
+    from build123d_techdraw.core.view import SheetView
 
 
 class DimensionType(Enum):
@@ -50,7 +56,7 @@ class Tolerance(str):
         upper: float | None = None,
         lower: float | None = None,
         fit_class: str | None = None,
-    ) -> "Tolerance":
+    ) -> Tolerance:
         instance = super().__new__(cls, text)
         instance.kind = kind
         instance.upper_val = upper
@@ -64,7 +70,7 @@ class Tolerance(str):
         upper: float,
         lower: float | None = None,
         precision: int = 2,
-    ) -> "Tolerance":
+    ) -> Tolerance:
         """Format a bilateral tolerance (e.g. Tolerance.bilateral(+0.2, -0.1) -> '+0.2 / -0.1')."""
         if lower is None:
             val_str = format_dimension_value(abs(upper), precision)
@@ -82,24 +88,24 @@ class Tolerance(str):
         return cls(f"{u_str} / {l_str}", kind="bilateral", upper=upper, lower=lower)
 
     @classmethod
-    def symmetric(cls, value: float, precision: int = 2) -> "Tolerance":
+    def symmetric(cls, value: float, precision: int = 2) -> Tolerance:
         """Format a symmetric plus-minus tolerance (e.g. '±0.1')."""
         val_str = format_dimension_value(abs(value), precision)
         return cls(f"±{val_str}", kind="symmetric", upper=abs(value), lower=-abs(value))
 
     @classmethod
-    def unilateral(cls, upper: float, lower: float = 0.0, precision: int = 2) -> "Tolerance":
+    def unilateral(cls, upper: float, lower: float = 0.0, precision: int = 2) -> Tolerance:
         """Format a unilateral tolerance where one limit is typically zero."""
         return cls.bilateral(upper, lower, precision=precision)
 
     @classmethod
-    def fit(cls, fit_class: str) -> "Tolerance":
+    def fit(cls, fit_class: str) -> Tolerance:
         """Format an ISO 286 hole/shaft tolerance fit class (e.g. 'H7', 'g6', 'H7/g6')."""
         clean = fit_class.strip()
         return cls(clean, kind="fit", fit_class=clean)
 
     @classmethod
-    def limits(cls, upper_limit: float, lower_limit: float, precision: int = 2) -> "Tolerance":
+    def limits(cls, upper_limit: float, lower_limit: float, precision: int = 2) -> Tolerance:
         """Format explicit upper and lower limit dimensions."""
         u_str = format_dimension_value(upper_limit, precision)
         l_str = format_dimension_value(lower_limit, precision)
@@ -135,7 +141,7 @@ def render_arrowhead(
     return f'<polygon points="{tip_x:.2f},{tip_y:.2f} {p1_x:.2f},{p1_y:.2f} {p2_x:.2f},{p2_y:.2f}" class="dim-arrow"/>'
 
 
-class LinearDimension:
+class LinearDimension(Annotation):
     """Linear dimension (Horizontal, Vertical, or Aligned) in true 2D paper space."""
 
     def __init__(
@@ -154,7 +160,7 @@ class LinearDimension:
         end: tuple[float, float] | None = None,
         direction: str | None = None,
         nominal: float | None = None,
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
         anchor1: Any = None,
@@ -221,7 +227,7 @@ class LinearDimension:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         """Re-resolve semantic anchors or topological entities against an updated view."""
         if not self._explicit_coords:
             self.resolved = False
@@ -229,7 +235,7 @@ class LinearDimension:
                 self.text = None
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if self.direction:
             d_str = self.direction.lower()
@@ -243,7 +249,7 @@ class LinearDimension:
         if not self.resolved and self.target is not None:
             from build123d_techdraw.annotations.resolver import resolve_edge_to_sheet
 
-            v_shape = getattr(view, "shape", None)
+            v_shape = view.shape
             self.target = ensure_anchor(self.target, v_shape) or self.target
             self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
@@ -338,8 +344,8 @@ class LinearDimension:
                     self.text = format_dimension_value(float(model_dist))
             self.resolved = True
         elif not self.resolved and self.target is None:
-            unbroken_w = getattr(view, "unbroken_width", view.width)
-            unbroken_h = getattr(view, "unbroken_height", view.height)
+            unbroken_w = view.unbroken_width
+            unbroken_h = view.unbroken_height
             if self.dim_type == DimensionType.VERTICAL:
                 x_ref = view.min_x if self.offset < 0 else view.max_x
                 self.start = (x_ref, view.min_y)
@@ -363,15 +369,22 @@ class LinearDimension:
                     view.bottom_annotation_y = max(
                         view.bottom_annotation_y, y_ref + self.offset + 4.0
                     )
-            if getattr(view, "breaks", None):
+            if view.breaks:
                 self.has_break = True
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
+
+    def bounding_box_2d(self) -> BBox2D:
+        x1, y1 = self.start
+        x2, y2 = self.end
+        if self.dim_type == DimensionType.HORIZONTAL:
+            dim_y = (y1 + y2) / 2.0 + self.offset
+            return (min(x1, x2), dim_y - 3.5, max(x1, x2), dim_y + 2.0)
+        if self.dim_type == DimensionType.VERTICAL:
+            dim_x = (x1 + x2) / 2.0 + self.offset
+            return (dim_x - 3.5, min(y1, y2), dim_x + 2.0, max(y1, y2))
+        return (min(x1, x2) - 2.0, min(y1, y2) - 2.0, max(x1, x2) + 2.0, max(y1, y2) + 2.0)
 
     def to_svg(self) -> str:
         x1, y1 = self.start
@@ -415,7 +428,7 @@ class LinearDimension:
                 text_elem = f'<text x="{(left_x + right_x) / 2.0:.2f}" y="{dim_y - 1.2:.2f}" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>'
 
             # Dimension line
-            if getattr(self, "has_break", False):
+            if self.has_break:
                 jog_x = (left_x + right_x) / 2.0
                 jw, jh = 3.5, 2.5
                 dim_line_elem = (
@@ -469,7 +482,7 @@ class LinearDimension:
                     render_arrowhead(dim_x, bottom_y, 0.0, 1.0, length=self.arrow_size),
                 ]
 
-            if getattr(self, "has_break", False):
+            if self.has_break:
                 jog_y = (top_y + bottom_y) / 2.0
                 jw, jh = 2.5, 3.5
                 dim_line_elem = (
@@ -552,7 +565,7 @@ class LinearDimension:
             return "".join(elements)
 
 
-class RadialDimension:
+class RadialDimension(Annotation):
     """Radius dimension (R) pointing to circular arc."""
 
     def __init__(
@@ -569,7 +582,7 @@ class RadialDimension:
         font_size: float = 3.2,
         center: tuple[float, float] | None = None,
         nominal: float | None = None,
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
     ):
@@ -624,22 +637,20 @@ class RadialDimension:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         if not self._explicit_coords:
             self.resolved = False
             if not self._explicit_text:
                 self.text = None
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             from build123d_techdraw.annotations.resolver import resolve_circle_or_cylinder_to_sheet
 
             if not isinstance(self.target, (tuple, list)):
-                self.target = (
-                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
-                )
+                self.target = ensure_anchor(self.target, view.shape) or self.target
             prev_center = self.center
             prev_radius = self.radius
             prev_text = self.text
@@ -670,11 +681,7 @@ class RadialDimension:
             self.center = (view.center_x, view.center_y)
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
 
     def to_svg(self) -> str:
         cx, cy = self.center
@@ -713,7 +720,7 @@ class RadialDimension:
         return f'<g class="radial-dim">{"".join(elements)}</g>'
 
 
-class DiameterDimension:
+class DiameterDimension(Annotation):
     """Diameter dimension (⌀) across full circle or with leader."""
 
     def __init__(
@@ -730,7 +737,7 @@ class DiameterDimension:
         font_size: float = 3.2,
         center: tuple[float, float] | None = None,
         nominal: float | None = None,
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
     ):
@@ -785,22 +792,20 @@ class DiameterDimension:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         if not self._explicit_coords:
             self.resolved = False
             if not self._explicit_text:
                 self.text = None
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             from build123d_techdraw.annotations.resolver import resolve_circle_or_cylinder_to_sheet
 
             if not isinstance(self.target, (tuple, list)):
-                self.target = (
-                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
-                )
+                self.target = ensure_anchor(self.target, view.shape) or self.target
             prev_center = self.center
             prev_diameter = self.diameter
             prev_text = self.text
@@ -831,11 +836,7 @@ class DiameterDimension:
             self.center = (view.center_x, view.center_y)
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
 
     def to_svg(self) -> str:
         cx, cy = self.center
@@ -881,7 +882,7 @@ class DiameterDimension:
         return f'<g class="diameter-dim">{"".join(elements)}</g>'
 
 
-class AngularDimension:
+class AngularDimension(Annotation):
     """ISO 129 compliant angular dimension measuring angles between edges, faces, or rays."""
 
     def __init__(
@@ -899,7 +900,7 @@ class AngularDimension:
         start_angle_deg: float | None = None,
         end_angle_deg: float | None = None,
         nominal: float | None = None,
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor1: Any = None,
         anchor2: Any = None,
@@ -950,19 +951,19 @@ class AngularDimension:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         if not self._explicit_coords:
             self.resolved = False
             if not self._explicit_text:
                 self.text = None
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if not self.resolved and self.target1 is not None and self.target2 is not None:
             from build123d_techdraw.annotations.resolver import resolve_angle_to_sheet
 
-            v_shape = getattr(view, "shape", None)
+            v_shape = view.shape
             self.target1 = ensure_anchor(self.target1, v_shape) or self.target1
             self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
@@ -996,11 +997,7 @@ class AngularDimension:
             self.apex = (view.center_x, view.center_y)
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
 
     def to_svg(self) -> str:
         cx, cy = self.apex
@@ -1060,7 +1057,7 @@ class AngularDimension:
         return f'<g class="angular-dim">{"".join(elements)}</g>'
 
 
-class OrdinateDimension:
+class OrdinateDimension(Annotation):
     """Single ordinate dimension point with extension line, jog, and coordinate text."""
 
     def __init__(
@@ -1073,7 +1070,7 @@ class OrdinateDimension:
         font_size: float = 3.2,
         prefix: str = "",
         suffix: str = "",
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
     ):
@@ -1112,18 +1109,16 @@ class OrdinateDimension:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         if not self._explicit_coords:
             self.resolved = False
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             if not isinstance(self.target, (tuple, list)):
-                self.target = (
-                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
-                )
+                self.target = ensure_anchor(self.target, view.shape) or self.target
             prev_pt = self.point
             self.point = resolve_point_to_sheet(self.target, view)
             if isinstance(self.target, Anchor) and self.target.is_stale:
@@ -1136,11 +1131,7 @@ class OrdinateDimension:
                 self.stale_reason = None
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
 
     def to_svg(self) -> str:
         px, py = self.point
@@ -1184,7 +1175,7 @@ class OrdinateDimension:
             </g>"""
 
 
-class OrdinateDimensionGroup:
+class OrdinateDimensionGroup(Annotation):
     """Collection of ordinate dimensions sharing a common datum origin (0)."""
 
     def __init__(
@@ -1192,7 +1183,7 @@ class OrdinateDimensionGroup:
         datum_target: Any = None,
         direction: str = "horizontal",
         extension_length: float = 14.0,
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
     ):
@@ -1209,13 +1200,12 @@ class OrdinateDimensionGroup:
         if target_view is not None:
             self._attach_to_view(target_view)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         self.view = view
         if self.datum_target is not None:
             if not isinstance(self.datum_target, (tuple, list)):
                 self.datum_target = (
-                    ensure_anchor(self.datum_target, getattr(view, "shape", None))
-                    or self.datum_target
+                    ensure_anchor(self.datum_target, view.shape) or self.datum_target
                 )
             self.datum_point = resolve_point_to_sheet(self.datum_target, view)
         else:
@@ -1225,13 +1215,12 @@ class OrdinateDimensionGroup:
             ord_dim.datum_coord = datum_c
             ord_dim._rebind_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if self.datum_target is not None:
             if not isinstance(self.datum_target, (tuple, list)):
                 self.datum_target = (
-                    ensure_anchor(self.datum_target, getattr(view, "shape", None))
-                    or self.datum_target
+                    ensure_anchor(self.datum_target, view.shape) or self.datum_target
                 )
             self.datum_point = resolve_point_to_sheet(self.datum_target, view)
         else:
@@ -1257,7 +1246,7 @@ class OrdinateDimensionGroup:
         return "".join(o.to_svg() for o in self.ordinates)
 
 
-class OrdinateDimensionSet:
+class OrdinateDimensionSet(Annotation):
     """A set of datum ordinate dimensions along an axis (X or Y) with auto-jogging for tightly-spaced values."""
 
     def __init__(
@@ -1270,7 +1259,7 @@ class OrdinateDimensionSet:
         font_size: float = 3.2,
         prefix: str = "",
         suffix: str = "",
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
     ):
@@ -1296,16 +1285,14 @@ class OrdinateDimensionSet:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         self.resolved = False
         self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if is_topological_entity(self.datum_origin):
-            self.datum_origin = (
-                ensure_anchor(self.datum_origin, getattr(view, "shape", None)) or self.datum_origin
-            )
+            self.datum_origin = ensure_anchor(self.datum_origin, view.shape) or self.datum_origin
             self.datum_sheet = resolve_point_to_sheet(self.datum_origin, view)
         elif isinstance(self.datum_origin, (tuple, list)):
             if len(self.datum_origin) == 3:
@@ -1317,11 +1304,7 @@ class OrdinateDimensionSet:
         else:
             self.datum_sheet = (view.min_x, view.min_y)
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
         self.resolved = True
 
     def to_svg(self) -> str:
@@ -1435,7 +1418,7 @@ class OrdinateDimensionSet:
         return f'<g class="ordinate-dim-set">{"".join(items_svg)}</g>'
 
 
-class BaselineDimensionGroup:
+class BaselineDimensionGroup(Annotation):
     """Group of linear dimensions stacked progressively from a single reference baseline."""
 
     def __init__(
@@ -1445,7 +1428,7 @@ class BaselineDimensionGroup:
         direction: str = "horizontal",
         first_offset: float = 10.0,
         step_offset: float = 7.0,
-        view: Any | None = None,
+        view: SheetView | None = None,
     ):
         self.base_target = base_target
         self.targets = targets
@@ -1467,7 +1450,7 @@ class BaselineDimensionGroup:
             )
             self.dimensions.append(dim)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         self.view = view
         for d in self.dimensions:
             d._rebind_to_view(view)
@@ -1476,7 +1459,7 @@ class BaselineDimensionGroup:
         return "".join(d.to_svg() for d in self.dimensions)
 
 
-class ChainDimensionGroup:
+class ChainDimensionGroup(Annotation):
     """Group of consecutive linear dimensions aligned in a single continuous chain."""
 
     def __init__(
@@ -1484,7 +1467,7 @@ class ChainDimensionGroup:
         targets: list[Any],
         direction: str = "horizontal",
         offset: float = 8.0,
-        view: Any | None = None,
+        view: SheetView | None = None,
     ):
         self.targets = targets
         self.direction = direction
@@ -1503,7 +1486,7 @@ class ChainDimensionGroup:
                 )
                 self.dimensions.append(dim)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         self.view = view
         for d in self.dimensions:
             d._rebind_to_view(view)

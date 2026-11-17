@@ -9,9 +9,13 @@ import os
 import warnings
 from typing import TYPE_CHECKING, Any
 
+import build123d as bd
 import svgelements as se
+from build123d.topology import Shape
 from ezdxf.document import Drawing
 from ezdxf.filemanagement import new as new_dxf_document
+
+from build123d_techdraw.renderers.svg_elements import has_hidden_ancestor
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
@@ -60,16 +64,12 @@ def _sample_edge_adaptive(
     return pts
 
 
-def _detect_primary_flat_face(shape: Any) -> tuple[Any, Any | None]:
+def _detect_primary_flat_face(shape: Shape[Any]) -> tuple[Shape[Any], bd.Plane | None]:
     """Extract the largest planar face and its datum Plane when given a 3D solid/part."""
-    import build123d as bd
-
-    solids = shape.solids() if hasattr(shape, "solids") else []
-    if not solids:
+    if not shape.solids():
         return shape, None
 
-    faces = shape.faces() if hasattr(shape, "faces") else []
-    planar_faces = [f for f in faces if getattr(f, "geom_type", None) == bd.GeomType.PLANE]
+    planar_faces = [f for f in shape.faces() if f.geom_type == bd.GeomType.PLANE]
     if not planar_faces:
         return shape, None
 
@@ -79,14 +79,14 @@ def _detect_primary_flat_face(shape: Any) -> tuple[Any, Any | None]:
 
 def add_edge_to_dxf(
     msp: Any,
-    edge: Any,
+    edge: bd.Edge,
     layer: str = "VISIBLE",
     scale: float = 1.0,
     plane: Any | None = None,
     tolerance: float = 0.05,
 ) -> None:
     """Convert a single build123d Edge to DXF entities on the given layer."""
-    gtype_str = str(getattr(edge, "geom_type", "")).upper()
+    gtype_str = str(edge.geom_type).upper()
     if "LINE" in gtype_str:
         v0 = _to_2d(edge.start_point(), plane, scale)
         v1 = _to_2d(edge.end_point(), plane, scale)
@@ -105,7 +105,7 @@ def add_edge_to_dxf(
             pts = _sample_edge_adaptive(edge, plane=plane, tolerance=tolerance, scale=scale)
             if len(pts) >= 2:
                 msp.add_lwpolyline(pts, dxfattribs={"layer": layer})
-        elif getattr(edge, "is_closed", False):
+        elif edge.is_closed:
             msp.add_circle(c2d, radius, dxfattribs={"layer": layer})
         else:
             a_start = math.degrees(math.atan2(p_start[1] - c2d[1], p_start[0] - c2d[0]))
@@ -131,10 +131,10 @@ class DXFRenderer:
     @classmethod
     def export_shape_to_dxf(
         cls,
-        shape: Any,
+        shape: Shape[Any],
         output_path: str,
         dxfversion: str = "R2010",
-        plane: Any | None = None,
+        plane: bd.Plane | None = None,
         tolerance: float = 0.05,
         strict: bool = False,
     ) -> None:
@@ -153,7 +153,7 @@ class DXFRenderer:
         if active_plane is None:
             target_shape, active_plane = _detect_primary_flat_face(shape)
 
-        edges: list[Any] = target_shape.edges() if hasattr(target_shape, "edges") else []
+        edges = target_shape.edges()
         for idx, edge in enumerate(edges):
             try:
                 add_edge_to_dxf(
@@ -218,14 +218,7 @@ class DXFRenderer:
             # Layer mapping
             is_hidden = "line-hidden" in cls_list or "layer_hidden" in cls_list
             if not is_hidden:
-                parent = getattr(el, "parent", None)
-                while parent:
-                    p_id = getattr(parent, "id", "") or parent.values.get("id", "")
-                    p_cls = getattr(parent, "class", "") or parent.values.get("class", "")
-                    if "hidden" in p_id or "hidden" in p_cls:
-                        is_hidden = True
-                        break
-                    parent = getattr(parent, "parent", None)
+                is_hidden = has_hidden_ancestor(el)
 
             if is_hidden:
                 target_layer = "HIDDEN"
