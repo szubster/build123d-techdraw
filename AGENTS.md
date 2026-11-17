@@ -1,0 +1,67 @@
+# AGENTS.md
+
+Instructions for AI coding agents working in this repository (Claude Code, Codex, Cursor, etc.).
+Human contributors: see `CONTRIBUTING.md`.
+
+> Do **not** add a `CLAUDE.md`. Claude Code loads `AGENTS.md` only when no `CLAUDE.md` exists;
+> adding one silently drops these instructions. Agent skills live in `.agents/skills/`
+> (`.claude/skills` is a symlink to it).
+
+## Project
+
+`build123d-techdraw` is a 2D technical-drawing engine for build123d (Python CAD). 3D shapes are
+projected to 2D paths; annotations (dimensions, GD&T, surface finish, balloons, title blocks) are
+drawn in **paper space, in millimetres**, so text height and arrowheads do not scale with the view.
+Outputs: themed SVG (dark blueprint / ISO white via CSS custom properties), PDF, DXF.
+
+Layout of `src/build123d_techdraw/`:
+
+- `core/` – `DrawingSheet` (`sheet.py`), `SheetView` projection (`view.py`), scales, title block, booklets
+- `annotations/` – dimensions, GD&T, callouts, threads, tables, centerlines, surface symbols;
+  `anchors.py` + `resolver.py` map 3D topology / semantic anchors to 2D view coordinates
+- `layout/` – auto multi-view layout, auto-dimensioning, sheet linter (`linter.py`)
+- `renderers/` – SVG / PDF / DXF writers and `theme.py` colour tokens
+- `recognizers/` – feature recognition (holes, etc.)
+- `builder.py` – build123d builder-mode (`with` context) API
+
+## Commands
+
+Always go through `uv`; never `pip install` into the env.
+
+```bash
+uv sync --all-groups                   # install everything
+uv run pytest                          # tests + coverage
+uv run pytest tests/test_dimensions.py -k diameter -q --no-cov   # focused run
+uv run ruff check --fix . && uv run ruff format .
+uv run mypy src examples               # strict; must be clean
+uv run python examples/generate_all.py # regenerate example drawings (see below)
+```
+
+## Rules
+
+- **Typing is strict.** Every function is fully annotated. build123d, OCP (via
+  `cadquery-ocp-stubs`), ezdxf, matplotlib and Pillow are all typed — do not add them to
+  `ignore_missing_imports`, and do not add `# type: ignore` without a specific error code and a
+  reason it cannot be fixed. Only `svgelements` is untyped.
+- **Units:** annotation geometry is paper-space mm. Model geometry is model units; convert with the
+  view's scale, never hard-code a scale factor.
+- **Theme colours** come from `renderers/theme.py` tokens / CSS variables — never hard-code hex
+  colours in SVG output.
+- **Golden SVGs.** `examples/output/*.svg` and `docs/assets/examples/*.svg` are compared
+  byte-for-byte in CI. Any change to rendering, layout or annotation code must be followed by
+  regenerating them (skill: `regen-examples`) and committing the SVG diff together with the code.
+  Never hand-edit these files to make CI pass.
+- PDF/DXF outputs are not byte-deterministic (timestamps/handles). Do not commit PDF/DXF churn
+  unless the change is meant to affect those formats.
+- Generated, never edited by hand: `uv.lock` (use `uv add`/`uv lock`),
+  `src/build123d_techdraw/_version.py` (hatch-vcs), everything in `examples/output/` and
+  `docs/assets/examples/`.
+- New public API needs a test in `tests/` and, if user-facing, a mention in `docs/user-guide/`.
+- Drafting behaviour must follow the ISO standards listed in the `drafting-conventions` skill.
+  Load it before touching `annotations/`, `layout/` or `renderers/`.
+
+## Commits and PRs
+
+Conventional Commits, enforced on PR titles: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`,
+optional scope (`core`, `annotations`, `layout`, `renderers`, `dimensions`, …), `!` for breaking
+changes. `feat` → minor, `fix` → patch. Fill in `.github/PULL_REQUEST_TEMPLATE.md`.
