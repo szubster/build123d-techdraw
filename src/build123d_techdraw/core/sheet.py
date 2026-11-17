@@ -194,6 +194,8 @@ class DrawingSheet:
                 approved_by="APPROVED",
             )
         ]
+        # The seeded row above is a placeholder; the first add_revision() call drops it.
+        self._revision_placeholder: bool = True
         self.notes: list[str] = [
             "1. ALL DIMENSIONS IN MILLIMETERS (mm) UNLESS NOTED.",
             "2. GENERAL TOLERANCES ACCORDING TO ISO 2768-mK.",
@@ -340,7 +342,23 @@ class DrawingSheet:
         )
 
     def add_revision(self, rev: str, description: str, date: str, approved_by: str) -> None:
-        """Add a row to the Revision History table."""
+        """Add a row to the Revision History table.
+
+        A new sheet shows a placeholder row (``A / INITIAL ENGINEERING RELEASE``) so an
+        un-revised drawing still has a revision table. That placeholder is removed by the
+        first explicit call to this method, whatever its ``rev``. After that, every call
+        appends a row, so the table holds exactly the revisions the caller added, in order.
+        Rows written straight into ``revision_rows`` do not affect the placeholder.
+
+        Args:
+            rev: Revision letter or number, e.g. ``"A"``.
+            description: Short description of the change.
+            date: Date of the revision as it should be printed.
+            approved_by: Approver's name or initials.
+        """
+        if self._revision_placeholder:
+            self.revision_rows.clear()
+            self._revision_placeholder = False
         self.revision_rows.append(
             RevisionEntry(
                 rev=rev,

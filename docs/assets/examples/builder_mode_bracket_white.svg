@@ -203,11 +203,11 @@
     
   
     <g class="rev-table" transform="translate(302.00, 8.00)">
-        <rect x="0" y="0" width="110.00" height="15.00" class="title-bg" stroke-width="0.5"/>
+        <rect x="0" y="0" width="110.00" height="10.00" class="title-bg" stroke-width="0.5"/>
         <line x1="0" y1="5.0" x2="110.0" y2="5.0" class="border-sub" stroke-width="0.3"/>
-        <line x1="8" y1="0" x2="8" y2="15.0" class="border-sub" stroke-width="0.25"/>
-        <line x1="72" y1="0" x2="72" y2="15.0" class="border-sub" stroke-width="0.25"/>
-        <line x1="92" y1="0" x2="92" y2="15.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="8" y1="0" x2="8" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="72" y1="0" x2="72" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="92" y1="0" x2="92" y2="10.0" class="border-sub" stroke-width="0.25"/>
 
         <text x="4" y="3.6" class="tb-field-label" text-anchor="middle">REV</text>
         <text x="12" y="3.6" class="tb-field-label">DESCRIPTION</text>
@@ -218,13 +218,7 @@
         <text x="4" y="8.80" class="tb-field-val-sm" text-anchor="middle">A</text>
         <text x="12" y="8.80" class="tb-field-val-sm">INITIAL ENGINEERING RELEASE</text>
         <text x="82" y="8.80" class="tb-field-val-sm" text-anchor="middle">2026-11-06</text>
-        <text x="100" y="8.80" class="tb-field-val-sm" text-anchor="middle">APPROVED</text>
-        
-        <line x1="0" y1="15.0" x2="110.0" y2="15.0" class="border-sub" stroke-width="0.25"/>
-        <text x="4" y="13.80" class="tb-field-val-sm" text-anchor="middle">A</text>
-        <text x="12" y="13.80" class="tb-field-val-sm">INITIAL ENGINEERING RELEASE</text>
-        <text x="82" y="13.80" class="tb-field-val-sm" text-anchor="middle">2026-11-06</text>
-        <text x="100" y="13.80" class="tb-field-val-sm" text-anchor="middle">SZUBA</text>
+        <text x="100" y="8.80" class="tb-field-val-sm" text-anchor="middle">SZUBA</text>
         
     </g>
     

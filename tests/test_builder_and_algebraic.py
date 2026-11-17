@@ -126,7 +126,7 @@ def test_builder_mode_complete_flow(bracket_part: bd.Compound) -> None:
     assert sheet.title_info.drawing_title == "BRACKET BLUEPRINT"
     assert sheet.title_info.drawing_no == "DWG-BRK-001"
     assert len(sheet.notes) == 2
-    assert len(sheet.revision_rows) == 2  # initial + Rev B
+    assert [r.rev for r in sheet.revision_rows] == ["B"]  # Rev B replaces the placeholder
 
     # Render SVG and verify elements are present
     svg = builder.to_svg()

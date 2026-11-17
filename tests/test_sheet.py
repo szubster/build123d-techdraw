@@ -136,3 +136,38 @@ def test_iso_projection_symbols() -> None:
     svg_first = render_title_block_svg(ti_first, 100.0, 100.0)
     assert 'cx="8"' in svg_first
     assert 'points="-8,-4 0,-7 0,7 -8,4"' in svg_first
+
+
+def test_default_revision_row_alone() -> None:
+    sheet = DrawingSheet()
+    assert len(sheet.revision_rows) == 1
+    row = sheet.revision_rows[0]
+    assert row.rev == "A"
+    assert row.description == "INITIAL ENGINEERING RELEASE"
+    assert row.approved_by == "APPROVED"
+    assert "INITIAL ENGINEERING RELEASE" in sheet.to_svg()
+
+
+def test_first_explicit_revision_replaces_default() -> None:
+    sheet = DrawingSheet()
+    sheet.add_revision("A", "INITIAL ENGINEERING RELEASE", "2026-11-01", "SZ")
+    assert len(sheet.revision_rows) == 1
+    assert sheet.revision_rows[0].approved_by == "SZ"
+    assert sheet.to_svg().count("INITIAL ENGINEERING RELEASE") == 1
+
+    other = DrawingSheet()
+    other.add_revision("B", "ADD MOUNTING HOLES", "2026-11-06", "SZ")
+    assert [r.rev for r in other.revision_rows] == ["B"]
+
+
+def test_multiple_explicit_revisions_are_kept() -> None:
+    sheet = DrawingSheet()
+    sheet.add_revision("A", "INITIAL ENGINEERING RELEASE", "2026-11-01", "SZ")
+    sheet.add_revision("B", "ADD MOUNTING HOLES", "2026-11-06", "SZ")
+    sheet.add_revision("A", "DUPLICATE LETTER IS KEPT", "2026-11-07", "SZ")
+    assert [r.rev for r in sheet.revision_rows] == ["A", "B", "A"]
+    assert [r.description for r in sheet.revision_rows] == [
+        "INITIAL ENGINEERING RELEASE",
+        "ADD MOUNTING HOLES",
+        "DUPLICATE LETTER IS KEPT",
+    ]
