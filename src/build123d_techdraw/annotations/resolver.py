@@ -137,15 +137,30 @@ def resolve_circle_or_cylinder_to_sheet(
 ) -> tuple[tuple[float, float], float, float]:
     """Resolve a circular Edge, cylindrical Face, or Anchor to (center_on_sheet, paper_radius, model_radius)."""
     if isinstance(target, Anchor):
-        shape = view.shape
-        ent = target.resolve_entity(shape)
-        if ent is not None and isinstance(ent, (bd.Edge, bd.Face)):
-            target = ent
-        elif target.last_resolved_point_3d is not None and target.last_resolved_radius is not None:
-            paper_center = view.to_sheet_3d(*target.last_resolved_point_3d)
-            r = float(target.last_resolved_radius)
-            return paper_center, r * view.scale, r
+        return circle_from_resolved_anchor(target, target.resolve_entity(view.shape), view)
+    return _circle_or_cylinder_to_sheet(target, view)
 
+
+def circle_from_resolved_anchor(
+    anchor: Anchor, entity: Any, view: SheetView
+) -> tuple[tuple[float, float], float, float]:
+    """Like :func:`resolve_circle_or_cylinder_to_sheet` for an anchor already resolved to ``entity``.
+
+    Lets callers that also need the anchor's point (via :meth:`Anchor.resolve`) avoid
+    resolving the anchor a second time.
+    """
+    if isinstance(entity, (bd.Edge, bd.Face)):
+        return _circle_or_cylinder_to_sheet(entity, view)
+    if anchor.last_resolved_point_3d is not None and anchor.last_resolved_radius is not None:
+        paper_center = view.to_sheet_3d(*anchor.last_resolved_point_3d)
+        r = float(anchor.last_resolved_radius)
+        return paper_center, r * view.scale, r
+    return _circle_or_cylinder_to_sheet(anchor, view)
+
+
+def _circle_or_cylinder_to_sheet(
+    target: Any, view: SheetView
+) -> tuple[tuple[float, float], float, float]:
     if isinstance(target, bd.Edge) and target.geom_type == bd.GeomType.CIRCLE:
         c = target.arc_center
         r = float(target.radius)

@@ -516,3 +516,34 @@ def test_fingerprint_anchor_does_not_rebind_to_much_larger_hole() -> None:
     resized = anchor.resolve_entity(_make_plate_with_bore(6.0))
     assert resized is not None and not anchor.is_stale
     assert anchor.last_resolved_radius == pytest.approx(3.0)
+
+
+def test_callers_resolve_each_anchor_once_per_attach(monkeypatch: pytest.MonkeyPatch) -> None:
+    part = _make_bracket()
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    front = sheet.add_view(part, ViewType.FRONT, center=(180.0, 140.0), scale=1.0)
+
+    calls: list[Anchor] = []
+    original = Anchor.resolve_entity
+
+    def counting(self: Anchor, shape: object, *, prefer_kind: str | None = None) -> object:
+        calls.append(self)
+        return original(self, shape, prefer_kind=prefer_kind)
+
+    monkeypatch.setattr(Anchor, "resolve_entity", counting)
+
+    a_left, a_right = Anchor.min("X"), Anchor.max("X")
+    LinearDimension(a_left, a_right, direction="horizontal", view=front)
+    assert calls.count(a_left) == 1
+    assert calls.count(a_right) == 1
+
+    calls.clear()
+    a_hole = Anchor.hole(radius=8.0)
+    hc = HoleCallout(anchor=a_hole, view=front)
+    assert calls.count(a_hole) == 1
+    assert "⌀16" in hc.lines[0]
+
+    calls.clear()
+    a_top = Anchor.max("Z")
+    ChamferCallout(anchor=a_top, view=front)
+    assert calls.count(a_top) == 1
