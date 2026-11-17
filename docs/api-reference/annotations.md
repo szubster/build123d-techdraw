@@ -1,5 +1,10 @@
 # Annotations API
 
+::: build123d_techdraw.annotations.base
+    options:
+      members:
+        - Annotation
+
 ::: build123d_techdraw.annotations.dimensions
     options:
       members:

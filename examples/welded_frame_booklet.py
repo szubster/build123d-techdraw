@@ -122,15 +122,15 @@ def generate_welded_frame_booklet(output_dir: Path) -> None:
             width=110.0,
         )
 
-    for idx, s in enumerate((sheet1.sheet, sheet2.sheet), start=1):
+    for idx, s in enumerate((sheet1, sheet2), start=1):
         issues = run_sheet_lint(s)
         errors = [i for i in issues if i.severity == "ERROR"]
         assert not errors, f"Sheet {idx} lint errors: {errors}"
 
     # 4. Combine into a multi-page DrawingBooklet with PDF bookmarks
     booklet = DrawingBooklet(title="WELDED GUSSET FRAME PACKAGE")
-    booklet.add_sheet(sheet1.sheet)
-    booklet.add_sheet(sheet2.sheet)
+    booklet.add_sheet(sheet1)
+    booklet.add_sheet(sheet2)
     booklet.export_pdf(str(output_dir / "welded_frame_booklet.pdf"), bookmarks=True)
 
     # Also export Sheet 1 to SVG and DXF for preview and CAD interchange

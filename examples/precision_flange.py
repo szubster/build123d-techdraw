@@ -137,7 +137,7 @@ def generate_precision_flange(output_dir: Path) -> None:
                 elbow_offset=(16.0, -16.0),
             )
 
-    issues = run_sheet_lint(sheet.sheet)
+    issues = run_sheet_lint(sheet)
     errors = [i for i in issues if i.severity == "ERROR"]
     assert not errors, f"Unexpected lint errors: {errors}"
 

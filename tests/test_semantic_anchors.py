@@ -30,6 +30,7 @@ from build123d_techdraw import (
     SectionCuttingLine,
     SemanticFingerprint,
     SheetSize,
+    SheetView,
     SurfaceFinishSymbol,
     TopView,
     ViewType,
@@ -263,7 +264,7 @@ def test_stale_anchor_fallback_and_linter_warning() -> None:
     assert all(i.severity == "WARNING" for i in stale_issues)
 
 
-def _hole_anchor_on_stale_view() -> tuple[Anchor, DrawingSheet, object]:
+def _hole_anchor_on_stale_view() -> tuple[Anchor, DrawingSheet, SheetView]:
     """Return a hole anchor plus a sheet/view whose shape no longer has that hole."""
     part_with_hole = _make_bracket(length=100.0, hole_radius=8.0, hole_x=25.0)
     hole_face = [

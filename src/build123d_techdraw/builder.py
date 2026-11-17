@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextvars
 import math
 import types
 from collections.abc import Sequence
@@ -13,10 +12,12 @@ import build123d as bd
 
 from build123d_techdraw.annotations.callouts import BOMBalloon
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
+from build123d_techdraw.core.directive import SheetDirective
 from build123d_techdraw.core.scale import calculate_auto_scale, find_closest_iso_scale
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.title_block import BOMItem
 from build123d_techdraw.core.view import (
+    AlignSpec,
     SheetView,
     ViewType,
     _apply_align_to,
@@ -34,8 +35,8 @@ from build123d_techdraw.layout.multiview import (
 )
 
 
-class BuildDrawing:
-    """Context manager for constructing drawing sheets in build123d Builder mode."""
+class BuildDrawing(DrawingSheet):
+    """``DrawingSheet`` with title-block keyword arguments, for build123d Builder mode (``with``)."""
 
     def __init__(
         self,
@@ -62,7 +63,7 @@ class BuildDrawing:
         show_grid = kwargs.pop("show_grid", True)
         show_notes = kwargs.pop("show_notes", True)
         borderless = kwargs.pop("borderless", False)
-        self.sheet = DrawingSheet(
+        super().__init__(
             sheet_size=sheet_size,
             custom_size=custom_size,
             left_margin=left_margin,
@@ -93,7 +94,7 @@ class BuildDrawing:
             )
             or kwargs
         ):
-            self.sheet.set_title_block(
+            self.set_title_block(
                 title=effective_title,
                 drawing_no=effective_dwg_no,
                 subtitle=subtitle,
@@ -105,36 +106,6 @@ class BuildDrawing:
                 fields=fields,
                 **kwargs,
             )
-        self._token: contextvars.Token[DrawingSheet | None] | None = None
-
-    def __enter__(self) -> BuildDrawing:
-        self._token = CURRENT_SHEET.set(self.sheet)
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: types.TracebackType | None,
-    ) -> None:
-        if self._token is not None:
-            CURRENT_SHEET.reset(self._token)
-            self._token = None
-
-    @classmethod
-    def _get_context(cls) -> DrawingSheet | None:
-        return CURRENT_SHEET.get()
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self.sheet, name)
-
-    def __iadd__(self, item: Any) -> BuildDrawing:
-        self.sheet.add(item)
-        return self
-
-    def __add__(self, item: Any) -> BuildDrawing:
-        self.sheet.add(item)
-        return self
 
 
 def _resolve_view_scale(
@@ -199,7 +170,7 @@ class View(SheetView):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> View:
         calc_scale = _resolve_view_scale(
@@ -255,7 +226,7 @@ class BuildView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> BuildView:
         return super().__new__(  # type: ignore[return-value]
@@ -292,7 +263,7 @@ class FrontView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> FrontView:
         return super().__new__(  # type: ignore[return-value]
@@ -329,7 +300,7 @@ class TopView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> TopView:
         return super().__new__(  # type: ignore[return-value]
@@ -366,7 +337,7 @@ class RightView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> RightView:
         return super().__new__(  # type: ignore[return-value]
@@ -403,7 +374,7 @@ class LeftView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> LeftView:
         return super().__new__(  # type: ignore[return-value]
@@ -440,7 +411,7 @@ class BottomView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> BottomView:
         return super().__new__(  # type: ignore[return-value]
@@ -477,7 +448,7 @@ class RearView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> RearView:
         return super().__new__(  # type: ignore[return-value]
@@ -514,7 +485,7 @@ class IsometricView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> IsometricView:
         return super().__new__(  # type: ignore[return-value]
@@ -569,7 +540,7 @@ class SectionView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         show_background: bool = True,
         enforce_iso_scale: bool = True,
         hatch: str = "steel",
@@ -619,7 +590,7 @@ class OffsetSectionView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         show_background: bool = True,
         show_jog_lines: bool = False,
         enforce_iso_scale: bool = True,
@@ -672,7 +643,7 @@ class AlignedSectionView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         show_background: bool = True,
         show_jog_lines: bool = False,
         enforce_iso_scale: bool = True,
@@ -728,7 +699,7 @@ class DetailView(View):
         label_letter: str = "A",
         view_label_y: float | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> DetailView:
         target = region_center if region_center is not None else focus_target
@@ -755,7 +726,7 @@ class DetailView(View):
         if align_to is not None:
             _apply_align_to(view, align_to)
 
-        target_sheet = sheet or getattr(parent_view, "sheet", None) or CURRENT_SHEET.get()
+        target_sheet = sheet or parent_view.sheet or CURRENT_SHEET.get()
         if target_sheet is not None and view not in target_sheet.views:
             target_sheet.add_view(view)
 
@@ -784,7 +755,7 @@ class BreakView(View):
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> BreakView:
         view = super().__new__(
@@ -822,7 +793,7 @@ class AuxiliaryView(View):
         view_label: str = "AUXILIARY VIEW",
         view_label_y: float | None = None,
         sheet: DrawingSheet | None = None,
-        align_to: Any = None,
+        align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
     ) -> AuxiliaryView:
         calc_scale = _resolve_view_scale(
@@ -865,7 +836,7 @@ class StandardMultiview(MultiviewLayout):
         shape: bd.Solid | bd.Compound | Any,
         sheet: DrawingSheet | None = None,
         views: list[ViewType] | None = None,
-        layout: str = "third_angle",
+        layout: str = "first_angle",
         scale: float | str = "auto",
         spacing: float = 25.0,
         center: tuple[float, float] | None = None,
@@ -920,7 +891,7 @@ class StandardMultiview(MultiviewLayout):
 
 
 @dataclass
-class TitleBlock:
+class TitleBlock(SheetDirective):
     """Configures title block metadata in Builder or Algebraic mode."""
 
     title: str | None = None
@@ -975,7 +946,7 @@ class TitleBlock:
 
 
 @dataclass
-class GeneralNotes:
+class GeneralNotes(SheetDirective):
     """Configures general drawing notes in Builder or Algebraic mode."""
 
     notes: list[str]
@@ -990,7 +961,7 @@ class GeneralNotes:
 
 
 @dataclass
-class Revision:
+class Revision(SheetDirective):
     """Appends a revision history row in Builder or Algebraic mode."""
 
     rev: str
@@ -1012,7 +983,7 @@ class Revision:
         )
 
 
-class AssemblyBOM:
+class AssemblyBOM(SheetDirective):
     """Generates BOM table and leader balloons in Builder or Algebraic mode."""
 
     def __init__(

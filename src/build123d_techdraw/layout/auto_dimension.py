@@ -14,10 +14,12 @@ from typing import TYPE_CHECKING, Any
 
 import build123d as bd
 
+from build123d_techdraw.annotations.base import Annotation
 from build123d_techdraw.annotations.callouts import HoleCallout
+from build123d_techdraw.annotations.centerlines import CenterMark
 from build123d_techdraw.annotations.dimensions import DimensionType, LinearDimension
 from build123d_techdraw.core.view import ViewType
-from build123d_techdraw.layout.linter import get_annotation_bbox_2d, get_title_block_bbox
+from build123d_techdraw.layout.linter import get_title_block_bbox
 from build123d_techdraw.recognizers.features import (
     recognize_bolt_circles,
     recognize_bosses,
@@ -71,22 +73,22 @@ class SheetOccupancy:
             sheet.height_mm - sheet.bottom_margin,
         )
         self.tb_bbox: tuple[float, float, float, float] | None = (
-            get_title_block_bbox(sheet) if getattr(sheet, "show_title_block", True) else None
+            get_title_block_bbox(sheet) if sheet.show_title_block else None
         )
         self.view_bboxes: list[tuple[SheetView, tuple[float, float, float, float]]] = []
         self.label_bboxes: list[tuple[float, float, float, float]] = []
         for v in sheet.views:
             self.view_bboxes.append((v, (v.min_x, v.min_y, v.max_x, v.max_y)))
-            if getattr(v, "view_label", None):
+            if v.view_label:
                 self.label_bboxes.append(
                     (v.center_x - 20.0, v.max_y + 1.5, v.center_x + 20.0, v.max_y + 8.5)
                 )
 
         self.ann_bboxes: list[tuple[float, float, float, float]] = []
         for ann in sheet.annotations:
-            if type(ann).__name__ == "CenterMark":
+            if isinstance(ann, CenterMark):
                 continue
-            bb = get_annotation_bbox_2d(ann)
+            bb = ann.bounding_box_2d()
             if bb is not None:
                 self.ann_bboxes.append(bb)
 
@@ -121,9 +123,9 @@ class SheetOccupancy:
                 return True
         return any(_bboxes_overlap(bbox, a_bb, pad=1.0) for a_bb in self.ann_bboxes)
 
-    def register(self, ann: Any) -> None:
+    def register(self, ann: Annotation) -> None:
         """Register a newly placed annotation's 2D bounding box."""
-        bb = get_annotation_bbox_2d(ann)
+        bb = ann.bounding_box_2d()
         if bb is not None:
             self.ann_bboxes.append(bb)
 
@@ -381,7 +383,7 @@ def auto_dimension_views(
     views_map: dict[ViewType, SheetView],
     tolerance: str | None = None,
     infer_threads: bool = False,
-) -> list[Any]:
+) -> list[Annotation]:
     """Automatically dimension a set of orthographic views with canonical view de-duplication
     and ISO 129-1 / ASME Y14.5 collision-avoiding stacking.
     """
@@ -392,7 +394,7 @@ def auto_dimension_views(
     all_views = list(sheet.views)
     seen_features: set[tuple[Any, ...]] = set()
     planned_linear: list[PlannedLinearDim] = []
-    created_annotations: list[Any] = []
+    created_annotations: list[Annotation] = []
 
     bbox = shape.bounding_box()
     min_x3, min_y3, min_z3 = float(bbox.min.X), float(bbox.min.Y), float(bbox.min.Z)
@@ -707,9 +709,9 @@ def auto_dimension_view(
     view: SheetView,
     shape: bd.Solid | bd.Compound | Any | None = None,
     tolerance: str | None = None,
-) -> list[Any]:
+) -> list[Annotation]:
     """Automatically dimension a single SheetView with collision-avoiding stacking."""
-    target_shape = shape if shape is not None else getattr(view, "shape", None)
+    target_shape = shape if shape is not None else view.shape
     if target_shape is None or view.sheet is None:
         return []
     return auto_dimension_views(

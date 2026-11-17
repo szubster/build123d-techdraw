@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from build123d_techdraw.annotations.anchors import Anchor
+from build123d_techdraw.annotations.base import Annotation, BBox2D
 from build123d_techdraw.annotations.resolver import (
     ensure_anchor,
     is_topological_entity,
@@ -13,11 +14,15 @@ from build123d_techdraw.annotations.resolver import (
     resolve_point_to_sheet,
     stale_point_to_sheet,
     stale_radius_to_paper,
+    stale_reason_of,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
+if TYPE_CHECKING:
+    from build123d_techdraw.core.view import SheetView
 
-class Centerline:
+
+class Centerline(Annotation):
     """ISO 128 compliant long-dash dot-dash centerline."""
 
     def __init__(
@@ -28,7 +33,7 @@ class Centerline:
         start: tuple[float, float] | None = None,
         end: tuple[float, float] | None = None,
         overhang: float = 4.0,
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
         anchor1: Any = None,
@@ -80,21 +85,19 @@ class Centerline:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         if not self._explicit_coords:
             self.resolved = False
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             import build123d as bd
 
-            v_shape = getattr(view, "shape", None)
-            if not isinstance(self.target, (tuple, list)):
-                self.target = ensure_anchor(self.target, v_shape) or self.target
-            if self.target2 is not None and not isinstance(self.target2, (tuple, list)):
-                self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
+            v_shape = view.shape
+            self.target = ensure_anchor(self.target, v_shape) or self.target
+            self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
             eff_target = self.target
             if isinstance(self.target, Anchor) and self.target2 is None:
@@ -135,17 +138,7 @@ class Centerline:
             stale2 = isinstance(self.target2, Anchor) and self.target2.is_stale
             if stale1 or stale2:
                 self.anchor_stale = True
-                r1 = (
-                    self.target.stale_reason
-                    if isinstance(self.target, Anchor) and self.target.is_stale
-                    else None
-                )
-                r2 = (
-                    self.target2.stale_reason
-                    if isinstance(self.target2, Anchor) and self.target2.is_stale
-                    else None
-                )
-                self.stale_reason = r1 or r2
+                self.stale_reason = stale_reason_of(self.target, self.target2)
             else:
                 self.anchor_stale = False
                 self.stale_reason = None
@@ -155,11 +148,7 @@ class Centerline:
             self.end = (view.max_x + self.overhang, view.center_y)
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
 
     def to_svg(self) -> str:
         x1, y1 = self.start
@@ -170,7 +159,7 @@ class Centerline:
         )
 
 
-class CenterMark:
+class CenterMark(Annotation):
     """ISO centermark crosshair with central intersection and overhang."""
 
     def __init__(
@@ -180,7 +169,7 @@ class CenterMark:
         stroke_width: float = 0.25,
         center: tuple[float, float] | None = None,
         cy: float | None = None,
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
     ):
@@ -226,20 +215,18 @@ class CenterMark:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         if not self._explicit_coords:
             self.resolved = False
             if not self._explicit_size:
                 self.size = 6.0
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             if not isinstance(self.target, (tuple, list)):
-                self.target = (
-                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
-                )
+                self.target = ensure_anchor(self.target, view.shape) or self.target
             try:
                 paper_c, paper_r, _ = resolve_circle_or_cylinder_to_sheet(self.target, view)
                 self.center = paper_c
@@ -263,11 +250,12 @@ class CenterMark:
             self.center = (view.center_x, view.center_y)
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
+
+    def bounding_box_2d(self) -> BBox2D:
+        cx, cy = self.center
+        s = self.size / 2.0
+        return (cx - s, cy - s, cx + s, cy + s)
 
     def to_svg(self) -> str:
         cx, cy = self.center
@@ -280,7 +268,7 @@ class CenterMark:
         """
 
 
-class BoltCircle:
+class BoltCircle(Annotation):
     """Bolt Circle / Pitch Circle Diameter (PCD) annotation with radial hole crosshairs."""
 
     def __init__(
@@ -292,7 +280,7 @@ class BoltCircle:
         hole_cross_size: float = 4.0,
         stroke_width: float = 0.25,
         center: tuple[float, float] | None = None,
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
     ):
@@ -339,20 +327,18 @@ class BoltCircle:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         if not self._explicit_coords:
             self.resolved = False
             if not self._explicit_diameter:
                 self.diameter = 0.0
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             if not isinstance(self.target, (tuple, list)):
-                self.target = (
-                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
-                )
+                self.target = ensure_anchor(self.target, view.shape) or self.target
             try:
                 paper_c, paper_r, _ = resolve_circle_or_cylinder_to_sheet(self.target, view)
                 self.center = paper_c
@@ -376,11 +362,7 @@ class BoltCircle:
             self.center = (view.center_x, view.center_y)
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
 
     def to_svg(self) -> str:
         cx, cy = self.center

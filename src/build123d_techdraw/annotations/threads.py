@@ -220,7 +220,7 @@ def coerce_thread_designation(target: str | Any) -> str:
     fastener_mod, thread_mod = _require_bd_warehouse()
     if isinstance(target, thread_mod.IsoThread):
         return f"M{_fmt_num(float(target.major_diameter))}x{_fmt_pitch(float(target.pitch))}"
-    if isinstance(target, (fastener_mod.Screw, fastener_mod.Nut)) or hasattr(target, "thread_size"):
+    if isinstance(target, (fastener_mod.Screw, fastener_mod.Nut, fastener_mod.Washer)):
         return str(target.thread_size)
     raise TypeError(
         f"Expected thread designation str, IsoThread, or bd_warehouse fastener, got {type(target).__name__}"
