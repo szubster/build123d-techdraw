@@ -13,7 +13,7 @@ def projection_symbol_elements(
     (two concentric circles). The end view is the one seen from the small end, so
     both circles are drawn as visible outlines.
 
-    * First-angle (ISO 128-30 / ISO 5456-2 default, "method E"): the end view is
+    * First-angle (ISO 128-3 / ISO 5456-2 default, "method E"): the end view is
       placed on the side opposite the one it was seen from, so the circles sit to
       the **left** of the trapezoid.
     * Third-angle (ASME Y14.3 / US default, "method A"): the end view is placed on
@@ -56,7 +56,7 @@ def render_projection_cone_svg(
 ) -> str:
     """Render the ISO 5456-2 projection method symbol (first- or third-angle).
 
-    Defaults to first-angle projection, the ISO 128-30 / ISO 5456-2 default.
+    Defaults to first-angle projection, the ISO 128-3 / ISO 5456-2 default.
     """
     cx, cy = center
     return f"""

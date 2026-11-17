@@ -49,7 +49,7 @@ Any other value raises `ValueError`.
 
 | `layout` | Standard | Top view | Right view | Left view | Isometric |
 |---|---|---|---|---|---|
-| `"first_angle"` *(default)* | ISO 128-30 / ISO 5456-2 (method E). Default in Europe and most of the world | **below** the Front view | to the **left** of the Front view | to the **right** of the Front view | bottom-left (free corner) |
+| `"first_angle"` *(default)* | ISO 128-3 / ISO 5456-2 (method E). Default in Europe and most of the world | **below** the Front view | to the **left** of the Front view | to the **right** of the Front view | bottom-left (free corner) |
 | `"third_angle"` | ASME Y14.3 (method A). Default in the USA and Canada | **above** the Front view | to the **right** of the Front view | to the **left** of the Front view | top-right (free corner) |
 
 In first-angle projection each view sits on the side *opposite* the one it is

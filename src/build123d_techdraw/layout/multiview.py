@@ -11,13 +11,14 @@ import build123d as bd
 from build123d_techdraw.annotations.callouts import BOMBalloon
 from build123d_techdraw.core.scale import (
     find_closest_iso_scale,
+    format_iso_ratio,
     format_iso_scale,
 )
 from build123d_techdraw.core.title_block import BOMItem
 from build123d_techdraw.core.view import VIEW_VECTORS, SheetView, ViewType
 
 FIRST_ANGLE = "first_angle"
-"""ISO 128-30 / ISO 5456-2 default projection method (ISO "method E")."""
+"""ISO 128-3 / ISO 5456-2 default projection method (ISO "method E")."""
 THIRD_ANGLE = "third_angle"
 """ASME Y14.3 / US default projection method (ISO "method A")."""
 
@@ -118,7 +119,7 @@ def add_standard_multiview(
     layout:
         Projection method used to arrange the views (ISO 5456-2):
 
-        * ``'first_angle'`` (default) -- ISO 128-30 / ISO 5456-2 default
+        * ``'first_angle'`` (default) -- ISO 128-3 / ISO 5456-2 default
           ("method E"): Top view **below** the Front view, Right view to the
           **left** of it, Left view to its right.
         * ``'third_angle'`` -- ASME Y14.3 / US default ("method A"): Top view
@@ -280,7 +281,7 @@ def add_standard_multiview(
     )
 
     sheet.title_info.third_angle = is_third_angle
-    sheet.title_info.scale = scale_str
+    sheet.title_info.scale = format_iso_ratio(calculated_scale)
 
     grid_cells: dict[ViewType, tuple[str, str]] = {
         ViewType.FRONT: ("main", "elev"),

@@ -1405,9 +1405,9 @@ class DrawingSheet:
                 )
                 DXFRenderer.export_shape_to_dxf(shape_to_export, path, dxfversion=dxfversion)
             else:
-                import ezdxf
+                from ezdxf.filemanagement import new as ezdxf_new
 
-                doc = ezdxf.new(dxfversion=dxfversion)  # type: ignore[attr-defined]
+                doc = ezdxf_new(dxfversion=dxfversion)
                 doc.saveas(path)
         else:
             DXFRenderer.export_sheet_to_dxf(self, path, dxfversion=dxfversion)
