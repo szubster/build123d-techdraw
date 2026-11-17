@@ -65,3 +65,8 @@ uv run python examples/generate_all.py # regenerate example drawings (see below)
 Conventional Commits, enforced on PR titles: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`,
 optional scope (`core`, `annotations`, `layout`, `renderers`, `dimensions`, …), `!` for breaking
 changes. `feat` → minor, `fix` → patch. Fill in `.github/PULL_REQUEST_TEMPLATE.md`.
+
+Versioning follows Semantic Versioning. The project is **pre-1.0**: breaking API and behaviour
+changes are allowed and preferred over compatibility shims, deprecation wrappers or aliases kept
+only for old callers. Mark them with `!` / `BREAKING CHANGE:`; while on `0.x` they bump the minor
+version, not the major.
