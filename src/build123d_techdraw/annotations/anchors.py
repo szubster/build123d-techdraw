@@ -769,10 +769,11 @@ class Anchor:
         max_proj = max(projs)
         extreme_verts = [v for v, p in zip(verts, projs, strict=False) if abs(p - max_proj) <= 1e-3]
 
-        if self.near is not None:
+        near = self.near
+        if near is not None:
             best_v = min(
                 extreme_verts,
-                key=lambda v: math.dist((float(v.X), float(v.Y), float(v.Z)), self.near),  # type: ignore[arg-type]
+                key=lambda v: math.dist((float(v.X), float(v.Y), float(v.Z)), near),
             )
             self.last_resolved_entity = best_v
             self.last_resolved_point_3d = (float(best_v.X), float(best_v.Y), float(best_v.Z))

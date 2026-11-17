@@ -343,12 +343,12 @@ class SheetView:
         dxfversion: str = "R2010",
     ) -> None:
         """Export 1:1 CAM manufacturing DXF from this 2D view (outer profile, holes, centerlines)."""
-        import ezdxf
+        from ezdxf.filemanagement import new as ezdxf_new
 
         from build123d_techdraw.recognizers.features import recognize_holes
 
         os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
-        doc = ezdxf.new(dxfversion=dxfversion)  # type: ignore[attr-defined]
+        doc = ezdxf_new(dxfversion=dxfversion)
         msp = doc.modelspace()
 
         layer_map = {
