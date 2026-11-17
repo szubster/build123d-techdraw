@@ -19,6 +19,13 @@
         - BOMItem
         - RevisionEntry
 
+::: build123d_techdraw.core.part_info
+    options:
+      members:
+        - PartInfo
+        - set_part_info
+        - get_part_info
+
 ::: build123d_techdraw.core.booklet
     options:
       members:

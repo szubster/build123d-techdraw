@@ -7,11 +7,14 @@ import pytest
 
 from build123d_techdraw import (
     DrawingSheet,
+    PartInfo,
     SheetSize,
     ViewType,
     add_assembly_bom_and_balloons,
     add_standard_multiview,
     generate_assembly_bom,
+    get_part_info,
+    set_part_info,
 )
 from build123d_techdraw.layout.multiview import projected_view_extent
 
@@ -170,7 +173,7 @@ def test_auto_centerlines_and_exact_dimensions() -> None:
     assert 'stroke-dasharray="10,2,2,2"' in svg
 
 
-def _stepped_block() -> bd.Part:
+def _stepped_block() -> bd.Compound:
     return bd.Box(80.0, 40.0, 20.0) - bd.Pos(20.0, 0.0, 5.0) * bd.Box(40.0, 40.0, 10.0)
 
 
@@ -228,3 +231,29 @@ def test_projected_isometric_extent_matches_drawn_view() -> None:
     assert abs(view.height - h) < 0.05
     # The old diagonal heuristic (|bbox| * 0.75 ≈ 69 mm) underestimated the width.
     assert w > 85.0
+
+
+def test_assembly_bom_uses_part_info_and_build123d_material() -> None:
+    base = bd.Box(60.0, 40.0, 10.0)
+    base.label = "Base Plate"
+    base.material = "alu_g6061_t6"
+    set_part_info(base, PartInfo(part_no="BP-001", material_spec="AL 6061-T6"))
+
+    pin = bd.Cylinder(radius=5.0, height=25.0)
+    pin.label = "Guide Pin"
+    pin.material = "alu_g6061_t6"
+    set_part_info(pin, PartInfo(part_no="GP-002"))
+    pin2 = pin.moved(bd.Location((20.0, 0.0, 0.0)))  # copies keep their PartInfo
+    assert get_part_info(pin2) == PartInfo(part_no="GP-002")
+
+    washer = bd.Cylinder(radius=8.0, height=2.0)
+    washer.label = "Washer"
+
+    bom = {b.description: b for b in generate_assembly_bom([base, pin, pin2, washer])}
+
+    assert (bom["Base Plate"].part_no, bom["Base Plate"].material) == ("BP-001", "AL 6061-T6")
+    assert bom["Guide Pin"].qty == 2
+    assert bom["Guide Pin"].part_no == "GP-002"
+    assert bom["Guide Pin"].material == "ALU G6061 T6"
+    assert bom["Washer"].part_no == f"PART-{bom['Washer'].item_no:03d}"
+    assert bom["Washer"].material == "STANDARD"

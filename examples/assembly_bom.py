@@ -1,28 +1,18 @@
 """Assembly Blueprint & Automated BOM example."""
 
 from pathlib import Path
-from typing import Any
 
 import build123d as bd
-from build123d.topology import Shape
 
 from build123d_techdraw import (
     DrawingSheet,
+    PartInfo,
     SheetSize,
     Theme,
     add_assembly_bom_and_balloons,
     add_standard_multiview,
+    set_part_info,
 )
-
-
-def _tag_bom_metadata(shape: Shape[Any], material_spec: str, part_no: str) -> None:
-    """Attach extra BOM fields to a build123d shape.
-
-    build123d shapes have no ``material_spec`` / ``part_no`` fields; the BOM generator picks
-    these ad-hoc attributes up with ``getattr`` when they are present.
-    """
-    setattr(shape, "material_spec", material_spec)  # noqa: B010
-    setattr(shape, "part_no", part_no)  # noqa: B010
 
 
 def generate_assembly_bom(output_dir: Path) -> None:
@@ -32,17 +22,17 @@ def generate_assembly_bom(output_dir: Path) -> None:
     base = bd.Box(120.0, 80.0, 20.0)
     base.label = "Machined Baseplate"
     base.material = "alu_g6061_t6"
-    _tag_bom_metadata(base, material_spec="AL 6061-T6", part_no="BP-001")
+    set_part_info(base, PartInfo(part_no="BP-001", material_spec="AL 6061-T6"))
 
     pin1 = bd.Cylinder(radius=6.0, height=30.0).move(bd.Location((30.0, 20.0, 25.0)))
     pin1.label = "Dowel Pin"
     pin1.material = "alloy_steel"
-    _tag_bom_metadata(pin1, material_spec="STEEL A2", part_no="DP-002")
+    set_part_info(pin1, PartInfo(part_no="DP-002", material_spec="STEEL A2"))
 
     pin2 = bd.Cylinder(radius=6.0, height=30.0).move(bd.Location((-30.0, -20.0, 25.0)))
     pin2.label = "Dowel Pin"
     pin2.material = "alloy_steel"
-    _tag_bom_metadata(pin2, material_spec="STEEL A2", part_no="DP-002")
+    set_part_info(pin2, PartInfo(part_no="DP-002", material_spec="STEEL A2"))
 
     assembly = bd.Compound(children=[base, pin1, pin2])
 
