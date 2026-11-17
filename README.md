@@ -77,6 +77,7 @@ layout = add_standard_multiview(
     shape=part,
     scale="auto",  # Automatically selects standard ISO 5455 scale
     auto_dimensions=True,  # Adds overall Length, Height, and Depth dimensions
+    # layout="first_angle" is the ISO default; pass "third_angle" for ASME / US drawings
 )
 
 # 4. Export to interactive SVG, print-ready vector PDF, and 1:1 DXF
@@ -167,7 +168,7 @@ sheet += TitleBlock(title="BRACKET BLUEPRINT", drawing_no="DWG-001", material="A
 
 # Create views and layout relatively
 front = FrontView(part, scale=1.0).locate((130.0, 150.0))
-top = TopView(part, scale=1.0).align_to(front, direction="above", spacing=25.0)
+top = TopView(part, scale=1.0).align_to(front, direction="below", spacing=25.0)
 iso = IsometricView(part, scale=0.8).align_to(front, direction="right", spacing=50.0)
 
 # Attach dimensions directly to views

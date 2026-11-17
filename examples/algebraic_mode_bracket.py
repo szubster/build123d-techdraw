@@ -52,7 +52,7 @@ def generate_algebraic_mode_drawing(output_dir: Path) -> None:
 
     # 3. Create views explicitly with relative layout chaining
     front = FrontView(part, scale=1.0).locate((130.0, 150.0))
-    top = TopView(part, scale=1.0).align_to(front, direction="above", spacing=25.0)
+    top = TopView(part, scale=1.0).align_to(front, direction="below", spacing=25.0)
     iso = IsometricView(part, scale=0.8).align_to(front, direction="right", spacing=50.0)
 
     # 4. Attach annotations to views

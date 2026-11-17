@@ -175,9 +175,7 @@
 
         <text x="91" y="11.5" class="tb-field-label">PROJECTION</text>
         <g transform="translate(102, 17) scale(0.65)">
-            <polygon points="0,-4 8,-7 8,7 0,4" fill="none" class="line-visible" stroke-width="0.35"/>
-            <circle cx="-8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="-8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>
-            <line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/><line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>
+            <polygon points="0,-7 8,-4 8,4 0,7" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="-8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="-8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/><line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/><line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>
         </g>
 
         <text x="3" y="25.2" class="tb-field-label">MATERIAL</text>
@@ -231,8 +229,8 @@
 
   <g class="drawing-views">
     
-    <!-- View: FRONT at (137.57131842322949, 181.6086815767705) scale=1.0 -->
-    <g id="view_front_137_181" class="sheet-view" transform="translate(137.57, 181.61) scale(1.0000, 1.0000) translate(-10.61, 5.85)">
+    <!-- View: FRONT at (241.7886815767705, 77.39131842322948) scale=1.0 -->
+    <g id="view_front_241_77" class="sheet-view" transform="translate(241.79, 77.39) scale(1.0000, 1.0000) translate(-10.61, 5.85)">
         <g transform="scale(1,-1)" stroke-linecap="round">
     <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
       <path d="M -8.890432,-17.903887 L -9.028329,-17.903887 L -9.435103,-17.903887 L -10.090359,-17.903887 L -10.961238,-17.903887 L -12.004072,-17.903887 L -13.166567,-17.903887 L -14.390432,-17.903887 L -15.614297,-17.903887 L -16.776793,-17.903887 L -17.819626,-17.903887 L -18.690505,-17.903887 L -19.345761,-17.903887 L -19.752536,-17.903887 L -19.890432,-17.903887" />
@@ -253,8 +251,8 @@
   </g>
     </g>
     
-    <!-- View: TOP at (137.57131842322949, 93.25) scale=1.0 -->
-    <g id="view_top_137_93" class="sheet-view" transform="translate(137.57, 93.25) scale(1.0000, 1.0000) translate(-10.61, -0.00)">
+    <!-- View: TOP at (241.7886815767705, 165.75) scale=1.0 -->
+    <g id="view_top_241_165" class="sheet-view" transform="translate(241.79, 165.75) scale(1.0000, 1.0000) translate(-10.61, -0.00)">
         <g transform="scale(1,-1)" stroke-linecap="round">
     <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
       <line x1="-29.390432" y1="-25.0" x2="50.609568" y2="-25.0" />
@@ -273,8 +271,8 @@
   </g>
     </g>
     
-    <!-- View: RIGHT at (242.18, 181.6086815767705) scale=1.0 -->
-    <g id="view_right_242_181" class="sheet-view" transform="translate(242.18, 181.61) scale(1.0000, 1.0000) translate(-0.00, 5.85)">
+    <!-- View: RIGHT at (137.18, 77.39131842322948) scale=1.0 -->
+    <g id="view_right_137_77" class="sheet-view" transform="translate(137.18, 77.39) scale(1.0000, 1.0000) translate(-0.00, 5.85)">
         <g transform="scale(1,-1)" stroke-linecap="round">
     <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
       <line x1="-25.0" y1="-17.903887" x2="-25.0" y2="29.596113" />
@@ -300,8 +298,8 @@
   </g>
     </g>
     
-    <!-- View: ISOMETRIC at (242.18, 93.25) scale=1.0 -->
-    <g id="view_isometric_242_93" class="sheet-view" transform="translate(242.18, 93.25) scale(1.0000, 1.0000) translate(8.83, 2.26)">
+    <!-- View: ISOMETRIC at (137.18, 165.75) scale=1.0 -->
+    <g id="view_isometric_137_165" class="sheet-view" transform="translate(137.18, 165.75) scale(1.0000, 1.0000) translate(8.83, 2.26)">
         <g transform="scale(1,-1)" stroke-linecap="round">
     <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
       <line x1="38.321823" y1="23.699016" x2="38.321823" y2="-17.838529" />
@@ -329,32 +327,32 @@
   </g>
 
   <g class="view-labels">
-                <text x="137.57" y="213.36" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">FRONT</text>
-                <text x="137.57" y="217.16" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="127.57" y1="214.36" x2="147.57" y2="214.36" class="border-sub" stroke-width="0.3"/>
+                <text x="241.79" y="109.14" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">FRONT</text>
+                <text x="241.79" y="112.94" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="231.79" y1="110.14" x2="251.79" y2="110.14" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="137.57" y="126.25" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">TOP</text>
-                <text x="137.57" y="130.05" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="127.57" y1="127.25" x2="147.57" y2="127.25" class="border-sub" stroke-width="0.3"/>
+                <text x="241.79" y="198.75" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">TOP</text>
+                <text x="241.79" y="202.55" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="231.79" y1="199.75" x2="251.79" y2="199.75" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="242.18" y="213.36" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">RIGHT</text>
-                <text x="242.18" y="217.16" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="232.18" y1="214.36" x2="252.18" y2="214.36" class="border-sub" stroke-width="0.3"/>
+                <text x="137.18" y="109.14" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">RIGHT</text>
+                <text x="137.18" y="112.94" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="127.18" y1="110.14" x2="147.18" y2="110.14" class="border-sub" stroke-width="0.3"/>
                 
-                <text x="242.18" y="142.87" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">ISOMETRIC</text>
-                <text x="242.18" y="146.67" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
-                <line x1="229.58" y1="143.87" x2="254.78" y2="143.87" class="border-sub" stroke-width="0.3"/>
+                <text x="137.18" y="215.37" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">ISOMETRIC</text>
+                <text x="137.18" y="219.17" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="124.58" y1="216.37" x2="149.78" y2="216.37" class="border-sub" stroke-width="0.3"/>
                 </g>
 
   <g class="annotations">
-    <line x1="97.57" y1="206.86" x2="97.57" y2="224.36" class="dim-line" stroke-width="0.25"/><line x1="127.57" y1="206.86" x2="127.57" y2="224.36" class="dim-line" stroke-width="0.25"/><line x1="97.57" y1="222.36" x2="127.57" y2="222.36" class="dim-line" stroke-width="0.3"/><polygon points="97.57,222.36 100.07,221.66 100.07,223.06" class="dim-arrow"/><polygon points="127.57,222.36 125.07,223.06 125.07,221.66" class="dim-arrow"/><text x="112.57" y="221.16" class="dim-text" text-anchor="middle" font-size="3.20">30</text><line x1="97.57" y1="206.86" x2="97.57" y2="231.36" class="dim-line" stroke-width="0.25"/><line x1="177.57" y1="206.86" x2="177.57" y2="231.36" class="dim-line" stroke-width="0.25"/><line x1="97.57" y1="229.36" x2="177.57" y2="229.36" class="dim-line" stroke-width="0.3"/><polygon points="97.57,229.36 100.07,228.66 100.07,230.06" class="dim-arrow"/><polygon points="177.57,229.36 175.07,230.06 175.07,228.66" class="dim-arrow"/><text x="137.57" y="228.16" class="dim-text" text-anchor="middle" font-size="3.20">80</text><line x1="96.07" y1="190.36" x2="85.57" y2="190.36" class="dim-line" stroke-width="0.25"/><line x1="96.07" y1="205.36" x2="85.57" y2="205.36" class="dim-line" stroke-width="0.25"/><line x1="87.57" y1="190.36" x2="87.57" y2="205.36" class="dim-line" stroke-width="0.3"/><polygon points="87.57,190.36 88.27,192.86 86.87,192.86" class="dim-arrow"/><polygon points="87.57,205.36 86.87,202.86 88.27,202.86" class="dim-arrow"/><text x="86.17" y="197.86" transform="rotate(-90 86.17 197.86)" class="dim-text" text-anchor="middle" font-size="3.20">15</text><line x1="96.07" y1="157.86" x2="78.57" y2="157.86" class="dim-line" stroke-width="0.25"/><line x1="96.07" y1="205.36" x2="78.57" y2="205.36" class="dim-line" stroke-width="0.25"/><line x1="80.57" y1="157.86" x2="80.57" y2="205.36" class="dim-line" stroke-width="0.3"/><polygon points="80.57,157.86 81.27,160.36 79.87,160.36" class="dim-arrow"/><polygon points="80.57,205.36 79.87,202.86 81.27,202.86" class="dim-arrow"/><text x="79.17" y="181.61" transform="rotate(-90 79.17 181.61)" class="dim-text" text-anchor="middle" font-size="3.20">47.5</text><line x1="96.07" y1="93.25" x2="85.57" y2="93.25" class="dim-line" stroke-width="0.25"/><line x1="96.07" y1="118.25" x2="85.57" y2="118.25" class="dim-line" stroke-width="0.25"/><line x1="87.57" y1="93.25" x2="87.57" y2="118.25" class="dim-line" stroke-width="0.3"/><polygon points="87.57,93.25 88.27,95.75 86.87,95.75" class="dim-arrow"/><polygon points="87.57,118.25 86.87,115.75 88.27,115.75" class="dim-arrow"/><text x="86.17" y="105.75" transform="rotate(-90 86.17 105.75)" class="dim-text" text-anchor="middle" font-size="3.20">25</text><line x1="96.07" y1="68.25" x2="78.57" y2="68.25" class="dim-line" stroke-width="0.25"/><line x1="96.07" y1="118.25" x2="78.57" y2="118.25" class="dim-line" stroke-width="0.25"/><line x1="80.57" y1="68.25" x2="80.57" y2="118.25" class="dim-line" stroke-width="0.3"/><polygon points="80.57,68.25 81.27,70.75 79.87,70.75" class="dim-arrow"/><polygon points="80.57,118.25 79.87,115.75 81.27,115.75" class="dim-arrow"/><text x="79.17" y="93.25" transform="rotate(-90 79.17 93.25)" class="dim-text" text-anchor="middle" font-size="3.20">50</text><line x1="97.57" y1="66.75" x2="97.57" y2="56.25" class="dim-line" stroke-width="0.25"/><line x1="112.57" y1="66.75" x2="112.57" y2="56.25" class="dim-line" stroke-width="0.25"/><line x1="97.57" y1="58.25" x2="112.57" y2="58.25" class="dim-line" stroke-width="0.3"/><polygon points="97.57,58.25 100.07,57.55 100.07,58.95" class="dim-arrow"/><polygon points="112.57,58.25 110.07,58.95 110.07,57.55" class="dim-arrow"/><text x="105.07" y="57.05" class="dim-text" text-anchor="middle" font-size="3.20">15</text><g class="leader-note"><polygon points="112.57,93.25 113.84,91.36 114.63,92.26" class="dim-arrow"/><polyline points="112.57,93.25 126.07,81.55 146.07,81.55" class="dim-line" stroke-width="0.3" fill="none"/><text x="128.07" y="80.35" class="leader-text" text-anchor="start" font-size="2.80">⌀11 THRU</text></g><line x1="111.07" y1="192.36" x2="95.57" y2="192.36" class="dim-line" stroke-width="0.25"/><line x1="111.07" y1="203.36" x2="95.57" y2="203.36" class="dim-line" stroke-width="0.25"/><line x1="97.57" y1="192.36" x2="97.57" y2="203.36" class="dim-line" stroke-width="0.3"/><polygon points="97.57,192.36 98.27,194.86 96.87,194.86" class="dim-arrow"/><polygon points="97.57,203.36 96.87,200.86 98.27,200.86" class="dim-arrow"/><text x="96.17" y="197.86" transform="rotate(-90 96.17 197.86)" class="dim-text" text-anchor="middle" font-size="3.20">⌀11 H11</text>
+    <line x1="201.79" y1="52.14" x2="201.79" y2="41.64" class="dim-line" stroke-width="0.25"/><line x1="231.79" y1="52.14" x2="231.79" y2="41.64" class="dim-line" stroke-width="0.25"/><line x1="201.79" y1="43.64" x2="231.79" y2="43.64" class="dim-line" stroke-width="0.3"/><polygon points="201.79,43.64 204.29,42.94 204.29,44.34" class="dim-arrow"/><polygon points="231.79,43.64 229.29,44.34 229.29,42.94" class="dim-arrow"/><text x="216.79" y="42.44" class="dim-text" text-anchor="middle" font-size="3.20">30</text><line x1="201.79" y1="52.14" x2="201.79" y2="34.64" class="dim-line" stroke-width="0.25"/><line x1="281.79" y1="52.14" x2="281.79" y2="34.64" class="dim-line" stroke-width="0.25"/><line x1="201.79" y1="36.64" x2="281.79" y2="36.64" class="dim-line" stroke-width="0.3"/><polygon points="201.79,36.64 204.29,35.94 204.29,37.34" class="dim-arrow"/><polygon points="281.79,36.64 279.29,37.34 279.29,35.94" class="dim-arrow"/><text x="241.79" y="35.44" class="dim-text" text-anchor="middle" font-size="3.20">80</text><line x1="283.29" y1="86.14" x2="293.79" y2="86.14" class="dim-line" stroke-width="0.25"/><line x1="283.29" y1="101.14" x2="293.79" y2="101.14" class="dim-line" stroke-width="0.25"/><line x1="291.79" y1="86.14" x2="291.79" y2="101.14" class="dim-line" stroke-width="0.3"/><polygon points="291.79,86.14 292.49,88.64 291.09,88.64" class="dim-arrow"/><polygon points="291.79,101.14 291.09,98.64 292.49,98.64" class="dim-arrow"/><text x="290.39" y="93.64" transform="rotate(-90 290.39 93.64)" class="dim-text" text-anchor="middle" font-size="3.20">15</text><line x1="283.29" y1="53.64" x2="300.79" y2="53.64" class="dim-line" stroke-width="0.25"/><line x1="283.29" y1="101.14" x2="300.79" y2="101.14" class="dim-line" stroke-width="0.25"/><line x1="298.79" y1="53.64" x2="298.79" y2="101.14" class="dim-line" stroke-width="0.3"/><polygon points="298.79,53.64 299.49,56.14 298.09,56.14" class="dim-arrow"/><polygon points="298.79,101.14 298.09,98.64 299.49,98.64" class="dim-arrow"/><text x="297.39" y="77.39" transform="rotate(-90 297.39 77.39)" class="dim-text" text-anchor="middle" font-size="3.20">47.5</text><line x1="283.29" y1="165.75" x2="293.79" y2="165.75" class="dim-line" stroke-width="0.25"/><line x1="283.29" y1="190.75" x2="293.79" y2="190.75" class="dim-line" stroke-width="0.25"/><line x1="291.79" y1="165.75" x2="291.79" y2="190.75" class="dim-line" stroke-width="0.3"/><polygon points="291.79,165.75 292.49,168.25 291.09,168.25" class="dim-arrow"/><polygon points="291.79,190.75 291.09,188.25 292.49,188.25" class="dim-arrow"/><text x="290.39" y="178.25" transform="rotate(-90 290.39 178.25)" class="dim-text" text-anchor="middle" font-size="3.20">25</text><line x1="283.29" y1="140.75" x2="300.79" y2="140.75" class="dim-line" stroke-width="0.25"/><line x1="283.29" y1="190.75" x2="300.79" y2="190.75" class="dim-line" stroke-width="0.25"/><line x1="298.79" y1="140.75" x2="298.79" y2="190.75" class="dim-line" stroke-width="0.3"/><polygon points="298.79,140.75 299.49,143.25 298.09,143.25" class="dim-arrow"/><polygon points="298.79,190.75 298.09,188.25 299.49,188.25" class="dim-arrow"/><text x="297.39" y="165.75" transform="rotate(-90 297.39 165.75)" class="dim-text" text-anchor="middle" font-size="3.20">50</text><line x1="201.79" y1="192.25" x2="201.79" y2="202.75" class="dim-line" stroke-width="0.25"/><line x1="216.79" y1="192.25" x2="216.79" y2="202.75" class="dim-line" stroke-width="0.25"/><line x1="201.79" y1="200.75" x2="216.79" y2="200.75" class="dim-line" stroke-width="0.3"/><polygon points="201.79,200.75 204.29,200.05 204.29,201.45" class="dim-arrow"/><polygon points="216.79,200.75 214.29,201.45 214.29,200.05" class="dim-arrow"/><text x="209.29" y="199.55" class="dim-text" text-anchor="middle" font-size="3.20">15</text><g class="leader-note"><polygon points="216.79,165.75 218.06,163.86 218.84,164.76" class="dim-arrow"/><polyline points="216.79,165.75 230.29,154.05 250.29,154.05" class="dim-line" stroke-width="0.3" fill="none"/><text x="232.29" y="152.85" class="leader-text" text-anchor="start" font-size="2.80">⌀11 THRU</text></g><line x1="215.29" y1="88.14" x2="199.79" y2="88.14" class="dim-line" stroke-width="0.25"/><line x1="215.29" y1="99.14" x2="199.79" y2="99.14" class="dim-line" stroke-width="0.25"/><line x1="201.79" y1="88.14" x2="201.79" y2="99.14" class="dim-line" stroke-width="0.3"/><polygon points="201.79,88.14 202.49,90.64 201.09,90.64" class="dim-arrow"/><polygon points="201.79,99.14 201.09,96.64 202.49,96.64" class="dim-arrow"/><text x="200.39" y="93.64" transform="rotate(-90 200.39 93.64)" class="dim-text" text-anchor="middle" font-size="3.20">⌀11 H11</text>
         <g class="centermark">
-            <line x1="108.57" y1="197.86" x2="116.57" y2="197.86" class="line-center" stroke-width="0.25"/>
-            <line x1="112.57" y1="193.86" x2="112.57" y2="201.86" class="line-center" stroke-width="0.25"/>
+            <line x1="212.79" y1="93.64" x2="220.79" y2="93.64" class="line-center" stroke-width="0.25"/>
+            <line x1="216.79" y1="89.64" x2="216.79" y2="97.64" class="line-center" stroke-width="0.25"/>
         </g>
         <g class="gdt-fcf">
-            <polygon points="147.57,205.36 149.38,203.49 150.08,204.70" class="dim-arrow"/>
-            <line x1="147.57" y1="205.36" x2="159.57" y2="198.36" class="dim-line" stroke-width="0.3"/>
-            <rect x="159.57" y="195.36" width="21.00" height="6.00" class="title-bg" stroke-width="0.35"/><line x1="166.57" y1="195.36" x2="166.57" y2="201.36" class="border-sub" stroke-width="0.3"/><text x="163.07" y="199.44" class="tb-title" text-anchor="middle" font-size="3.60">⏥</text><text x="173.57" y="199.44" class="dim-text" text-anchor="middle" font-size="3.00">0.05</text></g>
+            <polygon points="251.79,101.14 253.60,99.28 254.30,100.49" class="dim-arrow"/>
+            <line x1="251.79" y1="101.14" x2="263.79" y2="94.14" class="dim-line" stroke-width="0.3"/>
+            <rect x="263.79" y="91.14" width="21.00" height="6.00" class="title-bg" stroke-width="0.35"/><line x1="270.79" y1="91.14" x2="270.79" y2="97.14" class="border-sub" stroke-width="0.3"/><text x="267.29" y="95.22" class="tb-title" text-anchor="middle" font-size="3.60">⏥</text><text x="277.79" y="95.22" class="dim-text" text-anchor="middle" font-size="3.00">0.05</text></g>
   </g>
 </svg>
