@@ -11,6 +11,7 @@ import build123d as bd
 from build123d_techdraw.annotations.callouts import BOMBalloon
 from build123d_techdraw.core.scale import (
     find_closest_iso_scale,
+    format_iso_ratio,
     format_iso_scale,
 )
 from build123d_techdraw.core.title_block import BOMItem
@@ -259,7 +260,7 @@ def add_standard_multiview(
 
     is_third_angle = layout.lower() != "first_angle"
     sheet.title_info.third_angle = is_third_angle
-    sheet.title_info.scale = scale_str
+    sheet.title_info.scale = format_iso_ratio(calculated_scale)
 
     # Positioning mapping
     pos_map: dict[ViewType, tuple[float, float]] = {}

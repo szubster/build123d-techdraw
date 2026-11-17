@@ -15,25 +15,33 @@ STANDARD_SCALES: list[float] = (
 )
 
 
-def format_iso_scale(scale: float) -> str:
-    """Format scale string according to ISO 5455 standards (e.g. 'SCALE 1:1', 'SCALE 1:2')."""
+def format_iso_ratio(scale: float) -> str:
+    """Format a bare ISO 5455 scale ratio (e.g. '1:1', '1:2', '2:1').
+
+    Used for the title block SCALE field, whose label already says "SCALE".
+    """
     if abs(scale - 1.0) < 0.05:
-        return "SCALE 1:1"
+        return "1:1"
     if abs(scale - 1.5) < 0.08:
-        return "SCALE 3:2"
+        return "3:2"
     if abs(scale - 2.5) < 0.08:
-        return "SCALE 5:2"
+        return "5:2"
 
     if scale > 1.0:
         inv = round(scale)
         if abs(scale - inv) < 0.15:
-            return f"SCALE {int(inv)}:1"
-        return f"SCALE {scale:.1f}:1"
+            return f"{int(inv)}:1"
+        return f"{scale:.1f}:1"
     else:
         inv = round(1.0 / scale)
         if abs(1.0 / inv - scale) < 0.05 * scale:
-            return f"SCALE 1:{int(inv)}"
-        return f"SCALE 1:{1.0 / scale:.1f}"
+            return f"1:{int(inv)}"
+        return f"1:{1.0 / scale:.1f}"
+
+
+def format_iso_scale(scale: float) -> str:
+    """Format a view scale label per ISO 5455 (e.g. 'SCALE 1:1', 'SCALE 1:2')."""
+    return f"SCALE {format_iso_ratio(scale)}"
 
 
 def find_closest_iso_scale(ratio: float) -> float:
