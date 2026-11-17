@@ -78,6 +78,24 @@ section_view = sheet.add_section_view(
 )
 ```
 
+### Updating the Model (`update_shape`)
+
+When the part changes, `sheet.update_shape(new_part)` re-projects every view and re-binds
+anchored annotations to the new geometry:
+
+```python
+sheet.update_shape(part_v2)
+```
+
+- Each view is rebuilt from the parameters it was created with: section cut plane or path,
+  hatch, auxiliary direction, an explicit `model_origin` and the label position. The view's
+  current position and scale are kept, including any `locate`, `align_to` or `scale_to`.
+- Detail views follow their parent view. They are re-cut from the parent after it updates.
+- Space that dimensions reserved below a view is kept and moves with the view's new bottom edge.
+- A section, detail or auxiliary `SheetView` built by hand has no recorded parameters. In
+  that case `update_shape` raises `ValueError` and changes no views. Check with
+  `view.can_regenerate()`.
+
 ---
 
 ## 🏗️ Builder Mode vs Algebraic Mode
@@ -101,13 +119,16 @@ with BuildDrawing(SheetSize.A3_LANDSCAPE) as sheet:
         pass
 ```
 
+`BuildDrawing` is a `DrawingSheet` subclass: inside or after the `with` block, use it directly
+(`sheet.to_svg()`, `sheet.lint()`, `booklet.add_sheet(sheet)`).
+
 ### Algebraic Mode
 ```python
 sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
 sheet += TitleBlock(title="BRACKET", drawing_no="DWG-001")
 
 front = FrontView(part, scale=1.0).locate((130, 150))
-top = TopView(part, scale=1.0).align_to(front, direction="above", spacing=25.0)
+top = TopView(part, scale=1.0).align_to(front, direction="below", spacing=25.0)
 iso = IsometricView(part, scale=0.8).align_to(front, direction="right", spacing=50.0)
 
 front += [
@@ -117,4 +138,36 @@ front += [
 top += LinearDimension(v_min, v_max, offset=15.0, direction="horizontal")
 
 sheet += [front, top, iso]
+```
+
+### What `+=` Accepts
+
+`view += ...` takes an `Annotation` (every dimension, callout, symbol and table derives from
+`build123d_techdraw.Annotation`) or an iterable of them. `sheet += ...` additionally takes a
+`SheetView`, a `TitleBlockInfo`, or a `SheetDirective` (`TitleBlock`, `GeneralNotes`, `Revision`,
+`AssemblyBOM`, `MultiviewLayout`). Anything else is a type error, and raises `TypeError` at
+runtime.
+
+### Custom Annotations
+
+Subclass `Annotation` and implement `to_svg()` (paper-space mm, theme CSS variables). Override
+`bounding_box_2d()` so the sheet linter and auto-dimension collision checks can see it, and
+`_attach_to_view()` if it needs to resolve anchors against the view before registering:
+
+```python
+from build123d_techdraw import Annotation
+
+
+class RevisionCloud(Annotation):
+    def __init__(self, x: float, y: float, r: float) -> None:
+        self.x, self.y, self.r = x, y, r
+
+    def to_svg(self) -> str:
+        return f'<circle cx="{self.x}" cy="{self.y}" r="{self.r}" class="dim-line" fill="none"/>'
+
+    def bounding_box_2d(self) -> tuple[float, float, float, float]:
+        return (self.x - self.r, self.y - self.r, self.x + self.r, self.y + self.r)
+
+
+front += RevisionCloud(120.0, 80.0, 6.0)
 ```

@@ -3,8 +3,8 @@
 Instructions for AI coding agents working in this repository (Claude Code, Codex, Cursor, etc.).
 Human contributors: see `CONTRIBUTING.md`.
 
-> Do **not** add a `CLAUDE.md`. Claude Code loads `AGENTS.md` only when no `CLAUDE.md` exists;
-> adding one silently drops these instructions. Agent skills live in `.agents/skills/`
+> `CLAUDE.md` is a symlink to this file so Claude Code loads it; edit `AGENTS.md` only and never
+> replace the symlink with a separate `CLAUDE.md`. Agent skills live in `.agents/skills/`
 > (`.claude/skills` is a symlink to it).
 
 ## Project
@@ -34,8 +34,26 @@ uv run pytest                          # tests + coverage
 uv run pytest tests/test_dimensions.py -k diameter -q --no-cov   # focused run
 uv run ruff check --fix . && uv run ruff format .
 uv run mypy src examples               # strict; must be clean
+uv run pyright                         # also configured; backs the pyright-lsp plugin
 uv run python examples/generate_all.py # regenerate example drawings (see below)
 ```
+
+For code navigation, `.claude/settings.json` enables the `pyright-lsp` plugin (definitions,
+references, hover types, diagnostics). Prefer it over grep when tracing build123d/OCP types or
+call sites.
+
+## Standards policy: we follow ISO
+
+When ISO and ASME/ANSI differ, the **ISO behaviour is the default** and the ASME/US behaviour is
+an explicit opt-in. Never describe an ASME convention as "ISO" or "standard ISO".
+
+- **Projection method:** first-angle (ISO 128-3 / ISO 5456-2, "method E") is the default:
+  `add_standard_multiview(layout="first_angle")`, `StandardMultiview`,
+  `TitleBlockInfo.third_angle = False`. Third-angle (ASME Y14.3) is opt-in via
+  `layout="third_angle"` / `third_angle=True`.
+- Hand-placed views in examples and docs (`FrontView`, `TopView`, `align_to`, ...) are arranged
+  in first-angle (Top view *below* the Front view) unless they set `third_angle=True` on purpose.
+- Cite the specific standard in docstrings and docs, and check the citation is right.
 
 ## Rules
 
@@ -43,6 +61,13 @@ uv run python examples/generate_all.py # regenerate example drawings (see below)
   `cadquery-ocp-stubs`), ezdxf, matplotlib and Pillow are all typed — do not add them to
   `ignore_missing_imports`, and do not add `# type: ignore` without a specific error code and a
   reason it cannot be fixed. Only `svgelements` is untyped.
+- **No duck typing on our own objects.** Do not probe project types with `hasattr`, `getattr(obj,
+  "name", default)` or `setattr`, and do not type parameters `Any` only to probe them later. Type
+  them as `SheetView` / `DrawingSheet` (import under `TYPE_CHECKING` to break import cycles), use
+  the `Annotation` base (`annotations/base.py`) or `SheetDirective` (`core/directive.py`), or a
+  `typing.Protocol`, and branch with `isinstance`. New annotations subclass `Annotation` and
+  override `bounding_box_2d()` so the linter sees them. Dynamic access is only allowed for untyped
+  third-party objects, behind one helper (`renderers/svg_elements.py` for `svgelements`).
 - **Units:** annotation geometry is paper-space mm. Model geometry is model units; convert with the
   view's scale, never hard-code a scale factor.
 - **Theme colours** come from `renderers/theme.py` tokens / CSS variables — never hard-code hex
@@ -65,3 +90,8 @@ uv run python examples/generate_all.py # regenerate example drawings (see below)
 Conventional Commits, enforced on PR titles: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`,
 optional scope (`core`, `annotations`, `layout`, `renderers`, `dimensions`, …), `!` for breaking
 changes. `feat` → minor, `fix` → patch. Fill in `.github/PULL_REQUEST_TEMPLATE.md`.
+
+Versioning follows Semantic Versioning. The project is **pre-1.0**: breaking API and behaviour
+changes are allowed and preferred over compatibility shims, deprecation wrappers or aliases kept
+only for old callers. Mark them with `!` / `BREAKING CHANGE:`; while on `0.x` they bump the minor
+version, not the major.

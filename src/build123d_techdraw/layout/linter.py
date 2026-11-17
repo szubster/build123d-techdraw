@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+
+from build123d_techdraw.annotations.base import Annotation, BBox2D
+from build123d_techdraw.annotations.centerlines import Centerline
+from build123d_techdraw.annotations.dimensions import LinearDimension
+from build123d_techdraw.annotations.tables import Table
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
+    from build123d_techdraw.core.view import SheetView
 
 
 @dataclass
@@ -17,70 +23,8 @@ class LintIssue:
     code: str
     severity: str  # "WARNING" or "ERROR"
     message: str
-    element: Any = None
-    bbox: tuple[float, float, float, float] | None = None
-
-
-def get_annotation_bbox_2d(ann: Any) -> tuple[float, float, float, float] | None:
-    """Extract approximate 2D bounding box (min_x, min_y, max_x, max_y) in paper millimeters."""
-    # Check if element explicitly provides bounding_box_2d
-    if hasattr(ann, "bounding_box_2d"):
-        return ann.bounding_box_2d()  # type: ignore[no-any-return]
-
-    # LinearDimension
-    if hasattr(ann, "start") and hasattr(ann, "end") and hasattr(ann, "dim_type"):
-        s = ann.start
-        e = ann.end
-        x1, y1 = s
-        x2, y2 = e
-        min_x = min(x1, x2)
-        max_x = max(x1, x2)
-        min_y = min(y1, y2)
-        max_y = max(y1, y2)
-        offset = getattr(ann, "offset", 8.0)
-        dim_type = getattr(ann, "dim_type", None)
-        if str(dim_type).endswith("HORIZONTAL"):
-            dim_y = (y1 + y2) / 2.0 + offset
-            return (min_x, dim_y - 3.5, max_x, dim_y + 2.0)
-        elif str(dim_type).endswith("VERTICAL"):
-            dim_x = (x1 + x2) / 2.0 + offset
-            return (dim_x - 3.5, min_y, dim_x + 2.0, max_y)
-        return (min_x - 2.0, min_y - 2.0, max_x + 2.0, max_y + 2.0)
-
-    # LeaderNote / ChamferCallout / HoleCallout / ThreadCallout
-    if hasattr(ann, "target") and hasattr(ann, "elbow_offset"):
-        tx, ty = ann.target
-        ex = tx + ann.elbow_offset[0]
-        ey = ty + ann.elbow_offset[1]
-        sl = getattr(ann, "shelf_length", 20.0)
-        sx = ex + (sl if ann.elbow_offset[0] >= 0 else -sl)
-        return (min(tx, ex, sx), min(ty, ey) - 4.0, max(tx, ex, sx), max(ty, ey) + 4.0)
-
-    # BOMBalloon
-    if hasattr(ann, "balloon_center") and hasattr(ann, "radius"):
-        bx, by = ann.balloon_center
-        r = ann.radius
-        return (bx - r, by - r, bx + r, by + r)
-
-    # FeatureControlFrame
-    if hasattr(ann, "position") and hasattr(ann, "frame_height") and hasattr(ann, "characteristic"):
-        x, y = ann.position
-        h = ann.frame_height
-        w = 35.0  # approximate width
-        return (x, y, x + w, y + h)
-
-    # Table
-    if hasattr(ann, "position") and hasattr(ann, "width") and hasattr(ann, "height"):
-        x, y = ann.position
-        return (x, y, x + ann.width, y + ann.height)
-
-    # CenterMark
-    if hasattr(ann, "center") and hasattr(ann, "size"):
-        cx, cy = ann.center
-        s = ann.size / 2.0
-        return (cx - s, cy - s, cx + s, cy + s)
-
-    return None
+    element: Annotation | SheetView | None = None
+    bbox: BBox2D | None = None
 
 
 def get_title_block_bbox(sheet: DrawingSheet) -> tuple[float, float, float, float]:
@@ -149,12 +93,12 @@ def run_sheet_lint(sheet: DrawingSheet) -> list[LintIssue]:
             )
 
     # 2. Check Annotations
-    ann_bboxes: list[tuple[Any, tuple[float, float, float, float]]] = []
+    ann_bboxes: list[tuple[Annotation, BBox2D]] = []
 
     for ann in sheet.annotations:
-        bbox = get_annotation_bbox_2d(ann)
-        if getattr(ann, "anchor_stale", False):
-            reason = getattr(ann, "stale_reason", None) or "Semantic anchor failed to resolve"
+        bbox = ann.bounding_box_2d()
+        if ann.anchor_stale:
+            reason = ann.stale_reason or "Semantic anchor failed to resolve"
             issues.append(
                 LintIssue(
                     code="STALE_ANCHOR",
@@ -188,14 +132,14 @@ def run_sheet_lint(sheet: DrawingSheet) -> list[LintIssue]:
 
         # Check title block collision (only if title block is enabled on sheet)
         if (
-            getattr(sheet, "show_title_block", True)
+            sheet.show_title_block
             and not (
                 bbox[2] < tb_bbox[0]
                 or bbox[0] > tb_bbox[2]
                 or bbox[3] < tb_bbox[1]
                 or bbox[1] > tb_bbox[3]
             )
-            and (type(ann).__name__ != "Table" or bbox[1] < tb_bbox[1] - 5.0)
+            and (not isinstance(ann, Table) or bbox[1] < tb_bbox[1] - 5.0)
         ):
             issues.append(
                 LintIssue(
@@ -208,7 +152,7 @@ def run_sheet_lint(sheet: DrawingSheet) -> list[LintIssue]:
             )
 
         # Check zero-length linear dimensions
-        if hasattr(ann, "start") and hasattr(ann, "end"):
+        if isinstance(ann, (LinearDimension, Centerline)):
             dist = math.hypot(ann.end[0] - ann.start[0], ann.end[1] - ann.start[1])
             if dist < 1e-3:
                 issues.append(

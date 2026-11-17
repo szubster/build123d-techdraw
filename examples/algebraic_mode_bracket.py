@@ -51,8 +51,9 @@ def generate_algebraic_mode_drawing(output_dir: Path) -> None:
     sheet += Revision(rev="A", description="INITIAL ENGINEERING RELEASE", approved_by="SZUBA")
 
     # 3. Create views explicitly with relative layout chaining
-    front = FrontView(part, scale=1.0).locate((130.0, 150.0))
-    top = TopView(part, scale=1.0).align_to(front, direction="above", spacing=25.0)
+    # First-angle projection (ISO default): the Top view goes below the Front view.
+    front = FrontView(part, scale=1.0).locate((150.0, 105.0))
+    top = TopView(part, scale=1.0).align_to(front, direction="below", spacing=25.0)
     iso = IsometricView(part, scale=0.8).align_to(front, direction="right", spacing=50.0)
 
     # 4. Attach annotations to views
@@ -72,8 +73,11 @@ def generate_algebraic_mode_drawing(output_dir: Path) -> None:
         ),
     ]
 
-    v_min = part.vertices().sort_by(bd.Axis.X)[0]
-    v_max = part.vertices().sort_by(bd.Axis.X)[-1]
+    # Dimension the overall length along the front edge (min Y) of the Top view, so the
+    # positive offset places it below the view, away from the Front view.
+    front_edge = part.vertices().group_by(bd.Axis.Y)[0]
+    v_min = front_edge.sort_by(bd.Axis.X)[0]
+    v_max = front_edge.sort_by(bd.Axis.X)[-1]
     top += LinearDimension(v_min, v_max, offset=15.0, direction="horizontal")
 
     # 5. Compose views into sheet

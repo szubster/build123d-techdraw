@@ -116,7 +116,7 @@ def generate_advanced_views(output_dir: Path) -> None:
             )
             LinearDimension(offset=-18.0)
 
-    issues = run_sheet_lint(sheet.sheet)
+    issues = run_sheet_lint(sheet)
     errors = [i for i in issues if i.severity == "ERROR"]
     assert not errors, f"Unexpected lint errors: {errors}"
 
