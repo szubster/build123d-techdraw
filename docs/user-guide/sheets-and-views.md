@@ -78,6 +78,24 @@ section_view = sheet.add_section_view(
 )
 ```
 
+### Updating the Model (`update_shape`)
+
+When the part changes, `sheet.update_shape(new_part)` re-projects every view and re-binds
+anchored annotations to the new geometry:
+
+```python
+sheet.update_shape(part_v2)
+```
+
+- Each view is rebuilt from the parameters it was created with: section cut plane or path,
+  hatch, auxiliary direction, an explicit `model_origin` and the label position. The view's
+  current position and scale are kept, including any `locate`, `align_to` or `scale_to`.
+- Detail views follow their parent view. They are re-cut from the parent after it updates.
+- Space that dimensions reserved below a view is kept and moves with the view's new bottom edge.
+- A section, detail or auxiliary `SheetView` built by hand has no recorded parameters. In
+  that case `update_shape` raises `ValueError` and changes no views. Check with
+  `view.can_regenerate()`.
+
 ---
 
 ## 🏗️ Builder Mode vs Algebraic Mode

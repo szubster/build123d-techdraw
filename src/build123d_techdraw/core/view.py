@@ -7,7 +7,7 @@ import math
 import os
 import re
 import tempfile
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Self, TypeAlias
@@ -163,6 +163,13 @@ class SheetView:
         self.hatch_id: str | None = None
         self.parent_view: SheetView | None = None
         self.detail_shape: str | None = None
+        # Factory + build parameters used by ``update_shape`` to regenerate this view.
+        # Placement (center, scale, rotation) is taken from the live view at regeneration
+        # time so that ``locate``/``align_to``/``scale_to`` are honoured.
+        self._regen_factory: Callable[..., SheetView] | None = None
+        self._regen_kwargs: dict[str, Any] = {}
+        # Callout SVG a detail view appended to its parent (removed before re-projection).
+        self._parent_callout_svg: str | None = None
 
     def __enter__(self) -> Self:
         self._ctx_token = CURRENT_VIEW.set(self)
@@ -526,11 +533,43 @@ class SheetView:
         self.inner_svg_content = reproj.inner_svg_content
         self.view_label_pos = reproj.view_label_pos
 
-    def update_shape(self, new_shape: Any) -> Self:
-        """Update the view's 3D shape, re-project geometry, and re-bind all anchored annotations."""
-        self.shape = new_shape
-        if self.view_type not in (ViewType.SECTION, ViewType.DETAIL, ViewType.AUXILIARY):
-            reproj = project_shape_to_view(
+    def can_regenerate(self) -> bool:
+        """Return True if ``update_shape`` is able to re-project this view's geometry."""
+        if self.view_type == ViewType.DETAIL:
+            return self._regen_factory is not None and self.parent_view is not None
+        if self.view_type in (ViewType.SECTION, ViewType.AUXILIARY):
+            return self._regen_factory is not None
+        return True
+
+    def _regen_label_y(self) -> float | None:
+        """Explicit label Y to reuse on regeneration (tracks moves), or None for auto."""
+        if self._regen_kwargs.get("view_label_y") is not None and self.view_label_pos is not None:
+            return self.view_label_pos[1]
+        return None
+
+    def _reproject(self, new_shape: Any) -> SheetView:
+        """Re-run the factory this view was built with against ``new_shape``."""
+        kwargs = dict(self._regen_kwargs)
+        kwargs["view_label_y"] = self._regen_label_y()
+
+        if self.view_type == ViewType.DETAIL:
+            parent = self.parent_view
+            assert parent is not None and self._regen_factory is not None
+            if parent.shape is not new_shape:
+                parent.update_shape(new_shape)
+            if self._parent_callout_svg and self._parent_callout_svg in parent.svg_content:
+                parent.svg_content = parent.svg_content.replace(self._parent_callout_svg, "", 1)
+            return self._regen_factory(
+                parent_view=parent,
+                center_x=self.center_x,
+                center_y=self.center_y,
+                scale=self.scale,
+                **kwargs,
+            )
+
+        if self._regen_factory is None:
+            # Standard view built without a recorded spec (e.g. a hand-made SheetView).
+            return project_shape_to_view(
                 new_shape,
                 self.view_type,
                 self.center_x,
@@ -539,10 +578,59 @@ class SheetView:
                 show_hidden=self.show_hidden,
                 view_label=self.view_label,
                 rotation_angle_deg=self.rotation_angle_deg,
+                view_label_y=kwargs["view_label_y"],
             )
-            self._copy_projection_from(reproj)
-            if self.breaks:
-                self._apply_breaks()
+
+        if self._regen_factory is project_shape_to_view:
+            kwargs["rotation_angle_deg"] = self.rotation_angle_deg
+        return self._regen_factory(
+            new_shape,
+            center_x=self.center_x,
+            center_y=self.center_y,
+            scale=self.scale,
+            **kwargs,
+        )
+
+    def update_shape(self, new_shape: Any) -> Self:
+        """Update the view's 3D shape, re-project geometry, and re-bind all anchored annotations.
+
+        Every view type is regenerated from the parameters it was built with (cut plane,
+        section path, detail region, auxiliary direction, explicit ``model_origin``,
+        label placement). Detail views follow their parent view: the parent is updated to
+        ``new_shape`` first if needed, then the detail is re-cut from it. Space reserved
+        below the view by dimensions (``bottom_annotation_y``) is kept, shifted with the
+        view's new bottom edge.
+
+        Raises:
+            ValueError: if this view has no recorded build parameters and cannot be
+                regenerated (section/detail/auxiliary views constructed by hand).
+        """
+        if not self.can_regenerate():
+            raise ValueError(
+                f"Cannot update shape of {self.view_type.value} view "
+                f"{self.view_label or ''!r}: it was not created by a projection factory, "
+                "so its build parameters are unknown. Recreate the view instead."
+            )
+
+        old_max_y = self.max_y
+        old_bottom = self.bottom_annotation_y
+        reproj = self._reproject(new_shape)
+
+        self.shape = reproj.shape if self.view_type == ViewType.DETAIL else new_shape
+        self._copy_projection_from(reproj)
+        if reproj.hatch_id is not None:
+            self.hatch = reproj.hatch
+            self.hatch_pitch = reproj.hatch_pitch
+            self.hatch_angle = reproj.hatch_angle
+            self.hatch_id = reproj.hatch_id
+        if reproj.parent_view is not None:
+            self.parent_view = reproj.parent_view
+        self._parent_callout_svg = reproj._parent_callout_svg
+        if self.breaks:
+            self._apply_breaks()
+
+        # Keep annotation space reserved below the view, moved with the view's bottom edge.
+        self.bottom_annotation_y = max(self.max_y, old_bottom + (self.max_y - old_max_y))
 
         self._rebind_annotations()
         return self
@@ -1679,6 +1767,15 @@ def project_shape_to_view(
     )
     view_res.inner_svg_content = inner_content
     view_res.rotation_angle_deg = rotation_angle_deg
+    view_res._regen_factory = project_shape_to_view
+    view_res._regen_kwargs = {
+        "view_type": view_type,
+        "show_hidden": show_hidden,
+        "view_label": view_label,
+        "view_label_y": view_label_y,
+        "view_label_offset_y": view_label_offset_y,
+        "model_origin": model_origin,
+    }
     return view_res
 
 
@@ -1922,6 +2019,13 @@ def _make_plane_slab_box(
     return base_plane.from_local_coords(box_local)  # type: ignore[no-any-return]
 
 
+def _record_regen(view: SheetView, factory: Callable[..., SheetView], **kwargs: Any) -> SheetView:
+    """Remember how ``view`` was built so ``SheetView.update_shape`` can regenerate it."""
+    view._regen_factory = factory
+    view._regen_kwargs = kwargs
+    return view
+
+
 def project_section_to_view(
     shape: bd.Solid | bd.Compound | Any,
     cutting_plane: bd.Plane,
@@ -1950,7 +2054,7 @@ def project_section_to_view(
             if len(dwg_bg.visible_lines.edges()) > 0:
                 bg_shapes.append(dwg_bg.visible_lines)
 
-    return _assemble_section_view(
+    view = _assemble_section_view(
         shape=shape,
         sec_faces=list(sec_2d.faces()),
         bg_edge_shapes=bg_shapes,
@@ -1965,6 +2069,19 @@ def project_section_to_view(
         hatch_pitch=hatch_pitch,
         hatch_angle=hatch_angle,
         fallback_shape=sec_2d,
+    )
+    return _record_regen(
+        view,
+        project_section_to_view,
+        cutting_plane=cutting_plane,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        model_origin=model_origin,
+        show_background=show_background,
+        hatch=hatch,
+        hatch_pitch=hatch_pitch,
+        hatch_angle=hatch_angle,
     )
 
 
@@ -2033,7 +2150,7 @@ def project_offset_section_to_view(
     if not show_jog_lines:
         all_faces = _unify_2d_faces(all_faces)
 
-    return _assemble_section_view(
+    view = _assemble_section_view(
         shape=shape,
         sec_faces=all_faces,
         bg_edge_shapes=bg_shapes,
@@ -2044,6 +2161,21 @@ def project_offset_section_to_view(
         view_label_y=view_label_y,
         view_label_offset_y=view_label_offset_y,
         model_origin=model_origin,
+        hatch=hatch,
+        hatch_pitch=hatch_pitch,
+        hatch_angle=hatch_angle,
+    )
+    return _record_regen(
+        view,
+        project_offset_section_to_view,
+        base_plane=base_plane,
+        points=list(points),
+        show_jog_lines=show_jog_lines,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        model_origin=model_origin,
+        show_background=show_background,
         hatch=hatch,
         hatch_pitch=hatch_pitch,
         hatch_angle=hatch_angle,
@@ -2135,7 +2267,7 @@ def project_aligned_section_to_view(
     if not show_jog_lines:
         all_faces = _unify_2d_faces(all_faces)
 
-    return _assemble_section_view(
+    view = _assemble_section_view(
         shape=shape,
         sec_faces=all_faces,
         bg_edge_shapes=bg_shapes,
@@ -2146,6 +2278,21 @@ def project_aligned_section_to_view(
         view_label_y=view_label_y,
         view_label_offset_y=view_label_offset_y,
         model_origin=model_origin,
+        hatch=hatch,
+        hatch_pitch=hatch_pitch,
+        hatch_angle=hatch_angle,
+    )
+    return _record_regen(
+        view,
+        project_aligned_section_to_view,
+        base_plane=base_plane,
+        points=list(points),
+        show_jog_lines=show_jog_lines,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        model_origin=model_origin,
+        show_background=show_background,
         hatch=hatch,
         hatch_pitch=hatch_pitch,
         hatch_angle=hatch_angle,
@@ -2203,7 +2350,8 @@ def project_detail_to_view(
         <circle cx="{callout_tag_x + 8.0:.2f}" cy="{callout_tag_y - 8.0:.2f}" r="3.0" class="border-sub" fill="none"/>
         <text x="{callout_tag_x + 8.0:.2f}" y="{callout_tag_y - 6.8:.2f}" class="tb-title" text-anchor="middle" font-size="3.2">{html.escape(effective_letter)}</text>
     </g>"""
-    parent_view.svg_content += f"\n    {callout_svg}"
+    parent_callout_svg = f"\n    {callout_svg}"
+    parent_view.svg_content += parent_callout_svg
 
     paper_r = radius * scale
     view_id = f"detail_{effective_letter}_{int(center_x)}_{int(center_y)}"
@@ -2267,7 +2415,20 @@ def project_detail_to_view(
     view_res.inner_svg_content = inner_content
     view_res.parent_view = parent_view
     view_res.detail_shape = shape_type
-    return view_res
+    view_res._parent_callout_svg = parent_callout_svg
+    return _record_regen(
+        view_res,
+        project_detail_to_view,
+        focus_target=focus_target,
+        radius=radius,
+        view_label=view_label,
+        label_letter=label_letter,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        shape=shape,
+        region_center=region_center,
+        label=label,
+    )
 
 
 def project_auxiliary_view(
@@ -2291,6 +2452,8 @@ def project_auxiliary_view(
         look_from = (-float(face[0]), -float(face[1]), -float(face[2]))
     else:
         look_from = (0.0, -1.0, 0.0)
+    # Direction as a plain vector, so regeneration does not depend on the old Face.
+    face_normal = (-look_from[0], -look_from[1], -look_from[2])
 
     lf_vec = bd.Vector(look_from).normalized()
     ref_up = bd.Vector(0, 0, 1) if abs(lf_vec.Z) < 0.9 else bd.Vector(0, 1, 0)
@@ -2371,4 +2534,12 @@ def project_auxiliary_view(
         shape=shape,
     )
     view_res.inner_svg_content = inner_content
-    return view_res
+    return _record_regen(
+        view_res,
+        project_auxiliary_view,
+        face=face_normal,
+        show_hidden=show_hidden,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+    )

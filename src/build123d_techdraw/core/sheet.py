@@ -396,8 +396,22 @@ class DrawingSheet:
         return view
 
     def update_shape(self, new_shape: Any) -> Self:
-        """Update the 3D model across all views on the sheet and re-bind anchored annotations."""
-        for view in self.views:
+        """Update the 3D model across all views on the sheet and re-bind anchored annotations.
+
+        Every view is checked before any is changed, so a view that cannot be regenerated
+        raises ``ValueError`` without leaving the sheet half-updated. Detail views are
+        updated last so they re-cut their already-updated parent view.
+        """
+        stale = [v for v in self.views if not v.can_regenerate()]
+        if stale:
+            names = ", ".join(f"{v.view_type.value} {v.view_label or ''!r}" for v in stale)
+            raise ValueError(
+                f"Cannot update shape: these views have no recorded build parameters: {names}"
+            )
+        ordered = [v for v in self.views if v.view_type != ViewType.DETAIL] + [
+            v for v in self.views if v.view_type == ViewType.DETAIL
+        ]
+        for view in ordered:
             view.update_shape(new_shape)
         return self
 
