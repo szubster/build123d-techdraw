@@ -11,6 +11,8 @@ from build123d_techdraw.annotations.resolver import (
     is_topological_entity,
     resolve_circle_or_cylinder_to_sheet,
     resolve_point_to_sheet,
+    stale_point_to_sheet,
+    stale_radius_to_paper,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
@@ -94,14 +96,12 @@ class Centerline:
             if self.target2 is not None and not isinstance(self.target2, (tuple, list)):
                 self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
-            prev_start = self.start
-            prev_end = self.end
-
-            eff_target = (
-                self.target.resolve_entity(v_shape)
-                if isinstance(self.target, Anchor) and self.target2 is None
-                else self.target
-            )
+            eff_target = self.target
+            if isinstance(self.target, Anchor) and self.target2 is None:
+                eff_target = self.target.resolve_entity(v_shape)
+                if eff_target is None and self.target.is_stale:
+                    # Last-known model-space entity; projected through the current view below.
+                    eff_target = self.target.last_resolved_entity
 
             if isinstance(eff_target, bd.Face) and eff_target.geom_type == bd.GeomType.CYLINDER:
                 axis = eff_target.axis_of_rotation
@@ -146,8 +146,6 @@ class Centerline:
                     else None
                 )
                 self.stale_reason = r1 or r2
-                if prev_start != (0.0, 0.0) or prev_end != (0.0, 0.0):
-                    self.start, self.end = prev_start, prev_end
             else:
                 self.anchor_stale = False
                 self.stale_reason = None
@@ -242,8 +240,6 @@ class CenterMark:
                 self.target = (
                     ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
                 )
-            prev_center = self.center
-            prev_size = self.size
             try:
                 paper_c, paper_r, _ = resolve_circle_or_cylinder_to_sheet(self.target, view)
                 self.center = paper_c
@@ -255,9 +251,10 @@ class CenterMark:
             if isinstance(self.target, Anchor) and self.target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.target.stale_reason
-                if prev_center != (0.0, 0.0):
-                    self.center = prev_center
-                    self.size = prev_size
+                self.center = stale_point_to_sheet(self.target, view) or self.center
+                stale_r = stale_radius_to_paper(self.target, view)
+                if stale_r is not None and not self._explicit_size:
+                    self.size = (stale_r + 2.0) * 2.0
             else:
                 self.anchor_stale = False
                 self.stale_reason = None
@@ -356,8 +353,6 @@ class BoltCircle:
                 self.target = (
                     ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
                 )
-            prev_center = self.center
-            prev_diameter = self.diameter
             try:
                 paper_c, paper_r, _ = resolve_circle_or_cylinder_to_sheet(self.target, view)
                 self.center = paper_c
@@ -369,10 +364,10 @@ class BoltCircle:
             if isinstance(self.target, Anchor) and self.target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.target.stale_reason
-                if prev_center != (0.0, 0.0):
-                    self.center = prev_center
-                if prev_diameter > 0.0:
-                    self.diameter = prev_diameter
+                self.center = stale_point_to_sheet(self.target, view) or self.center
+                stale_r = stale_radius_to_paper(self.target, view)
+                if stale_r is not None and not self._explicit_diameter:
+                    self.diameter = 2.0 * stale_r
             else:
                 self.anchor_stale = False
                 self.stale_reason = None

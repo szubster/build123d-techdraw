@@ -11,6 +11,7 @@ from build123d_techdraw.annotations.resolver import (
     ensure_anchor,
     is_topological_entity,
     resolve_point_to_sheet,
+    stale_point_to_sheet,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
@@ -90,13 +91,11 @@ class SurfaceFinishSymbol:
                 self.target = (
                     ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
                 )
-            prev_pos = self.position
             self.position = resolve_point_to_sheet(self.target, view)
             if isinstance(self.target, Anchor) and self.target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.target.stale_reason
-                if prev_pos != (0.0, 0.0):
-                    self.position = prev_pos
+                self.position = stale_point_to_sheet(self.target, view) or self.position
             else:
                 self.anchor_stale = False
                 self.stale_reason = None

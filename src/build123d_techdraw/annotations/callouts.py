@@ -15,6 +15,7 @@ from build123d_techdraw.annotations.resolver import (
     is_topological_entity,
     resolve_circle_or_cylinder_to_sheet,
     resolve_point_to_sheet,
+    stale_point_to_sheet,
 )
 from build123d_techdraw.annotations.threads import (
     ThreadSpec,
@@ -114,13 +115,11 @@ class LeaderNote:
                 self.raw_target = (
                     ensure_anchor(self.raw_target, getattr(view, "shape", None)) or self.raw_target
                 )
-            prev_target = self.target
             self.target = resolve_point_to_sheet(self.raw_target, view)
             if isinstance(self.raw_target, Anchor) and self.raw_target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.raw_target.stale_reason
-                if prev_target != (0.0, 0.0):
-                    self.target = prev_target
+                self.target = stale_point_to_sheet(self.raw_target, view) or self.target
             else:
                 self.anchor_stale = False
                 self.stale_reason = None
@@ -484,7 +483,6 @@ class BOMBalloon:
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
         if not self.resolved and self.raw_target is not None:
-            prev_target = self.target
             if isinstance(self.raw_target, (tuple, list)):
                 if len(self.raw_target) == 2:
                     self.target = view.to_sheet_coords(
@@ -506,8 +504,7 @@ class BOMBalloon:
                 if isinstance(self.raw_target, Anchor) and self.raw_target.is_stale:
                     self.anchor_stale = True
                     self.stale_reason = self.raw_target.stale_reason
-                    if prev_target != (0.0, 0.0):
-                        self.target = prev_target
+                    self.target = stale_point_to_sheet(self.raw_target, view) or self.target
                 else:
                     self.anchor_stale = False
                     self.stale_reason = None
@@ -610,7 +607,6 @@ class SectionCuttingLine:
 
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
-        prev_points = list(self.points)
         resolved_points: list[tuple[float, float]] = []
         stale_reasons: list[str] = []
         view_shape = getattr(view, "shape", None)
@@ -622,8 +618,7 @@ class SectionCuttingLine:
             resolved_pt = resolve_point_to_sheet(pt, view)
             if isinstance(pt, Anchor) and pt.is_stale:
                 stale_reasons.append(pt.stale_reason or "Stale anchor")
-                if idx < len(prev_points):
-                    resolved_pt = prev_points[idx]
+                resolved_pt = stale_point_to_sheet(pt, view) or resolved_pt
             resolved_points.append(resolved_pt)
 
         self.points = resolved_points
@@ -876,13 +871,11 @@ class WeldingSymbol:
                 self.target_raw = (
                     ensure_anchor(self.target_raw, getattr(view, "shape", None)) or self.target_raw
                 )
-            prev_target = self.target
             self.target = resolve_point_to_sheet(self.target_raw, view)
             if isinstance(self.target_raw, Anchor) and self.target_raw.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.target_raw.stale_reason
-                if prev_target != (0.0, 0.0):
-                    self.target = prev_target
+                self.target = stale_point_to_sheet(self.target_raw, view) or self.target
             else:
                 self.anchor_stale = False
                 self.stale_reason = None

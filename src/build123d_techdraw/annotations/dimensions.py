@@ -11,6 +11,8 @@ from build123d_techdraw.annotations.resolver import (
     is_topological_entity,
     resolve_point_3d,
     resolve_point_to_sheet,
+    stale_point_to_sheet,
+    stale_radius_to_paper,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
@@ -248,8 +250,6 @@ class LinearDimension:
             if self.target2 is not None and not isinstance(self.target2, (tuple, list)):
                 self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
-            prev_start = self.start
-            prev_end = self.end
             prev_text = self.text
 
             if self.target2 is None:
@@ -263,8 +263,6 @@ class LinearDimension:
                 if isinstance(self.target, Anchor) and self.target.is_stale:
                     self.anchor_stale = True
                     self.stale_reason = self.target.stale_reason
-                    if prev_start != (0.0, 0.0) or prev_end != (0.0, 0.0):
-                        s0, s1 = prev_start, prev_end
                     if prev_text is not None and not self._explicit_text:
                         self.text = prev_text
                 else:
@@ -303,10 +301,8 @@ class LinearDimension:
                         else None
                     )
                     self.stale_reason = r1 or r2
-                    if stale1 and prev_start != (0.0, 0.0):
-                        s0 = prev_start
-                    if stale2 and prev_end != (0.0, 0.0):
-                        s1 = prev_end
+                    s0 = stale_point_to_sheet(self.target, view) or s0
+                    s1 = stale_point_to_sheet(self.target2, view) or s1
                     if prev_text is not None and not self._explicit_text:
                         self.text = prev_text
                 else:
@@ -642,8 +638,6 @@ class RadialDimension:
                 self.target = (
                     ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
                 )
-            prev_center = self.center
-            prev_radius = self.radius
             prev_text = self.text
 
             try:
@@ -658,10 +652,10 @@ class RadialDimension:
             if isinstance(self.target, Anchor) and self.target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.target.stale_reason
-                if prev_center != (0.0, 0.0):
-                    self.center = prev_center
-                if prev_radius > 0.0:
-                    self.radius = prev_radius
+                self.center = stale_point_to_sheet(self.target, view) or self.center
+                stale_r = stale_radius_to_paper(self.target, view)
+                if stale_r is not None:
+                    self.radius = stale_r
                 if prev_text is not None and not self._explicit_text:
                     self.text = prev_text
             else:
@@ -803,8 +797,6 @@ class DiameterDimension:
                 self.target = (
                     ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
                 )
-            prev_center = self.center
-            prev_diameter = self.diameter
             prev_text = self.text
 
             try:
@@ -819,10 +811,10 @@ class DiameterDimension:
             if isinstance(self.target, Anchor) and self.target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.target.stale_reason
-                if prev_center != (0.0, 0.0):
-                    self.center = prev_center
-                if prev_diameter > 0.0:
-                    self.diameter = prev_diameter
+                self.center = stale_point_to_sheet(self.target, view) or self.center
+                stale_r = stale_radius_to_paper(self.target, view)
+                if stale_r is not None:
+                    self.diameter = 2.0 * stale_r
                 if prev_text is not None and not self._explicit_text:
                     self.text = prev_text
             else:
@@ -970,9 +962,6 @@ class AngularDimension:
             if not isinstance(self.target2, (tuple, list)):
                 self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
-            prev_apex = self.apex
-            prev_a1 = self.start_angle_deg
-            prev_a2 = self.end_angle_deg
             prev_text = self.text
 
             ap, a1, a2, angle_val = resolve_angle_to_sheet(self.target1, self.target2, view)
@@ -992,8 +981,6 @@ class AngularDimension:
                     else None
                 )
                 self.stale_reason = r1 or r2
-                if prev_apex != (0.0, 0.0):
-                    ap, a1, a2 = prev_apex, prev_a1, prev_a2
                 if prev_text is not None and not self._explicit_text:
                     self.text = prev_text
             else:
@@ -1090,11 +1077,15 @@ class OrdinateDimension:
         view: Any | None = None,
         *,
         anchor: Any = None,
+        group: "OrdinateDimensionGroup | None" = None,
     ):
         if target is None and anchor is not None:
             target = anchor
 
         self.datum_coord = datum_coord
+        # When owned by a group, ``datum_coord`` is re-derived from the group's datum on every
+        # attach/rebind so it always matches the view's current placement and scale.
+        self.group = group
         self.direction = direction.lower()
         self.jog = jog
         self.extension_length = extension_length
@@ -1133,18 +1124,22 @@ class OrdinateDimension:
 
     def _attach_to_view(self, view: Any) -> None:
         self.view = view
+        if self.group is not None:
+            self.datum_coord = self.group._datum_coord(view)
+        if not self.resolved and self.target is None and self.group is not None:
+            # Group's own datum (0) ordinate when the datum is the view's lower-left corner.
+            self.point = self.group.datum_point
+            self.resolved = True
         if not self.resolved and self.target is not None:
             if not isinstance(self.target, (tuple, list)):
                 self.target = (
                     ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
                 )
-            prev_pt = self.point
             self.point = resolve_point_to_sheet(self.target, view)
             if isinstance(self.target, Anchor) and self.target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.target.stale_reason
-                if prev_pt != (0.0, 0.0):
-                    self.point = prev_pt
+                self.point = stale_point_to_sheet(self.target, view) or self.point
             else:
                 self.anchor_stale = False
                 self.stale_reason = None
@@ -1223,7 +1218,8 @@ class OrdinateDimensionGroup:
         if target_view is not None:
             self._attach_to_view(target_view)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _resolve_datum(self, view: Any) -> tuple[float, float]:
+        """Re-resolve the datum against ``view`` as it is now and cache it in ``datum_point``."""
         self.view = view
         if self.datum_target is not None:
             if not isinstance(self.datum_target, (tuple, list)):
@@ -1234,25 +1230,24 @@ class OrdinateDimensionGroup:
             self.datum_point = resolve_point_to_sheet(self.datum_target, view)
         else:
             self.datum_point = (view.min_x, view.min_y)
-        datum_c = self.datum_point[0] if self.direction == "horizontal" else self.datum_point[1]
+        return self.datum_point
+
+    def _datum_coord(self, view: Any) -> float:
+        """Sheet-space datum coordinate along this group's measuring axis for ``view``."""
+        dp = self._resolve_datum(view)
+        return dp[0] if self.direction == "horizontal" else dp[1]
+
+    def _rebind_to_view(self, view: Any) -> None:
+        # The group itself is not registered on the view; its ordinates are, and each one
+        # re-derives its datum from this group when the view re-binds it. This method only
+        # exists for callers that re-bind a detached group explicitly.
         for ord_dim in self.ordinates:
-            ord_dim.datum_coord = datum_c
             ord_dim._rebind_to_view(view)
 
     def _attach_to_view(self, view: Any) -> None:
-        self.view = view
-        if self.datum_target is not None:
-            if not isinstance(self.datum_target, (tuple, list)):
-                self.datum_target = (
-                    ensure_anchor(self.datum_target, getattr(view, "shape", None))
-                    or self.datum_target
-                )
-            self.datum_point = resolve_point_to_sheet(self.datum_target, view)
-        else:
-            self.datum_point = (view.min_x, view.min_y)
-
-        # Add datum 0 ordinate
-        self.add_ordinate(self.datum_target or self.datum_point)
+        self._resolve_datum(view)
+        # Add datum 0 ordinate (target None -> follows the view's lower-left corner)
+        self.add_ordinate(self.datum_target)
 
     def add_ordinate(self, target: Any, jog: float = 0.0) -> OrdinateDimension:
         datum_c = self.datum_point[0] if self.direction == "horizontal" else self.datum_point[1]
@@ -1263,6 +1258,7 @@ class OrdinateDimensionGroup:
             jog=jog,
             extension_length=self.extension_length,
             view=self.view,
+            group=self,
         )
         self.ordinates.append(dim)
         return dim
