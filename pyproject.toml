@@ -52,6 +52,7 @@ Changelog = "https://github.com/szubster/build123d-techdraw/releases"
 dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
+    "pyright>=1.1.390",
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
     "twine>=5.0.0",
@@ -94,6 +95,18 @@ ignore = ["E501"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.pyright]
+include = ["src", "examples", "tests"]
+pythonVersion = "3.11"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+# svgelements ships no type information, so (like mypy) it is treated as untyped via the
+# catch-all stub in typings/svgelements/. Without it pyright infers types from the library's
+# source and reports ~70 false positives in the PDF/DXF renderers (e.g. every
+# ``PathSegment.end`` as Optional, although parsed path segments always have an end point).
+stubPath = "typings"
 
 [tool.mypy]
 python_version = "3.11"

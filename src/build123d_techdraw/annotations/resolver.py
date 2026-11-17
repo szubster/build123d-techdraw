@@ -6,8 +6,9 @@ import math
 from typing import TYPE_CHECKING, Any
 
 import build123d as bd
+from build123d.topology import Shape
 
-from build123d_techdraw.annotations.anchors import Anchor, _entity_center_3d
+from build123d_techdraw.annotations.anchors import Anchor, entity_center_3d
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.view import SheetView
@@ -20,7 +21,7 @@ def is_topological_entity(obj: Any) -> bool:
     return isinstance(obj, (Anchor, bd.Edge, bd.Vertex, bd.Face, bd.Solid, bd.Compound, bd.Vector))
 
 
-def ensure_anchor(target: Any, shape: Any = None) -> Anchor | None:
+def ensure_anchor(target: Any, shape: Shape[Any] | None = None) -> Anchor | None:
     """Return ``target`` if it is an ``Anchor``, or wrap a 3D topological entity in ``Anchor.of``."""
     if isinstance(target, Anchor):
         target._ensure_normalized_fingerprint(shape)
@@ -30,41 +31,74 @@ def ensure_anchor(target: Any, shape: Any = None) -> Anchor | None:
     return None
 
 
+def stale_reason_of(*targets: Any) -> str | None:
+    """Return the first ``stale_reason`` among the stale ``Anchor`` targets, if any."""
+    return next(
+        (
+            t.stale_reason
+            for t in targets
+            if isinstance(t, Anchor) and t.is_stale and t.stale_reason
+        ),
+        None,
+    )
+
+
 def resolve_point_3d(
     target: Any, view: SheetView | None = None
 ) -> tuple[float, float, float] | None:
     """Resolve an Anchor, topological entity, or 3D tuple to a 3D model point (X, Y, Z)."""
-    shape = getattr(view, "shape", None) if view is not None else None
+    shape = view.shape if view is not None else None
     if isinstance(target, Anchor):
         return target.resolve_point_3d(shape)
     if isinstance(target, (bd.Vertex, bd.Vector, bd.Edge, bd.Face, bd.Solid, bd.Compound)):
-        return _entity_center_3d(target)
+        return entity_center_3d(target)
     if isinstance(target, (tuple, list)) and len(target) == 3:
         return (float(target[0]), float(target[1]), float(target[2]))
     return None
 
 
-def resolve_point_3d_and_sheet(
-    target: Any, view: SheetView
-) -> tuple[tuple[float, float, float] | None, tuple[float, float]]:
-    """Resolve ``target`` once to ``(point_3d, sheet_point)``.
+def stale_point_to_sheet(target: Any, view: SheetView) -> tuple[float, float] | None:
+    """Return the last-known sheet position of a stale anchor in the view's *current* placement.
 
-    Equivalent to calling :func:`resolve_point_3d` and :func:`resolve_point_to_sheet`
-    but runs anchor resolution only once. ``point_3d`` is ``None`` for 2D sheet tuples.
+    When ``target`` is a stale :class:`Anchor` with a remembered 3D model point, that point is
+    projected through ``view`` as it is now (after any ``locate``/``scale_to``), so stale
+    annotations follow the view instead of staying at stale paper coordinates. Returns ``None``
+    if ``target`` is not a stale anchor or no model point was ever resolved.
     """
-    if isinstance(target, (tuple, list)) and len(target) == 2:
-        return None, (float(target[0]), float(target[1]))
-    pt_3d = resolve_point_3d(target, view)
-    if pt_3d is None:
-        raise TypeError(
-            f"Cannot resolve target of type {type(target).__name__} to sheet coordinates."
-        )
-    return pt_3d, view.to_sheet_3d(pt_3d[0], pt_3d[1], pt_3d[2])
+    if not (isinstance(target, Anchor) and target.is_stale):
+        return None
+    pt = target.last_resolved_point_3d
+    if pt is None:
+        return None
+    return view.to_sheet_3d(pt[0], pt[1], pt[2])
+
+
+def stale_radius_to_paper(target: Any, view: SheetView) -> float | None:
+    """Return the last-known radius of a stale anchor in paper mm at the view's current scale."""
+    if not (isinstance(target, Anchor) and target.is_stale):
+        return None
+    r = target.last_resolved_radius
+    if r is None:
+        return None
+    return float(r) * view.scale
 
 
 def resolve_point_to_sheet(target: Any, view: SheetView) -> tuple[float, float]:
     """Resolve a semantic Anchor, 3D vertex, vector, edge, or face to 2D sheet coordinates."""
-    return resolve_point_3d_and_sheet(target, view)[1]
+    if isinstance(target, Anchor):
+        return target.resolve_to_sheet(view)
+
+    if isinstance(target, (tuple, list)):
+        if len(target) == 2:
+            return float(target[0]), float(target[1])
+        if len(target) == 3:
+            return view.to_sheet_3d(float(target[0]), float(target[1]), float(target[2]))
+
+    pt_3d = resolve_point_3d(target, view)
+    if pt_3d is not None:
+        return view.to_sheet_3d(pt_3d[0], pt_3d[1], pt_3d[2])
+
+    raise TypeError(f"Cannot resolve target of type {type(target).__name__} to sheet coordinates.")
 
 
 def resolve_edge_to_sheet(
@@ -72,8 +106,12 @@ def resolve_edge_to_sheet(
 ) -> tuple[tuple[float, float], tuple[float, float], float]:
     """Resolve an Edge or semantic Anchor to its projected sheet start/end points and 3D model length."""
     if isinstance(edge, Anchor):
-        shape = getattr(view, "shape", None)
+        shape = view.shape
         ent = edge.resolve_entity(shape, prefer_kind="edge")
+        if ent is None and edge.is_stale:
+            # Fall back to the last-known model-space edge; it is projected through the
+            # view's *current* placement below, so stale dimensions follow locate/scale_to.
+            ent = edge.last_resolved_entity
         if isinstance(ent, bd.Edge):
             edge = ent
         elif edge.fingerprint is not None and edge.fingerprint.start_3d and edge.fingerprint.end_3d:
@@ -99,27 +137,15 @@ def resolve_circle_or_cylinder_to_sheet(
 ) -> tuple[tuple[float, float], float, float]:
     """Resolve a circular Edge, cylindrical Face, or Anchor to (center_on_sheet, paper_radius, model_radius)."""
     if isinstance(target, Anchor):
-        ent = target.resolve_entity(getattr(view, "shape", None))
-        return circle_from_resolved_anchor(target, ent, view)
-    return _circle_or_cylinder_to_sheet(target, view)
+        shape = view.shape
+        ent = target.resolve_entity(shape)
+        if ent is not None and isinstance(ent, (bd.Edge, bd.Face)):
+            target = ent
+        elif target.last_resolved_point_3d is not None and target.last_resolved_radius is not None:
+            paper_center = view.to_sheet_3d(*target.last_resolved_point_3d)
+            r = float(target.last_resolved_radius)
+            return paper_center, r * view.scale, r
 
-
-def circle_from_resolved_anchor(
-    anchor: Anchor, entity: Any, view: SheetView
-) -> tuple[tuple[float, float], float, float]:
-    """Like :func:`resolve_circle_or_cylinder_to_sheet` for an anchor already resolved to ``entity``."""
-    if isinstance(entity, (bd.Edge, bd.Face)):
-        return _circle_or_cylinder_to_sheet(entity, view)
-    if anchor.last_resolved_point_3d is not None and anchor.last_resolved_radius is not None:
-        paper_center = view.to_sheet_3d(*anchor.last_resolved_point_3d)
-        r = float(anchor.last_resolved_radius)
-        return paper_center, r * view.scale, r
-    return _circle_or_cylinder_to_sheet(anchor, view)
-
-
-def _circle_or_cylinder_to_sheet(
-    target: Any, view: SheetView
-) -> tuple[tuple[float, float], float, float]:
     if isinstance(target, bd.Edge) and target.geom_type == bd.GeomType.CIRCLE:
         c = target.arc_center
         r = float(target.radius)
@@ -129,7 +155,7 @@ def _circle_or_cylinder_to_sheet(
     if isinstance(target, bd.Face) and target.geom_type == bd.GeomType.CYLINDER:
         axis = target.axis_of_rotation
         c = axis.position if axis else (target.bounding_box().min + target.bounding_box().max) / 2.0
-        r_val = getattr(target, "radius", None)
+        r_val = target.radius
         r = float(r_val) if r_val is not None else 5.0
         paper_center = view.to_sheet_3d(float(c.X), float(c.Y), float(c.Z))
         return paper_center, r * view.scale, r
@@ -166,21 +192,19 @@ def resolve_angle_to_sheet(
     target_apex: Any = None,
 ) -> tuple[tuple[float, float], float, float, float]:
     """Resolve two edges, faces, anchors, or points to (apex_2d, start_angle_deg, end_angle_deg, angle_deg)."""
-    shape = getattr(view, "shape", None)
-    eff1 = (
-        target1.resolve_entity(shape, prefer_kind="edge")
-        if isinstance(target1, Anchor)
-        else target1
-    )
-    eff2 = (
-        target2.resolve_entity(shape, prefer_kind="edge")
-        if isinstance(target2, Anchor)
-        else target2
-    )
-    if eff1 is None:
-        eff1 = target1
-    if eff2 is None:
-        eff2 = target2
+    shape = view.shape
+
+    def as_edge(t: Any) -> Any:
+        if isinstance(t, Anchor):
+            ent = t.resolve_entity(shape, prefer_kind="edge")
+            if ent is None and t.is_stale:
+                # Last-known model-space entity; projected through the current view below.
+                ent = t.last_resolved_entity
+            return t if ent is None else ent
+        return t
+
+    eff1 = as_edge(target1)
+    eff2 = as_edge(target2)
 
     if isinstance(eff1, bd.Edge) and isinstance(eff2, bd.Edge):
         s0_1, s1_1, _ = resolve_edge_to_sheet(eff1, view)

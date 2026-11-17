@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import html
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from build123d_techdraw.annotations.base import Annotation, BBox2D
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
+if TYPE_CHECKING:
+    from build123d_techdraw.core.sheet import DrawingSheet
+    from build123d_techdraw.core.view import SheetView
 
-class RawSVG:
+
+class RawSVG(Annotation):
     """First-class annotation element for embedding arbitrary SVG vector content."""
 
     def __init__(
@@ -20,8 +25,8 @@ class RawSVG:
         rotation: float = 0.0,
         size: tuple[float, float] | None = None,
         bbox: tuple[float, float, float, float] | None = None,
-        view: Any | None = None,
-        sheet: Any | None = None,
+        view: SheetView | None = None,
+        sheet: DrawingSheet | None = None,
     ):
         self.content = content
         self.position = (float(position[0]), float(position[1]))
@@ -45,16 +50,14 @@ class RawSVG:
                 target_sheet.annotations.append(self)
                 self.sheet = target_sheet
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
-            self.sheet = t_sheet
+        self._register(view)
 
-    def bounding_box_2d(self) -> tuple[float, float, float, float] | None:
+    def _attach_to_sheet(self, sheet: DrawingSheet) -> None:
+        self.sheet = sheet
+
+    def bounding_box_2d(self) -> BBox2D | None:
         """Return 2D paper-coordinate bounding box (min_x, min_y, max_x, max_y) for linting."""
         if self.bbox is not None:
             return self.bbox
@@ -166,7 +169,7 @@ def wrap_text_to_width(text: str, max_width_mm: float, font_size: float = 2.6) -
     return lines or [str(text)]
 
 
-class Table:
+class Table(Annotation):
     """First-class engineering schedule / data table formatted according to the active Theme."""
 
     def __init__(
@@ -192,8 +195,8 @@ class Table:
         col_styles: list[dict[str, Any] | None] | None = None,
         cell_styles: dict[tuple[int, int], dict[str, Any]] | None = None,
         word_wrap: bool = True,
-        view: Any | None = None,
-        sheet: Any | None = None,
+        view: SheetView | None = None,
+        sheet: DrawingSheet | None = None,
     ):
         self.headers: list[str] = [str(h) for h in headers] if headers else []
         self.rows: list[list[str]] = [[str(c) for c in r] for r in rows] if rows else []
@@ -299,14 +302,12 @@ class Table:
         h += sum(row_heights)
         return h
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
-            self.sheet = t_sheet
+        self._register(view)
+
+    def _attach_to_sheet(self, sheet: DrawingSheet) -> None:
+        self.sheet = sheet
 
     def _cell_x_and_anchor(self, col_x: float, col_w: float, align_str: str) -> tuple[float, str]:
         a = align_str.strip().lower()
@@ -315,6 +316,10 @@ class Table:
         if a in ("right", "r", "end"):
             return col_x + col_w - self.cell_padding, "end"
         return col_x + self.cell_padding, "start"
+
+    def bounding_box_2d(self) -> BBox2D:
+        x, y = self.position
+        return (x, y, x + self.width, y + self.height)
 
     def to_svg(self) -> str:
         total_w = self.width
@@ -429,7 +434,7 @@ class Table:
         return f'<g class="schedule-table" transform="translate({px:.2f}, {py:.2f})">{"".join(elements)}</g>'
 
 
-class Card:
+class Card(Annotation):
     """First-class specification card / SOP callout box with optional header, background, and bullets."""
 
     def __init__(
@@ -445,8 +450,8 @@ class Card:
         border: bool = True,
         background: bool = True,
         bullet: str = "• ",
-        view: Any | None = None,
-        sheet: Any | None = None,
+        view: SheetView | None = None,
+        sheet: DrawingSheet | None = None,
     ):
         self.title = title
         if body is None:
@@ -477,14 +482,12 @@ class Card:
                 target_sheet.annotations.append(self)
                 self.sheet = target_sheet
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
-            self.sheet = t_sheet
+        self._register(view)
+
+    def _attach_to_sheet(self, sheet: DrawingSheet) -> None:
+        self.sheet = sheet
 
     @property
     def width(self) -> float:
@@ -510,7 +513,7 @@ class Card:
         h += total_wrapped_lines * (self.font_size * 1.35)
         return max(15.0, h)
 
-    def bounding_box_2d(self) -> tuple[float, float, float, float]:
+    def bounding_box_2d(self) -> BBox2D:
         px, py = self.position
         return (px, py, px + self.width, py + self.height)
 

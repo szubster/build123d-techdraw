@@ -52,7 +52,7 @@ def generate_builder_mode_drawing(output_dir: Path) -> None:
         Revision(rev="A", description="INITIAL ENGINEERING RELEASE", approved_by="SZUBA")
 
         # Front view with topological annotations
-        with FrontView(part, center=(130.0, 150.0), scale=1.0):
+        with FrontView(part, center=(150.0, 105.0), scale=1.0):
             cyl_face = [f for f in part.faces() if f.geom_type == bd.GeomType.CYLINDER][0]
             CenterMark(cyl_face)
 
@@ -70,14 +70,16 @@ def generate_builder_mode_drawing(output_dir: Path) -> None:
                 leader_offset=(15.0, -10.0),
             )
 
-        # Top view aligned above front view
-        with TopView(part, center=(130.0, 230.0), scale=1.0):
-            v_min = part.vertices().sort_by(bd.Axis.X)[0]
-            v_max = part.vertices().sort_by(bd.Axis.X)[-1]
+        # Top view below the front view (first-angle projection, the ISO default).
+        # Dimension along its front edge (min Y) so the offset places it below the view.
+        with TopView(part, center=(150.0, 180.0), scale=1.0):
+            front_edge = part.vertices().group_by(bd.Axis.Y)[0]
+            v_min = front_edge.sort_by(bd.Axis.X)[0]
+            v_max = front_edge.sort_by(bd.Axis.X)[-1]
             LinearDimension(v_min, v_max, offset=15.0, direction="horizontal")
 
         # Isometric view
-        with IsometricView(part, center=(320.0, 190.0), scale=0.8):
+        with IsometricView(part, center=(265.0, 105.0), scale=0.8):
             pass
 
         # 3. Export outputs directly from builder

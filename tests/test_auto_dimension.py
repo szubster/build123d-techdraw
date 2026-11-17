@@ -85,11 +85,13 @@ def test_iso_stacking_10mm_7mm_and_inner_to_outer() -> None:
     spans = [abs(d.end[0] - d.start[0]) for d in by_offset]
     assert spans == sorted(spans)
 
-    # With view labels enabled, bottom dimension avoids the FRONT label at max_y + 7mm
+    # With view labels enabled, bottom dimension avoids the FRONT label at max_y + 7mm.
+    # Third-angle puts the Top view above the Front view, so Front dims go below it.
     sheet_lbl = DrawingSheet(sheet_size=SheetSize.A3_LANDSCAPE)
     layout_lbl = add_standard_multiview(
         sheet=sheet_lbl,
         shape=part,
+        layout="third_angle",
         scale=1.0,
         show_labels=True,
         auto_dimensions=True,
@@ -150,8 +152,8 @@ def test_builder_mode_and_single_view_parity() -> None:
         mv = StandardMultiview(part, scale=1.0, auto_dimensions=True)
 
     assert mv.front is not None
-    assert len(s.sheet.annotations) >= 6
-    issues = s.sheet.lint()
+    assert len(s.annotations) >= 6
+    issues = s.lint()
     assert not [i for i in issues if i.code == "OVERLAP_ANNOTATION"]
 
     # Single-view auto_dimension() in Builder Mode
@@ -160,4 +162,4 @@ def test_builder_mode_and_single_view_parity() -> None:
         dims = v.auto_dimension()
 
     assert len(dims) >= 2
-    assert not [i for i in s2.sheet.lint() if i.code == "OVERLAP_ANNOTATION"]
+    assert not [i for i in s2.lint() if i.code == "OVERLAP_ANNOTATION"]

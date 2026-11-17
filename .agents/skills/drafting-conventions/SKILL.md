@@ -65,6 +65,12 @@ closes the V with a bar, "prohibited" adds a circle. Ra value above the long leg
 - **First-angle** projection is the ISO default (Europe); **third-angle** is the ASME/US default.
   The projection symbol in the title block must match the actual view arrangement
   (`layout/multiview.py`, `sheet.title_info.third_angle`).
+- This project defaults to first-angle (`layout="first_angle"`, `TitleBlockInfo.third_angle =
+  False`). First-angle puts the Top view below the Front view and the Right view to its left;
+  third-angle puts Top above and Right to the right.
+- ISO 5456-2 symbol: truncated cone with its large end on the left; the end-view circles go to
+  the **left** of it for first-angle and to the **right** for third-angle
+  (`annotations/symbols.py::projection_symbol_elements`, shared with the title block).
 - Views are aligned with the principal view; labels (`FRONT`, `SECTION A-A`, `DETAIL B (2:1)`)
   sit under the view with the scale when it differs from the sheet scale.
 - Section and detail views carry matching letters on cutting planes / detail circles.

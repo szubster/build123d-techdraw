@@ -3,6 +3,8 @@
 import html
 from dataclasses import dataclass, field
 
+from build123d_techdraw.annotations.symbols import projection_symbol_elements
+
 _STANDARD_FIELD_MAP: dict[str, str] = {
     "PROJECT": "project",
     "TITLE": "drawing_title",
@@ -52,7 +54,7 @@ class TitleBlockInfo:
     project: str = "MECHANICAL PROJECT"
     status: str = "APPROVED"
     units: str = "METRIC (mm)"
-    third_angle: bool = True
+    third_angle: bool = False
     subtitle: str | None = None
     total_sheets: str | None = None
     fields: dict[str, str] = field(default_factory=dict)
@@ -77,7 +79,41 @@ class TitleBlockInfo:
             self.fields[str_k] = str_v
             norm_k = str_k.upper()
             if norm_k in _STANDARD_FIELD_MAP:
-                setattr(self, _STANDARD_FIELD_MAP[norm_k], str_v)
+                self._set_standard_field(_STANDARD_FIELD_MAP[norm_k], str_v)
+
+    def _set_standard_field(self, name: str, value: str) -> None:
+        """Assign one of the built-in title block cells named in ``_STANDARD_FIELD_MAP``."""
+        match name:
+            case "project":
+                self.project = value
+            case "drawing_title":
+                self.drawing_title = value
+            case "subtitle":
+                self.subtitle = value
+            case "drawing_no":
+                self.drawing_no = value
+            case "rev":
+                self.rev = value
+            case "material":
+                self.material = value
+            case "finish":
+                self.finish = value
+            case "scale":
+                self.scale = value
+            case "sheet_no":
+                self.sheet_no = value
+            case "total_sheets":
+                self.total_sheets = value
+            case "date":
+                self.date = value
+            case "author":
+                self.author = value
+            case "status":
+                self.status = value
+            case "units":
+                self.units = value
+            case _:
+                raise KeyError(name)
 
     @property
     def extra_fields(self) -> list[tuple[str, str]]:
@@ -217,28 +253,9 @@ def render_title_block_svg(
             )
     extra_svg = "".join(extra_svg_parts)
 
-    if info.third_angle:
-        # ISO 5456-2 Third Angle Projection symbol (circles to left of frustum)
-        circles = (
-            '<circle cx="-8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/>'
-            '<circle cx="-8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>'
-        )
-        cone_poly = '<polygon points="0,-4 8,-7 8,7 0,4" fill="none" class="line-visible" stroke-width="0.35"/>'
-        centerlines = (
-            '<line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>'
-            '<line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>'
-        )
-    else:
-        # ISO 5456-2 First Angle Projection symbol (frustum to left of circles)
-        cone_poly = '<polygon points="-8,-4 0,-7 0,7 -8,4" fill="none" class="line-visible" stroke-width="0.35"/>'
-        circles = (
-            '<circle cx="8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/>'
-            '<circle cx="8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/>'
-        )
-        centerlines = (
-            '<line x1="-12" y1="0" x2="18" y2="0" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>'
-            '<line x1="8" y1="-9" x2="8" y2="9" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>'
-        )
+    projection_svg = projection_symbol_elements(
+        info.third_angle, centerline_dasharray="8,1.5,1.5,1.5", centerline_width=0.25
+    )
 
     return f"""
     <g class="title-block" transform="translate({bx:.2f}, {by:.2f})">
@@ -268,9 +285,7 @@ def render_title_block_svg(
 
         <text x="91" y="11.5" class="tb-field-label">PROJECTION</text>
         <g transform="translate(102, 17) scale(0.65)">
-            {cone_poly}
-            {circles}
-            {centerlines}
+            {projection_svg}
         </g>
 
         <text x="3" y="25.2" class="tb-field-label">MATERIAL</text>

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import build123d as bd
-import ezdxf
+from ezdxf.filemanagement import readfile
 
 from build123d_techdraw import BuildDrawing, Centerline, TopView
 
@@ -40,7 +40,7 @@ def test_view_export_dxf_1to1_layers(tmp_path: Path) -> None:
         )
 
     # Inspect exported DXF with ezdxf
-    doc = ezdxf.readfile(dxf_file)
+    doc = readfile(dxf_file)
     msp = doc.modelspace()
 
     # 1. Verify requested layers exist
@@ -92,7 +92,7 @@ def test_view_export_dxf_default_layers(tmp_path: Path) -> None:
     with BuildDrawing(sheet_size="A4"), TopView(box, center=(100.0, 100.0), scale=1.0) as tv:
         tv.export_dxf(dxf_file)
 
-    doc = ezdxf.readfile(dxf_file)
+    doc = readfile(dxf_file)
     msp = doc.modelspace()
     assert "CUT_OUTER" in [layer.dxf.name for layer in doc.layers]
     assert len(msp.query('*[layer=="CUT_OUTER"]')) > 0
