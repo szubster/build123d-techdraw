@@ -149,6 +149,57 @@ def _extract_orientation(entity: Any) -> tuple[tuple[float, float, float] | None
     return (None, False)
 
 
+def _entity_kind_and_geom_type(entity: Any) -> tuple[str, str | None]:
+    """Return the fingerprint ``(entity_kind, geom_type)`` of a topological entity."""
+    if isinstance(entity, (bd.Vertex, bd.Vector)):
+        return "vertex", "VERTEX"
+    if isinstance(entity, bd.Edge):
+        return "edge", entity.geom_type.name.upper()
+    if isinstance(entity, bd.Face):
+        return "face", entity.geom_type.name.upper()
+    return "solid", None
+
+
+def _entity_is_internal_cylinder(entity: Any) -> bool | None:
+    """Internal/external flag for cylindrical faces; ``None`` for everything else."""
+    if isinstance(entity, bd.Face) and entity.geom_type == bd.GeomType.CYLINDER:
+        return _is_internal_cylinder(entity)
+    return None
+
+
+def _entity_radius(entity: Any) -> float | None:
+    """Radius of a cylindrical face or circular edge; ``None`` for everything else."""
+    if (isinstance(entity, bd.Face) and entity.geom_type == bd.GeomType.CYLINDER) or (
+        isinstance(entity, bd.Edge) and entity.geom_type == bd.GeomType.CIRCLE
+    ):
+        r_val = getattr(entity, "radius", None)
+        if r_val is not None:
+            return float(r_val)
+    return None
+
+
+def _entity_length(entity: Any) -> float | None:
+    """Length of an edge; ``None`` for everything else."""
+    return float(entity.length) if isinstance(entity, bd.Edge) else None
+
+
+def _entity_area(entity: Any) -> float | None:
+    """Area of a face; ``None`` for everything else."""
+    return float(entity.area) if isinstance(entity, bd.Face) else None
+
+
+def _safe_normalize_in_bbox(
+    pt: tuple[float, float, float], bb: bd.BoundBox | None
+) -> tuple[float, float, float] | None:
+    """``_normalize_in_bbox`` that returns ``None`` instead of raising."""
+    if bb is None:
+        return None
+    try:
+        return _normalize_in_bbox(pt, bb)
+    except Exception:
+        return None
+
+
 @dataclass
 class SemanticFingerprint:
     """Geometric and topological signature of a 3D entity for TNP-resilient re-binding."""
@@ -167,50 +218,31 @@ class SemanticFingerprint:
     end_3d: tuple[float, float, float] | None = None
 
     @classmethod
-    def from_entity(cls, entity: Any, shape: Any = None) -> SemanticFingerprint:
-        """Create a SemanticFingerprint from a build123d Vertex, Edge, Face, or Solid."""
-        if isinstance(entity, (bd.Vertex, bd.Vector)):
-            kind = "vertex"
-            gtype = "VERTEX"
-        elif isinstance(entity, bd.Edge):
-            kind = "edge"
-            gtype = entity.geom_type.name.upper()
-        elif isinstance(entity, bd.Face):
-            kind = "face"
-            gtype = entity.geom_type.name.upper()
-        else:
-            kind = "solid"
-            gtype = None
+    def from_entity(
+        cls,
+        entity: Any,
+        shape: Any = None,
+        *,
+        shape_bbox: bd.BoundBox | None = None,
+    ) -> SemanticFingerprint:
+        """Create a SemanticFingerprint from a build123d Vertex, Edge, Face, or Solid.
 
+        ``shape_bbox`` may be passed to avoid recomputing ``shape.bounding_box()`` when
+        fingerprinting many entities of the same shape.
+        """
+        kind, gtype = _entity_kind_and_geom_type(entity)
         c3d = _entity_center_3d(entity)
-        norm_pos: tuple[float, float, float] | None = None
-        if shape is not None and hasattr(shape, "bounding_box"):
+        if shape_bbox is None and shape is not None and hasattr(shape, "bounding_box"):
             try:
-                norm_pos = _normalize_in_bbox(c3d, shape.bounding_box())
+                shape_bbox = shape.bounding_box()
             except Exception:
-                norm_pos = None
+                shape_bbox = None
+        norm_pos = _safe_normalize_in_bbox(c3d, shape_bbox)
 
         orient, signed_orient = _extract_orientation(entity)
-        is_int_cyl: bool | None = None
-        radius: float | None = None
-        length: float | None = None
-        area: float | None = None
         start_3d: tuple[float, float, float] | None = None
         end_3d: tuple[float, float, float] | None = None
-
-        if isinstance(entity, bd.Face):
-            area = float(entity.area)
-            if entity.geom_type == bd.GeomType.CYLINDER:
-                is_int_cyl = _is_internal_cylinder(entity)
-                r_val = getattr(entity, "radius", None)
-                if r_val is not None:
-                    radius = float(r_val)
-        elif isinstance(entity, bd.Edge):
-            length = float(entity.length)
-            if entity.geom_type == bd.GeomType.CIRCLE:
-                r_val = getattr(entity, "radius", None)
-                if r_val is not None:
-                    radius = float(r_val)
+        if isinstance(entity, bd.Edge):
             try:
                 s0 = entity.start_point()
                 s1 = entity.end_point()
@@ -226,10 +258,10 @@ class SemanticFingerprint:
             normalized_pos=norm_pos,
             orientation=orient,
             signed_orientation=signed_orient,
-            is_internal_cylinder=is_int_cyl,
-            radius=radius,
-            length=length,
-            area=area,
+            is_internal_cylinder=_entity_is_internal_cylinder(entity),
+            radius=_entity_radius(entity),
+            length=_entity_length(entity),
+            area=_entity_area(entity),
             start_3d=start_3d,
             end_3d=end_3d,
         )
@@ -642,53 +674,63 @@ class Anchor:
         best_ent: Any = None
         best_score = float("inf")
 
+        # Only the candidate properties that the reference fingerprint can actually be
+        # compared against are computed, and the cheap geometry-type filter runs first.
         for cand in candidates:
-            cand_fp = SemanticFingerprint.from_entity(cand, shape=shape)
-
             # 1. Geometry type filter
-            if fp.geom_type is not None and cand_fp.geom_type != fp.geom_type:
+            _, cand_gtype = _entity_kind_and_geom_type(cand)
+            if fp.geom_type is not None and cand_gtype != fp.geom_type:
                 continue
 
             # 2. Internal vs external cylinder filter
-            if (
-                fp.is_internal_cylinder is not None
-                and cand_fp.is_internal_cylinder is not None
-                and fp.is_internal_cylinder != cand_fp.is_internal_cylinder
-            ):
-                continue
+            if fp.is_internal_cylinder is not None:
+                cand_internal = _entity_is_internal_cylinder(cand)
+                if cand_internal is not None and fp.is_internal_cylinder != cand_internal:
+                    continue
 
             # 3. Orientation check
             orient_penalty = 0.0
-            if fp.orientation is not None and cand_fp.orientation is not None:
-                dot = (
-                    fp.orientation[0] * cand_fp.orientation[0]
-                    + fp.orientation[1] * cand_fp.orientation[1]
-                    + fp.orientation[2] * cand_fp.orientation[2]
-                )
-                eff_dot = dot if fp.signed_orientation else abs(dot)
-                if eff_dot < 0.7:
-                    continue
-                orient_penalty = (1.0 - eff_dot) * 2.0
+            if fp.orientation is not None:
+                cand_orient, _ = _extract_orientation(cand)
+                if cand_orient is not None:
+                    dot = (
+                        fp.orientation[0] * cand_orient[0]
+                        + fp.orientation[1] * cand_orient[1]
+                        + fp.orientation[2] * cand_orient[2]
+                    )
+                    eff_dot = dot if fp.signed_orientation else abs(dot)
+                    if eff_dot < 0.7:
+                        continue
+                    orient_penalty = (1.0 - eff_dot) * 2.0
 
             # 4. Normalized & absolute position score
-            if fp.normalized_pos is not None and cand_fp.normalized_pos is not None:
-                norm_dist = math.dist(fp.normalized_pos, cand_fp.normalized_pos)
+            cand_center = _entity_center_3d(cand)
+            cand_norm = (
+                _safe_normalize_in_bbox(cand_center, bb) if fp.normalized_pos is not None else None
+            )
+            if fp.normalized_pos is not None and cand_norm is not None:
+                norm_dist = math.dist(fp.normalized_pos, cand_norm)
             else:
-                norm_dist = math.dist(fp.center_3d, cand_fp.center_3d) / diag
+                norm_dist = math.dist(fp.center_3d, cand_center) / diag
 
-            abs_dist = math.dist(fp.center_3d, cand_fp.center_3d) / diag
+            abs_dist = math.dist(fp.center_3d, cand_center) / diag
             pos_score = 0.65 * norm_dist + 0.35 * abs_dist
 
             # 5. Characteristic size score (radius, length, area)
             size_score = 0.0
-            if fp.radius is not None and cand_fp.radius is not None:
-                size_score = abs(fp.radius - cand_fp.radius) / max(fp.radius, 1.0) * 0.25
-            elif fp.length is not None and cand_fp.length is not None:
-                size_score = abs(fp.length - cand_fp.length) / max(fp.length, 1.0) * 0.2
-            elif fp.area is not None and cand_fp.area is not None:
-                s_ref = math.sqrt(max(fp.area, 1e-4))
-                s_cand = math.sqrt(max(cand_fp.area, 1e-4))
-                size_score = abs(s_ref - s_cand) / max(s_ref, 1.0) * 0.15
+            cand_radius = _entity_radius(cand) if fp.radius is not None else None
+            if fp.radius is not None and cand_radius is not None:
+                size_score = abs(fp.radius - cand_radius) / max(fp.radius, 1.0) * 0.25
+            else:
+                cand_length = _entity_length(cand) if fp.length is not None else None
+                if fp.length is not None and cand_length is not None:
+                    size_score = abs(fp.length - cand_length) / max(fp.length, 1.0) * 0.2
+                else:
+                    cand_area = _entity_area(cand) if fp.area is not None else None
+                    if fp.area is not None and cand_area is not None:
+                        s_ref = math.sqrt(max(fp.area, 1e-4))
+                        s_cand = math.sqrt(max(cand_area, 1e-4))
+                        size_score = abs(s_ref - s_cand) / max(s_ref, 1.0) * 0.15
 
             total_score = pos_score + orient_penalty + size_score
             if total_score < best_score:
@@ -955,9 +997,16 @@ class Anchor:
         self.last_resolved_point_3d = (float(best_v.X), float(best_v.Y), float(best_v.Z))
         return best_v
 
-    def resolve_point_3d(self, shape: Any) -> tuple[float, float, float]:
-        """Resolve this anchor against ``shape`` to a 3D model point (X, Y, Z)."""
-        ent = self.resolve_entity(shape)
+    def resolve(
+        self, shape: Any, *, prefer_kind: str | None = None
+    ) -> tuple[Any, tuple[float, float, float]]:
+        """Resolve once against ``shape``, returning ``(entity, point_3d)``.
+
+        ``entity`` is what :meth:`resolve_entity` returns (``None`` when stale) and
+        ``point_3d`` is what :meth:`resolve_point_3d` returns. Use this when a caller
+        needs both, to avoid re-running the topology search.
+        """
+        ent = self.resolve_entity(shape, prefer_kind=prefer_kind)
         if ent is not None:
             if isinstance(ent, bd.Edge) and self.point_mode in ("start", "end"):
                 pt = ent.start_point() if self.point_mode == "start" else ent.end_point()
@@ -965,11 +1014,15 @@ class Anchor:
             else:
                 res = _entity_center_3d(ent)
             self.last_resolved_point_3d = res
-            return res
+            return ent, res
 
         if self.last_resolved_point_3d is not None:
-            return self.last_resolved_point_3d
-        return (0.0, 0.0, 0.0)
+            return None, self.last_resolved_point_3d
+        return None, (0.0, 0.0, 0.0)
+
+    def resolve_point_3d(self, shape: Any) -> tuple[float, float, float]:
+        """Resolve this anchor against ``shape`` to a 3D model point (X, Y, Z)."""
+        return self.resolve(shape)[1]
 
     def resolve_to_sheet(self, view: SheetView) -> tuple[float, float]:
         """Resolve this anchor to 2D paper sheet coordinates (mm) on ``view``."""

@@ -261,3 +261,87 @@ def test_stale_anchor_fallback_and_linter_warning() -> None:
     stale_issues = [i for i in issues if i.code == "STALE_ANCHOR"]
     assert len(stale_issues) >= 2
     assert all(i.severity == "WARNING" for i in stale_issues)
+
+
+def test_fingerprint_rebind_does_not_fingerprint_every_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    part_v1 = _make_bracket(hole_radius=8.0, hole_x=25.0)
+    hole_face = next(
+        f
+        for f in part_v1.faces()
+        if f.geom_type == bd.GeomType.CYLINDER and abs(f.bounding_box().center().X - 25.0) < 1.0
+    )
+    anchor = Anchor.of(hole_face, shape=part_v1)
+    part_v2 = _make_bracket(hole_radius=10.0, hole_x=30.0, extra_hole=True, add_fillets=True)
+
+    def _fail(*_args: object, **_kwargs: object) -> SemanticFingerprint:
+        raise AssertionError("candidates must be scored without a full fingerprint")
+
+    monkeypatch.setattr(SemanticFingerprint, "from_entity", _fail)
+    ent, pt = anchor.resolve(part_v2)
+
+    assert isinstance(ent, bd.Face)
+    assert not anchor.is_stale
+    assert pt[0] == pytest.approx(30.0, abs=1e-6)
+    assert anchor.last_resolved_radius == pytest.approx(10.0)
+
+
+def test_resolve_point_3d_and_sheet_matches_separate_calls() -> None:
+    from build123d_techdraw.annotations.resolver import (
+        resolve_point_3d,
+        resolve_point_3d_and_sheet,
+        resolve_point_to_sheet,
+    )
+
+    part = _make_bracket()
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    top = sheet.add_view(part, ViewType.TOP, center=(180.0, 140.0), scale=1.0)
+    targets: list[object] = [
+        part.edges().filter_by(bd.GeomType.CIRCLE)[0],
+        part.faces().filter_by(bd.GeomType.CYLINDER)[0],
+        part.faces().sort_by(bd.Axis.Z)[-1],
+        part.vertices()[0],
+        part,
+        (1.0, 2.0, 3.0),
+        Anchor.max("X"),
+    ]
+    for target in targets:
+        assert resolve_point_3d_and_sheet(target, top) == (
+            resolve_point_3d(target, top),
+            resolve_point_to_sheet(target, top),
+        )
+    assert resolve_point_3d_and_sheet((4.0, 5.0), top) == (None, (4.0, 5.0))
+    with pytest.raises(TypeError):
+        resolve_point_3d_and_sheet("nope", top)
+
+
+def test_callers_resolve_each_anchor_once_per_attach(monkeypatch: pytest.MonkeyPatch) -> None:
+    part = _make_bracket()
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    front = sheet.add_view(part, ViewType.FRONT, center=(180.0, 140.0), scale=1.0)
+
+    calls: list[Anchor] = []
+    original = Anchor.resolve_entity
+
+    def counting(self: Anchor, shape: object, *, prefer_kind: str | None = None) -> object:
+        calls.append(self)
+        return original(self, shape, prefer_kind=prefer_kind)
+
+    monkeypatch.setattr(Anchor, "resolve_entity", counting)
+
+    a_left, a_right = Anchor.min("X"), Anchor.max("X")
+    LinearDimension(a_left, a_right, direction="horizontal", view=front)
+    assert calls.count(a_left) == 1
+    assert calls.count(a_right) == 1
+
+    calls.clear()
+    a_hole = Anchor.hole(radius=8.0)
+    hc = HoleCallout(anchor=a_hole, view=front)
+    assert calls.count(a_hole) == 1
+    assert "⌀16" in hc.lines[0]
+
+    calls.clear()
+    a_top = Anchor.max("Z")
+    ChamferCallout(anchor=a_top, view=front)
+    assert calls.count(a_top) == 1

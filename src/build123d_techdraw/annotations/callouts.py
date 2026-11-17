@@ -11,6 +11,7 @@ from typing import Any
 from build123d_techdraw.annotations.anchors import Anchor
 from build123d_techdraw.annotations.dimensions import format_dimension_value, render_arrowhead
 from build123d_techdraw.annotations.resolver import (
+    circle_from_resolved_anchor,
     ensure_anchor,
     is_topological_entity,
     resolve_circle_or_cylinder_to_sheet,
@@ -107,7 +108,14 @@ class LeaderNote:
             self.resolved = False
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(
+        self, view: Any, *, resolved_target: tuple[float, float] | None = None
+    ) -> None:
+        """Attach to ``view``, resolving ``raw_target`` to sheet coordinates.
+
+        Subclasses that already resolved ``raw_target`` (an Anchor) on this view may pass
+        the resulting sheet point as ``resolved_target`` to skip a second resolution.
+        """
         self.view = view
         if not self.resolved and self.raw_target is not None:
             if not isinstance(self.raw_target, (tuple, list)):
@@ -115,7 +123,11 @@ class LeaderNote:
                     ensure_anchor(self.raw_target, getattr(view, "shape", None)) or self.raw_target
                 )
             prev_target = self.target
-            self.target = resolve_point_to_sheet(self.raw_target, view)
+            self.target = (
+                resolved_target
+                if resolved_target is not None
+                else resolve_point_to_sheet(self.raw_target, view)
+            )
             if isinstance(self.raw_target, Anchor) and self.raw_target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.raw_target.stale_reason
@@ -267,20 +279,32 @@ class HoleCallout(LeaderNote):
 
         return f"{qty_prefix}{dia_str}{tol_str}{depth_str}{csink_str}{cbore_str}"
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(
+        self, view: Any, *, resolved_target: tuple[float, float] | None = None
+    ) -> None:
         if self.raw_target is not None and not isinstance(self.raw_target, (tuple, list)):
             self.raw_target = (
                 ensure_anchor(self.raw_target, getattr(view, "shape", None)) or self.raw_target
             )
         if not self._explicit_diameter and self.raw_target is not None:
             try:
-                _, _, model_r = resolve_circle_or_cylinder_to_sheet(self.raw_target, view)
+                if (
+                    isinstance(self.raw_target, Anchor)
+                    and not self.resolved
+                    and resolved_target is None
+                ):
+                    # Resolve once; reuse the point for the leader instead of re-resolving.
+                    ent, pt_3d = self.raw_target.resolve(getattr(view, "shape", None))
+                    resolved_target = view.to_sheet_3d(*pt_3d)
+                    _, _, model_r = circle_from_resolved_anchor(self.raw_target, ent, view)
+                else:
+                    _, _, model_r = resolve_circle_or_cylinder_to_sheet(self.raw_target, view)
                 if not (isinstance(self.raw_target, Anchor) and self.raw_target.is_stale):
                     self.diameter = 2.0 * model_r
                     self.lines = [self._format_callout(self.diameter)]
             except TypeError:
                 pass
-        super()._attach_to_view(view)
+        super()._attach_to_view(view, resolved_target=resolved_target)
 
 
 class ThreadCallout(LeaderNote):
@@ -755,7 +779,9 @@ class ChamferCallout(LeaderNote):
         a_val = format_dimension_value(float(a))
         return f"{qty_prefix}{w_val} × {a_val}°"
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(
+        self, view: Any, *, resolved_target: tuple[float, float] | None = None
+    ) -> None:
         if self.raw_target is not None and not isinstance(self.raw_target, (tuple, list)):
             self.raw_target = (
                 ensure_anchor(self.raw_target, getattr(view, "shape", None)) or self.raw_target
@@ -765,7 +791,12 @@ class ChamferCallout(LeaderNote):
 
             entity = self.raw_target
             if isinstance(entity, Anchor):
-                entity = entity.resolve_entity(getattr(view, "shape", None))
+                if not self.resolved and resolved_target is None:
+                    # Resolve once; reuse the point for the leader instead of re-resolving.
+                    entity, pt_3d = entity.resolve(getattr(view, "shape", None))
+                    resolved_target = view.to_sheet_3d(*pt_3d)
+                else:
+                    entity = entity.resolve_entity(getattr(view, "shape", None))
             if (
                 entity is not None
                 and isinstance(entity, bd.Edge)
@@ -773,7 +804,7 @@ class ChamferCallout(LeaderNote):
             ):
                 self.width = float(entity.radius) * 0.1
                 self.lines = [self._format_chamfer(self.width, self.angle_deg)]
-        super()._attach_to_view(view)
+        super()._attach_to_view(view, resolved_target=resolved_target)
 
 
 class WeldType(Enum):

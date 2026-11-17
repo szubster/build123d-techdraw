@@ -9,7 +9,7 @@ from build123d_techdraw.annotations.anchors import Anchor
 from build123d_techdraw.annotations.resolver import (
     ensure_anchor,
     is_topological_entity,
-    resolve_point_3d,
+    resolve_point_3d_and_sheet,
     resolve_point_to_sheet,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
@@ -283,10 +283,8 @@ class LinearDimension:
                     elif dx < 1e-2:
                         self.dim_type = DimensionType.VERTICAL
             else:
-                p0_3d = resolve_point_3d(self.target, view)
-                p1_3d = resolve_point_3d(self.target2, view)
-                s0 = resolve_point_to_sheet(self.target, view)
-                s1 = resolve_point_to_sheet(self.target2, view)
+                p0_3d, s0 = resolve_point_3d_and_sheet(self.target, view)
+                p1_3d, s1 = resolve_point_3d_and_sheet(self.target2, view)
 
                 stale1 = isinstance(self.target, Anchor) and self.target.is_stale
                 stale2 = isinstance(self.target2, Anchor) and self.target2.is_stale

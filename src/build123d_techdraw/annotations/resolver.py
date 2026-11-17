@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import build123d as bd
 
-from build123d_techdraw.annotations.anchors import Anchor
+from build123d_techdraw.annotations.anchors import Anchor, _entity_center_3d
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.view import SheetView
@@ -37,47 +37,34 @@ def resolve_point_3d(
     shape = getattr(view, "shape", None) if view is not None else None
     if isinstance(target, Anchor):
         return target.resolve_point_3d(shape)
-    if isinstance(target, (bd.Vertex, bd.Vector)):
-        return (float(target.X), float(target.Y), float(target.Z))
-    if isinstance(target, bd.Edge):
-        if target.geom_type == bd.GeomType.CIRCLE:
-            c = target.arc_center
-            return (float(c.X), float(c.Y), float(c.Z))
-        bb = target.bounding_box()
-        mid = (bb.min + bb.max) / 2.0
-        return (float(mid.X), float(mid.Y), float(mid.Z))
-    if isinstance(target, bd.Face):
-        if target.geom_type == bd.GeomType.CYLINDER and target.axis_of_rotation:
-            pos = target.axis_of_rotation.position
-            return (float(pos.X), float(pos.Y), float(pos.Z))
-        bb = target.bounding_box()
-        mid = (bb.min + bb.max) / 2.0
-        return (float(mid.X), float(mid.Y), float(mid.Z))
-    if isinstance(target, (bd.Solid, bd.Compound)):
-        bb = target.bounding_box()
-        mid = (bb.min + bb.max) / 2.0
-        return (float(mid.X), float(mid.Y), float(mid.Z))
+    if isinstance(target, (bd.Vertex, bd.Vector, bd.Edge, bd.Face, bd.Solid, bd.Compound)):
+        return _entity_center_3d(target)
     if isinstance(target, (tuple, list)) and len(target) == 3:
         return (float(target[0]), float(target[1]), float(target[2]))
     return None
 
 
+def resolve_point_3d_and_sheet(
+    target: Any, view: SheetView
+) -> tuple[tuple[float, float, float] | None, tuple[float, float]]:
+    """Resolve ``target`` once to ``(point_3d, sheet_point)``.
+
+    Equivalent to calling :func:`resolve_point_3d` and :func:`resolve_point_to_sheet`
+    but runs anchor resolution only once. ``point_3d`` is ``None`` for 2D sheet tuples.
+    """
+    if isinstance(target, (tuple, list)) and len(target) == 2:
+        return None, (float(target[0]), float(target[1]))
+    pt_3d = resolve_point_3d(target, view)
+    if pt_3d is None:
+        raise TypeError(
+            f"Cannot resolve target of type {type(target).__name__} to sheet coordinates."
+        )
+    return pt_3d, view.to_sheet_3d(pt_3d[0], pt_3d[1], pt_3d[2])
+
+
 def resolve_point_to_sheet(target: Any, view: SheetView) -> tuple[float, float]:
     """Resolve a semantic Anchor, 3D vertex, vector, edge, or face to 2D sheet coordinates."""
-    if isinstance(target, Anchor):
-        return target.resolve_to_sheet(view)
-
-    if isinstance(target, (tuple, list)):
-        if len(target) == 2:
-            return float(target[0]), float(target[1])
-        if len(target) == 3:
-            return view.to_sheet_3d(float(target[0]), float(target[1]), float(target[2]))
-
-    pt_3d = resolve_point_3d(target, view)
-    if pt_3d is not None:
-        return view.to_sheet_3d(pt_3d[0], pt_3d[1], pt_3d[2])
-
-    raise TypeError(f"Cannot resolve target of type {type(target).__name__} to sheet coordinates.")
+    return resolve_point_3d_and_sheet(target, view)[1]
 
 
 def resolve_edge_to_sheet(
@@ -112,15 +99,27 @@ def resolve_circle_or_cylinder_to_sheet(
 ) -> tuple[tuple[float, float], float, float]:
     """Resolve a circular Edge, cylindrical Face, or Anchor to (center_on_sheet, paper_radius, model_radius)."""
     if isinstance(target, Anchor):
-        shape = getattr(view, "shape", None)
-        ent = target.resolve_entity(shape)
-        if ent is not None and isinstance(ent, (bd.Edge, bd.Face)):
-            target = ent
-        elif target.last_resolved_point_3d is not None and target.last_resolved_radius is not None:
-            paper_center = view.to_sheet_3d(*target.last_resolved_point_3d)
-            r = float(target.last_resolved_radius)
-            return paper_center, r * view.scale, r
+        ent = target.resolve_entity(getattr(view, "shape", None))
+        return circle_from_resolved_anchor(target, ent, view)
+    return _circle_or_cylinder_to_sheet(target, view)
 
+
+def circle_from_resolved_anchor(
+    anchor: Anchor, entity: Any, view: SheetView
+) -> tuple[tuple[float, float], float, float]:
+    """Like :func:`resolve_circle_or_cylinder_to_sheet` for an anchor already resolved to ``entity``."""
+    if isinstance(entity, (bd.Edge, bd.Face)):
+        return _circle_or_cylinder_to_sheet(entity, view)
+    if anchor.last_resolved_point_3d is not None and anchor.last_resolved_radius is not None:
+        paper_center = view.to_sheet_3d(*anchor.last_resolved_point_3d)
+        r = float(anchor.last_resolved_radius)
+        return paper_center, r * view.scale, r
+    return _circle_or_cylinder_to_sheet(anchor, view)
+
+
+def _circle_or_cylinder_to_sheet(
+    target: Any, view: SheetView
+) -> tuple[tuple[float, float], float, float]:
     if isinstance(target, bd.Edge) and target.geom_type == bd.GeomType.CIRCLE:
         c = target.arc_center
         r = float(target.radius)
