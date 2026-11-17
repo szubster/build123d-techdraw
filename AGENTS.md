@@ -3,8 +3,8 @@
 Instructions for AI coding agents working in this repository (Claude Code, Codex, Cursor, etc.).
 Human contributors: see `CONTRIBUTING.md`.
 
-> Do **not** add a `CLAUDE.md`. Claude Code loads `AGENTS.md` only when no `CLAUDE.md` exists;
-> adding one silently drops these instructions. Agent skills live in `.agents/skills/`
+> `CLAUDE.md` is a symlink to this file so Claude Code loads it; edit `AGENTS.md` only and never
+> replace the symlink with a separate `CLAUDE.md`. Agent skills live in `.agents/skills/`
 > (`.claude/skills` is a symlink to it).
 
 ## Project
@@ -34,8 +34,13 @@ uv run pytest                          # tests + coverage
 uv run pytest tests/test_dimensions.py -k diameter -q --no-cov   # focused run
 uv run ruff check --fix . && uv run ruff format .
 uv run mypy src examples               # strict; must be clean
+uv run pyright                         # also configured; backs the pyright-lsp plugin
 uv run python examples/generate_all.py # regenerate example drawings (see below)
 ```
+
+For code navigation, `.claude/settings.json` enables the `pyright-lsp` plugin (definitions,
+references, hover types, diagnostics). Prefer it over grep when tracing build123d/OCP types or
+call sites.
 
 ## Standards policy: we follow ISO
 
@@ -50,6 +55,7 @@ an explicit opt-in. Never describe an ASME convention as "ISO" or "standard ISO"
   in first-angle (Top view *below* the Front view) unless they set `third_angle=True` on purpose.
 - Cite the specific standard in docstrings and docs, and check the citation is right.
 
+## Rules
 
 - **Typing is strict.** Every function is fully annotated. build123d, OCP (via
   `cadquery-ocp-stubs`), ezdxf, matplotlib and Pillow are all typed — do not add them to
