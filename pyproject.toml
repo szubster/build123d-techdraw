@@ -52,6 +52,7 @@ Changelog = "https://github.com/szubster/build123d-techdraw/releases"
 dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
+    "pyright>=1.1.390",
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
     "twine>=5.0.0",
@@ -121,6 +122,15 @@ module = [
     "pypdfium2.*",
 ]
 ignore_missing_imports = true
+
+[tool.pyright]
+# Used by the Pyright language server (editor / Claude Code LSP). mypy remains the CI gate.
+include = ["src", "tests", "examples"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false
 
 [tool.pytest.ini_options]
 minversion = "7.0"
