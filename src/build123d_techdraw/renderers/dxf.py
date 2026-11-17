@@ -9,9 +9,9 @@ import os
 import warnings
 from typing import TYPE_CHECKING, Any
 
-import ezdxf
 import svgelements as se
 from ezdxf.document import Drawing
+from ezdxf.filemanagement import new as new_dxf_document
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
@@ -140,7 +140,7 @@ class DXFRenderer:
     ) -> None:
         """Export 2D cross-section, flat pattern, or 3D plate primary face to a 1:1 DXF file."""
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-        doc: Drawing = ezdxf.new(dxfversion=dxfversion)  # type: ignore[attr-defined]
+        doc: Drawing = new_dxf_document(dxfversion=dxfversion)
         msp = doc.modelspace()
 
         # Set up standard CAD layers
@@ -184,7 +184,7 @@ class DXFRenderer:
     ) -> None:
         """Export the complete composed drawing sheet with standard CAD layers to DXF."""
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-        doc: Drawing = ezdxf.new(dxfversion=dxfversion)  # type: ignore[attr-defined]
+        doc: Drawing = new_dxf_document(dxfversion=dxfversion)
         msp = doc.modelspace()
 
         # Define standard CAD layers and colors (AutoCAD ACI colors)
