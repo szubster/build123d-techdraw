@@ -7,8 +7,11 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import build123d as bd
+from build123d.exporters import Drawing
+from build123d.topology import Shape
 
 from build123d_techdraw.annotations.callouts import BOMBalloon
+from build123d_techdraw.core.part_info import get_part_info
 from build123d_techdraw.core.scale import (
     find_closest_iso_scale,
     format_iso_ratio,
@@ -90,6 +93,38 @@ class MultiviewLayout:
         )
 
 
+def projected_view_extent(shape: Any, view_type: ViewType) -> tuple[float, float]:
+    """Return the exact unscaled 2D (width, height) of ``shape`` as drawn in ``view_type``.
+
+    The shape is expressed in the view's projection frame (the same ``look_from`` /
+    ``look_up`` pair from ``VIEW_VECTORS`` that ``SheetView`` uses), so the X/Y
+    extent of its bounding box equals the extent of the projected drawing.
+    """
+    look_from, look_up = VIEW_VECTORS.get(view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
+    view_dir = bd.Vector(look_from).normalized()
+    x_dir = bd.Vector(look_up).cross(view_dir).normalized()
+    frame = bd.Plane(origin=(0.0, 0.0, 0.0), x_dir=x_dir, z_dir=view_dir)
+    try:
+        local_shape = frame.to_local_coords(shape)
+        if not isinstance(local_shape, Shape):
+            raise TypeError(f"Unexpected to_local_coords result {type(local_shape).__name__}")
+        local_bb = local_shape.bounding_box()
+        return (float(local_bb.size.X), float(local_bb.size.Y))
+    except Exception:
+        # Conservative fallback: project the corners of the axis-aligned bounding box
+        bb = shape.bounding_box()
+        y_dir = view_dir.cross(x_dir)
+        us: list[float] = []
+        vs: list[float] = []
+        for cx in (bb.min.X, bb.max.X):
+            for cy in (bb.min.Y, bb.max.Y):
+                for cz in (bb.min.Z, bb.max.Z):
+                    p = bd.Vector(cx, cy, cz)
+                    us.append(p.dot(x_dir))
+                    vs.append(p.dot(y_dir))
+        return (max(us) - min(us), max(vs) - min(vs))
+
+
 def add_standard_multiview(
     sheet: DrawingSheet,
     shape: bd.Solid | bd.Compound | Any,
@@ -152,48 +187,44 @@ def add_standard_multiview(
     if views is None:
         views = [ViewType.FRONT, ViewType.TOP, ViewType.RIGHT, ViewType.ISOMETRIC]
 
-    bbox = shape.bounding_box()
-    sx = float(bbox.size.X)
-    sy = float(bbox.size.Y)
-    sz = float(bbox.size.Z)
-
-    # Diagonal approximation for isometric unscaled size
-    iso_diag = math.sqrt(sx * sx + sy * sy + sz * sz) * 0.75
+    # Exact unscaled 2D extent (width, height) of every requested view, measured in
+    # the same projection frame that SheetView uses when drawing it.
+    extents = {v: projected_view_extent(shape, v) for v in views}
 
     # Standard arrangement grid (ISO 5456-2 / ASME Y14.3).
     #
-    # Columns:
-    #   "main": Front / Top (width = sx)
-    #   "side": Right view + Isometric (width = max(sy, iso_diag))
-    #   "far":  Left view, on the opposite side of the main column (width = sy)
-    # Rows:
-    #   "elev": Front / Right / Left / Rear elevations (height = sz)
-    #   "plan": Top view + Isometric (height = max(sy, iso_diag))
+    # Columns (width = widest projected view in the column):
+    #   "main": Front / Top
+    #   "side": Right view + Isometric
+    #   "far":  Left view, on the opposite side of the main column
+    # Rows (height = tallest projected view in the row):
+    #   "elev": Front / Right / Left / Rear elevations
+    #   "plan": Top view + Isometric
     #
     # Third-angle places each view on the side it is seen from:
     #   columns [far, main, side], rows [plan, elev] -> Top above, Right on the right.
     # First-angle places each view on the opposite side:
     #   columns [side, main, far], rows [elev, plan] -> Top below, Right on the left.
     # In both, the Isometric view fills the otherwise empty corner of the grid.
-    elev_views = (ViewType.FRONT, ViewType.RIGHT, ViewType.LEFT, ViewType.REAR)
-    has_iso = ViewType.ISOMETRIC in views
-    has_right = ViewType.RIGHT in views
-
-    col_widths: dict[str, float] = {}
-    if any(v in (ViewType.FRONT, ViewType.TOP, ViewType.BOTTOM, ViewType.REAR) for v in views):
-        col_widths["main"] = sx
-    if has_right or has_iso:
-        col_widths["side"] = max(sy if has_right else 0.0, iso_diag if has_iso else 0.0)
-    if ViewType.LEFT in views:
-        col_widths["far"] = sy
-
-    row_heights: dict[str, float] = {}
-    if any(v in elev_views for v in views):
-        row_heights["elev"] = sz
-    if ViewType.TOP in views or has_iso:
-        row_heights["plan"] = max(
-            sy if ViewType.TOP in views else 0.0, iso_diag if has_iso else 0.0
-        )
+    col_members: dict[str, tuple[ViewType, ...]] = {
+        "main": (ViewType.FRONT, ViewType.TOP, ViewType.BOTTOM, ViewType.REAR),
+        "side": (ViewType.RIGHT, ViewType.ISOMETRIC),
+        "far": (ViewType.LEFT,),
+    }
+    row_members: dict[str, tuple[ViewType, ...]] = {
+        "elev": (ViewType.FRONT, ViewType.RIGHT, ViewType.LEFT, ViewType.REAR),
+        "plan": (ViewType.TOP, ViewType.ISOMETRIC),
+    }
+    col_widths: dict[str, float] = {
+        col: max(extents[v][0] for v in views if v in members)
+        for col, members in col_members.items()
+        if any(v in members for v in views)
+    }
+    row_heights: dict[str, float] = {
+        row: max(extents[v][1] for v in views if v in members)
+        for row, members in row_members.items()
+        if any(v in members for v in views)
+    }
 
     col_order = ["far", "main", "side"] if is_third_angle else ["side", "main", "far"]
     row_order = ["plan", "elev"] if is_third_angle else ["elev", "plan"]
@@ -341,7 +372,7 @@ def add_standard_multiview(
                 continue
             look_from, look_up = VIEW_VECTORS.get(v_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
             try:
-                dwg_v = bd.Drawing(shape, look_from=look_from, look_up=look_up)
+                dwg_v = Drawing(shape, look_from=look_from, look_up=look_up)
                 for edge in dwg_v.visible_lines.edges():
                     if edge.geom_type == bd.GeomType.CIRCLE:
                         c = edge.arc_center
@@ -381,61 +412,63 @@ def add_standard_multiview(
     return layout_obj
 
 
-def extract_assembly_components(shape: Any) -> list[Any]:
-    """Recursively extract child parts or solids from a compound or assembly."""
-    if hasattr(shape, "children") and shape.children:
-        parts: list[Any] = []
+def extract_assembly_components(shape: Shape[Any]) -> list[Shape[Any]]:
+    """Recursively extract leaf child parts of an assembly, or the solids of a plain shape."""
+    if shape.children:
+        parts: list[Shape[Any]] = []
         for child in shape.children:
-            if hasattr(child, "children") and child.children:
+            if child.children:
                 parts.extend(extract_assembly_components(child))
             else:
                 parts.append(child)
         return parts
-    elif hasattr(shape, "solids") and shape.solids():
-        return list(shape.solids())
-    return [shape]
+    solids = shape.solids()
+    return list(solids) if solids else [shape]
 
 
-def generate_assembly_bom(assembly: bd.Compound | list[Any]) -> list[BOMItem]:
+def _group_components_by_label(
+    components: list[Shape[Any]],
+) -> dict[str, list[Shape[Any]]]:
+    """Group components by ``label`` (class name if unlabeled), preserving first-seen order."""
+    grouped: dict[str, list[Shape[Any]]] = {}
+    for comp in components:
+        grouped.setdefault(comp.label or type(comp).__name__, []).append(comp)
+    return grouped
+
+
+def _bom_material(component: Shape[Any]) -> str:
+    """BOM material text: PartInfo.material_spec, else the build123d material name."""
+    info = get_part_info(component)
+    if info is not None and info.material_spec:
+        return info.material_spec
+    material = component.material
+    if material is not None:
+        return material.name.replace("_", " ").upper()
+    return "STANDARD"
+
+
+def generate_assembly_bom(assembly: Shape[Any] | list[Shape[Any]]) -> list[BOMItem]:
     """Generate structured BOM table entries by grouping and counting assembly components.
 
-    Parts are grouped by their .label (or shape class name if unlabeled).
+    Parts are grouped by their ``label`` (or shape class name if unlabeled). Part number
+    and material text come from :class:`PartInfo` (see :func:`set_part_info`); material
+    falls back to the shape's build123d ``material``.
     """
-    components = (
-        extract_assembly_components(assembly) if not isinstance(assembly, list) else assembly
-    )
-
-    # Group by label
-    grouped: dict[str, list[Any]] = {}
-    for comp in components:
-        lbl = getattr(comp, "label", "") or getattr(comp, "name", "")
-        if not lbl:
-            lbl = type(comp).__name__
-        grouped.setdefault(lbl, []).append(comp)
+    components = assembly if isinstance(assembly, list) else extract_assembly_components(assembly)
 
     bom_items: list[BOMItem] = []
-    for item_idx, (name, items) in enumerate(grouped.items(), start=1):
+    for item_idx, (name, items) in enumerate(
+        _group_components_by_label(components).items(), start=1
+    ):
         first = items[0]
-        raw_mat = (
-            getattr(first, "material_spec", None)
-            or getattr(first, "material_name", None)
-            or getattr(first, "material", None)
-        )
-        if raw_mat is not None:
-            if hasattr(raw_mat, "name"):
-                comp_mat = str(raw_mat.name).replace("_", " ").upper()
-            else:
-                comp_mat = str(raw_mat)
-        else:
-            comp_mat = "STANDARD"
-        comp_part_no = getattr(first, "part_no", "") or f"PART-{item_idx:03d}"
+        info = get_part_info(first)
         bom_items.append(
             BOMItem(
                 item_no=item_idx,
                 qty=len(items),
-                part_no=comp_part_no,
+                part_no=(info.part_no if info is not None else "") or f"PART-{item_idx:03d}",
                 description=name,
-                material=comp_mat,
+                material=_bom_material(first),
             )
         )
     return bom_items
@@ -470,13 +503,7 @@ def add_assembly_bom_and_balloons(
     bom_items = generate_assembly_bom(assembly)
     sheet.bom_items = bom_items
 
-    # Map item_no to the first representative component
-    grouped: dict[str, list[Any]] = {}
-    for comp in components:
-        lbl = getattr(comp, "label", "") or getattr(comp, "name", "")
-        if not lbl:
-            lbl = type(comp).__name__
-        grouped.setdefault(lbl, []).append(comp)
+    grouped = _group_components_by_label(components)
 
     balloons: list[BOMBalloon] = []
     num_items = len(bom_items)
@@ -487,16 +514,12 @@ def add_assembly_bom_and_balloons(
             continue
         rep_part = part_list[0]
 
-        try:
+        # Point at the centre of mass; other shape kinds use their bounding-box centre.
+        if isinstance(rep_part, (bd.Solid, bd.Compound)):
             pt = rep_part.center()
-            target_pt = target_view.to_sheet_3d(float(pt.X), float(pt.Y), float(pt.Z))
-        except Exception:
-            # Fallback to bounding box center
-            bbox = rep_part.bounding_box()
-            cx = (float(bbox.min.X) + float(bbox.max.X)) / 2.0
-            cy = (float(bbox.min.Y) + float(bbox.max.Y)) / 2.0
-            cz = (float(bbox.min.Z) + float(bbox.max.Z)) / 2.0
-            target_pt = target_view.to_sheet_3d(cx, cy, cz)
+        else:
+            pt = rep_part.bounding_box().center()
+        target_pt = target_view.to_sheet_3d(float(pt.X), float(pt.Y), float(pt.Z))
 
         # Distribute balloons evenly around the perimeter of target_view
         angle = (2.0 * math.pi * idx) / max(num_items, 1)

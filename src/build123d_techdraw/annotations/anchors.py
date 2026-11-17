@@ -82,24 +82,27 @@ def _parse_geom_type(geom_type: bd.GeomType | str | None) -> str | None:
     return str(geom_type).strip().upper()
 
 
-def _entity_center_3d(entity: Any) -> tuple[float, float, float]:
+def _radius(radius: float | None, diameter: float | None) -> float | None:
+    """Return ``radius``, or half of ``diameter``, as a float (``None`` if neither is given)."""
+    if radius is not None:
+        return float(radius)
+    return float(diameter) / 2.0 if diameter is not None else None
+
+
+def entity_center_3d(entity: Any) -> tuple[float, float, float]:
     """Compute the characteristic 3D point of a Vertex, Edge, Face, or Solid."""
     if isinstance(entity, (bd.Vertex, bd.Vector)):
         return (float(entity.X), float(entity.Y), float(entity.Z))
-    if isinstance(entity, bd.Edge):
-        if entity.geom_type == bd.GeomType.CIRCLE:
-            c = entity.arc_center
-            return (float(c.X), float(c.Y), float(c.Z))
-        bb = entity.bounding_box()
-        mid = (bb.min + bb.max) * 0.5
-        return (float(mid.X), float(mid.Y), float(mid.Z))
-    if isinstance(entity, bd.Face):
-        if entity.geom_type == bd.GeomType.CYLINDER and entity.axis_of_rotation is not None:
-            pos = entity.axis_of_rotation.position
-            return (float(pos.X), float(pos.Y), float(pos.Z))
-        bb = entity.bounding_box()
-        mid = (bb.min + bb.max) * 0.5
-        return (float(mid.X), float(mid.Y), float(mid.Z))
+    if isinstance(entity, bd.Edge) and entity.geom_type == bd.GeomType.CIRCLE:
+        c = entity.arc_center
+        return (float(c.X), float(c.Y), float(c.Z))
+    if (
+        isinstance(entity, bd.Face)
+        and entity.geom_type == bd.GeomType.CYLINDER
+        and entity.axis_of_rotation is not None
+    ):
+        pos = entity.axis_of_rotation.position
+        return (float(pos.X), float(pos.Y), float(pos.Z))
     if hasattr(entity, "bounding_box"):
         bb = entity.bounding_box()
         mid = (bb.min + bb.max) * 0.5
@@ -167,8 +170,13 @@ class SemanticFingerprint:
     end_3d: tuple[float, float, float] | None = None
 
     @classmethod
-    def from_entity(cls, entity: Any, shape: Any = None) -> SemanticFingerprint:
-        """Create a SemanticFingerprint from a build123d Vertex, Edge, Face, or Solid."""
+    def from_entity(
+        cls, entity: Any, shape: Any = None, shape_bbox: bd.BoundBox | None = None
+    ) -> SemanticFingerprint:
+        """Create a SemanticFingerprint from a build123d Vertex, Edge, Face, or Solid.
+
+        ``shape_bbox`` may be passed to reuse an already-computed bounding box of ``shape``.
+        """
         if isinstance(entity, (bd.Vertex, bd.Vector)):
             kind = "vertex"
             gtype = "VERTEX"
@@ -182,11 +190,11 @@ class SemanticFingerprint:
             kind = "solid"
             gtype = None
 
-        c3d = _entity_center_3d(entity)
+        c3d = entity_center_3d(entity)
         norm_pos: tuple[float, float, float] | None = None
-        if shape is not None and hasattr(shape, "bounding_box"):
+        if shape_bbox is not None or (shape is not None and hasattr(shape, "bounding_box")):
             try:
-                norm_pos = _normalize_in_bbox(c3d, shape.bounding_box())
+                norm_pos = _normalize_in_bbox(c3d, shape_bbox or shape.bounding_box())
             except Exception:
                 norm_pos = None
 
@@ -341,11 +349,7 @@ class Anchor:
         ):
             return cls.of(target, shape=shape, point_mode="center")
 
-        eff_r = (
-            float(radius)
-            if radius is not None
-            else (float(diameter) / 2.0 if diameter is not None else None)
-        )
+        eff_r = _radius(radius, diameter)
         near_pt = _coerce_point_3d(near)
         if eff_r is not None or axis is not None or internal is not None or near_pt is not None:
             return cls.cylinder(
@@ -425,21 +429,13 @@ class Anchor:
         index: int = 0,
     ) -> Anchor:
         """Declaratively anchor to an internal cylindrical hole feature."""
-        eff_r = (
-            float(radius)
-            if radius is not None
-            else (float(diameter) / 2.0 if diameter is not None else None)
-        )
-        return cls(
-            "cylinder",
-            axis=_parse_axis_vector(axis) if axis is not None else None,
-            entity_type="face",
-            geom_type="CYLINDER",
-            radius=eff_r,
+        return cls.cylinder(
+            radius=radius,
+            diameter=diameter,
+            axis=axis,
             internal=True,
-            near=_coerce_point_3d(near),
+            near=near,
             index=index,
-            point_mode="center",
         )
 
     @classmethod
@@ -454,11 +450,7 @@ class Anchor:
         index: int = 0,
     ) -> Anchor:
         """Declaratively anchor to a cylindrical face (hole or external boss/shaft)."""
-        eff_r = (
-            float(radius)
-            if radius is not None
-            else (float(diameter) / 2.0 if diameter is not None else None)
-        )
+        eff_r = _radius(radius, diameter)
         return cls(
             "cylinder",
             axis=_parse_axis_vector(axis) if axis is not None else None,
@@ -563,7 +555,7 @@ class Anchor:
             self.stale_reason = self.child_anchor.stale_reason
             self.last_resolved_entity = ent
             if ent is not None:
-                self.last_resolved_point_3d = _entity_center_3d(ent)
+                self.last_resolved_point_3d = entity_center_3d(ent)
             return ent
 
         if shape is None:
@@ -578,12 +570,12 @@ class Anchor:
         if self.kind == "fingerprint":
             if shape is self._initial_shape and self._initial_entity is not None:
                 self.last_resolved_entity = self._initial_entity
-                self.last_resolved_point_3d = _entity_center_3d(self._initial_entity)
+                self.last_resolved_point_3d = entity_center_3d(self._initial_entity)
                 return self._initial_entity
             return self._resolve_fingerprint(shape)
 
         if self.kind == "center_of":
-            c3d = _entity_center_3d(shape)
+            c3d = entity_center_3d(shape)
             self.last_resolved_point_3d = c3d
             vec = bd.Vector(*c3d)
             self.last_resolved_entity = vec
@@ -618,7 +610,7 @@ class Anchor:
 
         if fp.entity_kind == "solid":
             self.last_resolved_entity = shape
-            self.last_resolved_point_3d = _entity_center_3d(shape)
+            self.last_resolved_point_3d = entity_center_3d(shape)
             return shape
 
         bb = shape.bounding_box()
@@ -643,7 +635,14 @@ class Anchor:
         best_score = float("inf")
 
         for cand in candidates:
-            cand_fp = SemanticFingerprint.from_entity(cand, shape=shape)
+            # Cheap geom-type pre-filter before building a full fingerprint
+            if (
+                fp.geom_type is not None
+                and fp.entity_kind != "vertex"
+                and cand.geom_type.name.upper() != fp.geom_type
+            ):
+                continue
+            cand_fp = SemanticFingerprint.from_entity(cand, shape=shape, shape_bbox=bb)
 
             # 1. Geometry type filter
             if fp.geom_type is not None and cand_fp.geom_type != fp.geom_type:
@@ -705,7 +704,7 @@ class Anchor:
             return None
 
         self.last_resolved_entity = best_ent
-        self.last_resolved_point_3d = _entity_center_3d(best_ent)
+        self.last_resolved_point_3d = entity_center_3d(best_ent)
         if isinstance(best_ent, (bd.Face, bd.Edge)):
             r_val = getattr(best_ent, "radius", None)
             if r_val is not None:
@@ -716,47 +715,30 @@ class Anchor:
         ax = self.axis or (0.0, 0.0, 1.0)
         sx, sy, sz = ax[0] * self.direction, ax[1] * self.direction, ax[2] * self.direction
 
-        if eff_kind == "face":
-            faces = list(shape.faces()) if hasattr(shape, "faces") else []
+        if eff_kind in ("face", "edge"):
+            if eff_kind == "face":
+                ents = list(shape.faces()) if hasattr(shape, "faces") else []
+            else:
+                ents = list(shape.edges()) if hasattr(shape, "edges") else []
             if self.geom_type is not None:
-                faces = [f for f in faces if f.geom_type.name.upper() == self.geom_type]
-            if not faces:
+                ents = [e for e in ents if e.geom_type.name.upper() == self.geom_type]
+            if not ents:
                 self.is_stale = True
-                self.stale_reason = "No matching faces for extreme anchor."
+                self.stale_reason = f"No matching {eff_kind}s for extreme anchor."
                 return None
 
-            def face_key(f: bd.Face) -> tuple[float, float]:
-                c = _entity_center_3d(f)
+            def ent_key(e: Any) -> tuple[tuple[float, float], tuple[float, float, float]]:
+                c = entity_center_3d(e)
                 proj = round(c[0] * sx + c[1] * sy + c[2] * sz, 4)
                 if self.near is not None:
-                    return (proj, -math.dist(c, self.near))
-                return (proj, float(f.area))
+                    return (proj, -math.dist(c, self.near)), c
+                size = float(e.area) if eff_kind == "face" else float(e.length)
+                return (proj, size), c
 
-            best_f = max(faces, key=face_key)
-            self.last_resolved_entity = best_f
-            self.last_resolved_point_3d = _entity_center_3d(best_f)
-            return best_f
-
-        if eff_kind == "edge":
-            edges = list(shape.edges()) if hasattr(shape, "edges") else []
-            if self.geom_type is not None:
-                edges = [e for e in edges if e.geom_type.name.upper() == self.geom_type]
-            if not edges:
-                self.is_stale = True
-                self.stale_reason = "No matching edges for extreme anchor."
-                return None
-
-            def edge_key(e: bd.Edge) -> tuple[float, float]:
-                c = _entity_center_3d(e)
-                proj = round(c[0] * sx + c[1] * sy + c[2] * sz, 4)
-                if self.near is not None:
-                    return (proj, -math.dist(c, self.near))
-                return (proj, float(e.length))
-
-            best_e = max(edges, key=edge_key)
-            self.last_resolved_entity = best_e
-            self.last_resolved_point_3d = _entity_center_3d(best_e)
-            return best_e
+            (_, best_c), best = max(((ent_key(e), e) for e in ents), key=lambda t: t[0][0])
+            self.last_resolved_entity = best
+            self.last_resolved_point_3d = best_c
+            return best
 
         # Vertex or point
         verts = list(shape.vertices()) if hasattr(shape, "vertices") else []
@@ -779,11 +761,12 @@ class Anchor:
             self.last_resolved_point_3d = (float(best_v.X), float(best_v.Y), float(best_v.Z))
             return best_v
 
+        cx = sum(float(v.X) for v in extreme_verts) / len(extreme_verts)
+        cy = sum(float(v.Y) for v in extreme_verts) / len(extreme_verts)
+        cz = sum(float(v.Z) for v in extreme_verts) / len(extreme_verts)
+
         if eff_kind == "vertex":
             # Pick vertex closest to centroid of extreme vertices for deterministic symmetry
-            cx = sum(float(v.X) for v in extreme_verts) / len(extreme_verts)
-            cy = sum(float(v.Y) for v in extreme_verts) / len(extreme_verts)
-            cz = sum(float(v.Z) for v in extreme_verts) / len(extreme_verts)
             best_v = min(
                 extreme_verts,
                 key=lambda v: (
@@ -798,9 +781,6 @@ class Anchor:
             return best_v
 
         # For entity="point" (default), return centroid of the extreme boundary vertices
-        cx = sum(float(v.X) for v in extreme_verts) / len(extreme_verts)
-        cy = sum(float(v.Y) for v in extreme_verts) / len(extreme_verts)
-        cz = sum(float(v.Z) for v in extreme_verts) / len(extreme_verts)
         pt_vec = bd.Vector(cx, cy, cz)
         self.last_resolved_entity = pt_vec
         self.last_resolved_point_3d = (cx, cy, cz)
@@ -831,7 +811,7 @@ class Anchor:
         def cyl_score(f: bd.Face) -> tuple[float, float, float, float, float]:
             r_val = float(getattr(f, "radius", 0.0) or 0.0)
             r_diff = abs(r_val - self.radius) if self.radius is not None else 0.0
-            c3d = _entity_center_3d(f)
+            c3d = entity_center_3d(f)
             near_dist = math.dist(c3d, self.near) if self.near is not None else 0.0
             return (
                 round(r_diff, 4),
@@ -857,7 +837,7 @@ class Anchor:
                 return None
 
         self.last_resolved_entity = chosen
-        self.last_resolved_point_3d = _entity_center_3d(chosen)
+        self.last_resolved_point_3d = entity_center_3d(chosen)
         self.last_resolved_radius = float(getattr(chosen, "radius", 0.0) or 0.0)
         return chosen
 
@@ -883,7 +863,7 @@ class Anchor:
             return None
 
         def face_score(f: bd.Face) -> tuple[float, float, float]:
-            c3d = _entity_center_3d(f)
+            c3d = entity_center_3d(f)
             ext_proj = 0.0
             if self.extreme_axis is not None:
                 ex, ey, ez = self.extreme_axis
@@ -894,7 +874,7 @@ class Anchor:
 
         best_f = min(faces, key=face_score)
         self.last_resolved_entity = best_f
-        self.last_resolved_point_3d = _entity_center_3d(best_f)
+        self.last_resolved_point_3d = entity_center_3d(best_f)
         return best_f
 
     def _resolve_edge(self, shape: Any) -> Any:
@@ -918,7 +898,7 @@ class Anchor:
             return None
 
         def edge_score(e: bd.Edge) -> tuple[float, float, float]:
-            c3d = _entity_center_3d(e)
+            c3d = entity_center_3d(e)
             ext_proj = 0.0
             if self.extreme_axis is not None:
                 ex, ey, ez = self.extreme_axis
@@ -931,7 +911,7 @@ class Anchor:
 
         best_e = min(edges, key=edge_score)
         self.last_resolved_entity = best_e
-        self.last_resolved_point_3d = _entity_center_3d(best_e)
+        self.last_resolved_point_3d = entity_center_3d(best_e)
         return best_e
 
     def _resolve_vertex(self, shape: Any) -> Any:
@@ -963,7 +943,7 @@ class Anchor:
                 pt = ent.start_point() if self.point_mode == "start" else ent.end_point()
                 res = (float(pt.X), float(pt.Y), float(pt.Z))
             else:
-                res = _entity_center_3d(ent)
+                res = entity_center_3d(ent)
             self.last_resolved_point_3d = res
             return res
 

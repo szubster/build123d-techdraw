@@ -616,9 +616,8 @@ class SectionCuttingLine:
         view_shape = getattr(view, "shape", None)
 
         for idx, pt in enumerate(self.raw_points):
-            if not isinstance(pt, (tuple, list)):
-                pt = ensure_anchor(pt, view_shape) or pt
-                self.raw_points[idx] = pt
+            pt = ensure_anchor(pt, view_shape) or pt
+            self.raw_points[idx] = pt
             resolved_pt = resolve_point_to_sheet(pt, view)
             if isinstance(pt, Anchor) and pt.is_stale:
                 stale_reasons.append(pt.stale_reason or "Stale anchor")

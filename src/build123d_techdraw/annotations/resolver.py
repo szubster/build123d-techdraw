@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import build123d as bd
 
-from build123d_techdraw.annotations.anchors import Anchor
+from build123d_techdraw.annotations.anchors import Anchor, entity_center_3d
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.view import SheetView
@@ -30,6 +30,18 @@ def ensure_anchor(target: Any, shape: Any = None) -> Anchor | None:
     return None
 
 
+def stale_reason_of(*targets: Any) -> str | None:
+    """Return the first ``stale_reason`` among the stale ``Anchor`` targets, if any."""
+    return next(
+        (
+            t.stale_reason
+            for t in targets
+            if isinstance(t, Anchor) and t.is_stale and t.stale_reason
+        ),
+        None,
+    )
+
+
 def resolve_point_3d(
     target: Any, view: SheetView | None = None
 ) -> tuple[float, float, float] | None:
@@ -37,26 +49,8 @@ def resolve_point_3d(
     shape = getattr(view, "shape", None) if view is not None else None
     if isinstance(target, Anchor):
         return target.resolve_point_3d(shape)
-    if isinstance(target, (bd.Vertex, bd.Vector)):
-        return (float(target.X), float(target.Y), float(target.Z))
-    if isinstance(target, bd.Edge):
-        if target.geom_type == bd.GeomType.CIRCLE:
-            c = target.arc_center
-            return (float(c.X), float(c.Y), float(c.Z))
-        bb = target.bounding_box()
-        mid = (bb.min + bb.max) / 2.0
-        return (float(mid.X), float(mid.Y), float(mid.Z))
-    if isinstance(target, bd.Face):
-        if target.geom_type == bd.GeomType.CYLINDER and target.axis_of_rotation:
-            pos = target.axis_of_rotation.position
-            return (float(pos.X), float(pos.Y), float(pos.Z))
-        bb = target.bounding_box()
-        mid = (bb.min + bb.max) / 2.0
-        return (float(mid.X), float(mid.Y), float(mid.Z))
-    if isinstance(target, (bd.Solid, bd.Compound)):
-        bb = target.bounding_box()
-        mid = (bb.min + bb.max) / 2.0
-        return (float(mid.X), float(mid.Y), float(mid.Z))
+    if isinstance(target, (bd.Vertex, bd.Vector, bd.Edge, bd.Face, bd.Solid, bd.Compound)):
+        return entity_center_3d(target)
     if isinstance(target, (tuple, list)) and len(target) == 3:
         return (float(target[0]), float(target[1]), float(target[2]))
     return None
@@ -168,20 +162,15 @@ def resolve_angle_to_sheet(
 ) -> tuple[tuple[float, float], float, float, float]:
     """Resolve two edges, faces, anchors, or points to (apex_2d, start_angle_deg, end_angle_deg, angle_deg)."""
     shape = getattr(view, "shape", None)
-    eff1 = (
-        target1.resolve_entity(shape, prefer_kind="edge")
-        if isinstance(target1, Anchor)
-        else target1
-    )
-    eff2 = (
-        target2.resolve_entity(shape, prefer_kind="edge")
-        if isinstance(target2, Anchor)
-        else target2
-    )
-    if eff1 is None:
-        eff1 = target1
-    if eff2 is None:
-        eff2 = target2
+
+    def as_edge(t: Any) -> Any:
+        if isinstance(t, Anchor):
+            ent = t.resolve_entity(shape, prefer_kind="edge")
+            return t if ent is None else ent
+        return t
+
+    eff1 = as_edge(target1)
+    eff2 = as_edge(target2)
 
     if isinstance(eff1, bd.Edge) and isinstance(eff2, bd.Edge):
         s0_1, s1_1, _ = resolve_edge_to_sheet(eff1, view)

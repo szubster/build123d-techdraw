@@ -18,7 +18,7 @@ from build123d_techdraw import (
 )
 
 
-def _make_offset_block() -> bd.Solid:
+def _make_offset_block() -> bd.Part:
     """Block (80 x 50 x 20) with a center bore at (0, 0) and an offset hole at (20, 15)."""
     with bd.BuildPart() as bp:
         bd.Box(80.0, 50.0, 20.0)
@@ -26,16 +26,18 @@ def _make_offset_block() -> bd.Solid:
             bd.Hole(radius=6.0)
         with bd.Locations((20.0, 15.0, 0.0)):
             bd.Hole(radius=4.0)
+    assert bp.part is not None
     return bp.part
 
 
-def _make_bolt_flange() -> bd.Solid:
+def _make_bolt_flange() -> bd.Part:
     """Circular flange (R=35, H=12) with center bore (R=8) and 3 bolt holes at 0, 120, 240 deg."""
     with bd.BuildPart() as bp:
         bd.Cylinder(radius=35.0, height=12.0)
         bd.Hole(radius=8.0)
         with bd.PolarLocations(radius=24.0, count=3, start_angle=180.0):
             bd.Hole(radius=3.5)
+    assert bp.part is not None
     return bp.part
 
 
@@ -178,3 +180,32 @@ def test_aligned_section_view_unfolds_bolt_pattern(tmp_path: Path) -> None:
         center=(150.0, 150.0),
     )
     assert len(alg_sheet.views) == 1
+
+
+def test_offset_and_aligned_sections_draw_background_edges() -> None:
+    """Regression: background (unsectioned) edges behind the cut must be projected.
+
+    ``Shape.intersect`` returns a ``ShapeList``; it used to be passed straight to
+    ``Drawing``/``rotate`` inside ``contextlib.suppress``, silently dropping the background.
+    """
+    sheets: dict[bool, str] = {}
+    for show_background in (True, False):
+        sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+        sheet += OffsetSectionView(
+            _make_offset_block(),
+            base_plane=bd.Plane.XZ,
+            points=[(-40.0, 0.0), (0.0, 0.0), (0.0, 15.0), (40.0, 15.0)],
+            center=(150.0, 150.0),
+            show_background=show_background,
+        )
+        sheet += AlignedSectionView(
+            _make_bolt_flange(),
+            base_plane=bd.Plane.XZ,
+            points=[(-35.0, 0.0), (0.0, 0.0), (17.5, -30.31)],
+            center=(300.0, 150.0),
+            show_background=show_background,
+        )
+        sheets[show_background] = sheet.to_svg()
+
+    assert sheets[True].count("visible_bg") == 2
+    assert "visible_bg" not in sheets[False]
