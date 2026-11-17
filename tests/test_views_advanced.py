@@ -125,6 +125,6 @@ def test_builder_detail_and_auxiliary_views() -> None:
         ):
             pass
 
-    svg = dwg.sheet.to_svg()
+    svg = dwg.to_svg()
     assert "DETAIL B" in svg
     assert "VIEW C" in svg

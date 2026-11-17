@@ -30,6 +30,7 @@ from build123d_techdraw import (
     SectionCuttingLine,
     SemanticFingerprint,
     SheetSize,
+    SheetView,
     SurfaceFinishSymbol,
     TopView,
     ViewType,
@@ -255,7 +256,7 @@ def test_stale_anchor_fallback_and_linter_warning() -> None:
     assert hole_anchor.is_stale
     assert dia.anchor_stale
     assert hc.anchor_stale
-    assert dia.center == prev_center  # Preserved last known coordinates
+    assert dia.center == pytest.approx(prev_center)  # Last known model point, re-projected
 
     issues = run_sheet_lint(sheet)
     stale_issues = [i for i in issues if i.code == "STALE_ANCHOR"]
@@ -332,7 +333,9 @@ def test_stale_edge_anchor_keeps_previous_text_after_update_shape() -> None:
     assert circle_edge.is_stale
     assert dim.anchor_stale
     assert dim.text == prev_text
-    assert (dim.start, dim.end) == (prev_start, prev_end)
+    # Last-known geometry is re-projected through the (unmoved) view.
+    assert dim.start == pytest.approx(prev_start, abs=1e-3)
+    assert dim.end == pytest.approx(prev_end, abs=1e-3)
     assert (top.center_x, top.center_y) not in (dim.start, dim.end)
     assert any(i.code == "STALE_ANCHOR" for i in run_sheet_lint(sheet))
 
@@ -348,3 +351,168 @@ def test_stale_diameter_anchor_keeps_previous_text() -> None:
 
     assert dia.anchor_stale
     assert dia.text == "⌀16"
+
+
+def _hole_anchor_on_stale_view() -> tuple[Anchor, DrawingSheet, SheetView]:
+    """Return a hole anchor plus a sheet/view whose shape no longer has that hole."""
+    part_with_hole = _make_bracket(length=100.0, hole_radius=8.0, hole_x=25.0)
+    hole_face = [
+        f
+        for f in part_with_hole.faces()
+        if f.geom_type == bd.GeomType.CYLINDER and abs(f.bounding_box().center().X - 25.0) < 1.0
+    ][0]
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    top = sheet.add_view(part_with_hole, ViewType.TOP, center=(180.0, 140.0), scale=1.0)
+    return Anchor.of(hole_face), sheet, top
+
+
+def test_stale_leader_note_follows_view_locate() -> None:
+    hole_anchor, sheet, top = _hole_anchor_on_stale_view()
+    note = LeaderNote(anchor=hole_anchor, text="SEE NOTE 1", view=top)
+    sheet.update_shape(bd.Part() + bd.Box(100.0, 60.0, 20.0))
+    assert note.anchor_stale
+
+    tx, ty = note.target
+    top.locate((top.center_x + 40.0, top.center_y - 15.0))
+    assert note.anchor_stale
+    assert note.target == pytest.approx((tx + 40.0, ty - 15.0))
+
+
+def test_stale_diameter_follows_view_scale_to() -> None:
+    hole_anchor, sheet, top = _hole_anchor_on_stale_view()
+    dia = DiameterDimension(hole_anchor, view=top)
+    sheet.update_shape(bd.Part() + bd.Box(100.0, 60.0, 20.0))
+    assert dia.anchor_stale
+    assert dia.diameter == pytest.approx(16.0)
+
+    cx, cy = dia.center
+    top.scale_to(0.5)
+    assert dia.anchor_stale
+    assert dia.diameter == pytest.approx(8.0)
+    assert dia.text == "⌀16"
+    # Hole sits 25 mm right of the view centre in model space -> 12.5 mm on paper at 1:2
+    assert dia.center[0] - top.center_x == pytest.approx((cx - top.center_x) / 2.0)
+    assert dia.center[1] == pytest.approx(cy)
+
+
+def _ordinate_values(group: OrdinateDimensionGroup) -> list[float]:
+    vals = []
+    for o in group.ordinates:
+        assert o.view is not None
+        vals.append(abs(o.point[0] - o.datum_coord) / o.view.scale)
+    return vals
+
+
+@pytest.mark.parametrize("use_datum_anchor", [True, False])
+def test_ordinate_group_values_survive_locate_and_scale_to(use_datum_anchor: bool) -> None:
+    part = _make_bracket(length=100.0, width=60.0, thickness=20.0, hole_radius=6.0, hole_x=20.0)
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    front = sheet.add_view(part, ViewType.FRONT, center=(160.0, 140.0), scale=1.0)
+    grp = OrdinateDimensionGroup(
+        datum_target=Anchor.min("X") if use_datum_anchor else None,
+        direction="horizontal",
+        view=front,
+    )
+    grp.add_ordinate(Anchor.hole(radius=6.0))
+    grp.add_ordinate(Anchor.max("X"))
+
+    before = _ordinate_values(grp)
+    assert before == pytest.approx([0.0, 70.0, 100.0], abs=0.01)
+    svg_before = grp.to_svg()
+
+    front.locate((210.0, 120.0))
+    assert _ordinate_values(grp) == pytest.approx(before, abs=0.01)
+    assert grp.ordinates[0].point[0] == pytest.approx(front.min_x, abs=0.01)
+    for txt in ("70", "100"):
+        assert f">{txt}<" in grp.to_svg()
+    assert grp.to_svg() != svg_before  # geometry moved with the view
+
+    front.scale_to(0.5)
+    assert _ordinate_values(grp) == pytest.approx(before, abs=0.01)
+    assert grp.ordinates[0].point[0] == pytest.approx(front.min_x, abs=0.01)
+
+
+def _make_plate_with_bore(small_hole_diameter: float | None = 5.0) -> bd.Part:
+    """120x80x10 plate with a central ⌀50 bore and an optional small hole at (40, 25)."""
+    with bd.BuildPart() as bp:
+        bd.Box(120.0, 80.0, 10.0)
+        bd.Cylinder(radius=25.0, height=14.0, mode=bd.Mode.SUBTRACT)
+        if small_hole_diameter is not None:
+            with bd.Locations((40.0, 25.0, 0.0)):
+                bd.Cylinder(radius=small_hole_diameter / 2.0, height=14.0, mode=bd.Mode.SUBTRACT)
+    assert bp.part is not None
+    return bp.part
+
+
+def test_hole_anchor_goes_stale_when_small_hole_removed_despite_large_bore() -> None:
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    top = sheet.add_view(_make_plate_with_bore(5.0), ViewType.TOP, center=(180.0, 140.0))
+    anchor = Anchor.hole(diameter=5)
+    hc = HoleCallout(anchor=anchor, view=top)
+
+    assert not anchor.is_stale
+    assert "⌀5" in hc.lines[0]
+    assert not any(i.code == "STALE_ANCHOR" for i in run_sheet_lint(sheet))
+
+    sheet.update_shape(_make_plate_with_bore(None))
+
+    assert anchor.is_stale
+    assert hc.anchor_stale
+    assert "⌀50" not in hc.lines[0]
+    assert any(i.code == "STALE_ANCHOR" for i in run_sheet_lint(sheet))
+
+
+def test_hole_anchor_rebinds_after_modest_resize() -> None:
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    top = sheet.add_view(_make_plate_with_bore(5.0), ViewType.TOP, center=(180.0, 140.0))
+    anchor = Anchor.hole(diameter=5)
+    hc = HoleCallout(anchor=anchor, view=top)
+
+    sheet.update_shape(_make_plate_with_bore(5.5))
+
+    assert not anchor.is_stale
+    assert not hc.anchor_stale
+    assert anchor.last_resolved_radius == pytest.approx(2.75)
+    assert "⌀5.5" in hc.lines[0]
+
+
+def test_hole_anchor_index_out_of_range_is_stale() -> None:
+    part = _make_plate_with_bore(5.0)
+    assert Anchor.hole(diameter=5, index=0).resolve_entity(part) is not None
+
+    anchor = Anchor.hole(diameter=5, index=1)
+    assert anchor.resolve_entity(part) is None
+    assert anchor.is_stale
+    assert anchor.stale_reason is not None and "index" in anchor.stale_reason
+
+    unfiltered = Anchor.hole(index=5)  # only two internal cylinders exist
+    assert unfiltered.resolve_entity(part) is None
+    assert unfiltered.is_stale
+
+
+def test_fingerprint_anchor_does_not_rebind_to_much_larger_hole() -> None:
+    part_v1 = _make_plate_with_bore(5.0)
+    small = [
+        f
+        for f in part_v1.faces()
+        if f.geom_type == bd.GeomType.CYLINDER and abs((f.radius or 0.0) - 2.5) < 1e-6
+    ]
+    assert len(small) == 1
+    anchor = Anchor.of(small[0], shape=part_v1)
+    assert anchor.resolve_entity(part_v1) is not None and not anchor.is_stale
+
+    # The ⌀5 hole is gone; an unrelated ⌀12 hole sits 15 mm away. Position alone would
+    # make it the best match, but a >2x radius change means it is a different feature.
+    other_hole = bd.Pos(25.0, 25.0, 0.0) * bd.Cylinder(radius=6.0, height=14.0)
+    part_v2 = _make_plate_with_bore(None) - other_hole
+    assert anchor.resolve_entity(part_v2) is None
+    assert anchor.is_stale
+
+    # The bore alone is never a match either.
+    assert anchor.resolve_entity(_make_plate_with_bore(None)) is None
+    assert anchor.is_stale
+
+    # A modest resize of the captured hole still follows it.
+    resized = anchor.resolve_entity(_make_plate_with_bore(6.0))
+    assert resized is not None and not anchor.is_stale
+    assert anchor.last_resolved_radius == pytest.approx(3.0)

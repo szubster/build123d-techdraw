@@ -1,17 +1,22 @@
 """SheetView representations, view projection mathematics, and coordinate transformations."""
 
+from __future__ import annotations
+
 import contextlib
 import math
 import os
 import re
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Self
+from typing import TYPE_CHECKING, Any, Self, TypeAlias
 
 import build123d as bd
+from build123d.exporters import Drawing
+from build123d.topology import Shape
 
+from build123d_techdraw.annotations.base import Annotation
 from build123d_techdraw.annotations.callouts import (
     BOMBalloon,
     ChamferCallout,
@@ -110,7 +115,7 @@ class SheetView:
         view_label: str | None = None,
         view_label_pos: tuple[float, float] | None = None,
         scale_label: str | None = None,
-        sheet: Optional["DrawingSheet"] = None,
+        sheet: DrawingSheet | None = None,
         shape: Any | None = None,
         enforce_iso_scale: bool = True,
         show_hidden: bool = True,
@@ -150,7 +155,7 @@ class SheetView:
         self.view_label_pos = view_label_pos
         self.scale_label = scale_label
         self.bottom_annotation_y: float = self.max_y
-        self.annotations: list[Any] = []
+        self.annotations: list[Annotation] = []
         self._ctx_token: Any = None
         self.hatch: str | None = None
         self.hatch_pitch: float | None = None
@@ -158,6 +163,13 @@ class SheetView:
         self.hatch_id: str | None = None
         self.parent_view: SheetView | None = None
         self.detail_shape: str | None = None
+        # Factory + build parameters used by ``update_shape`` to regenerate this view.
+        # Placement (center, scale, rotation) is taken from the live view at regeneration
+        # time so that ``locate``/``align_to``/``scale_to`` are honoured.
+        self._regen_factory: Callable[..., SheetView] | None = None
+        self._regen_kwargs: dict[str, Any] = {}
+        # Callout SVG a detail view appended to its parent (removed before re-projection).
+        self._parent_callout_svg: str | None = None
 
     def __enter__(self) -> Self:
         self._ctx_token = CURRENT_VIEW.set(self)
@@ -173,21 +185,22 @@ class SheetView:
             CURRENT_VIEW.reset(self._ctx_token)
             self._ctx_token = None
 
-    def __iadd__(self, item: Any) -> Self:
+    def __iadd__(self, item: Annotation | Iterable[Annotation]) -> Self:
         return self.add(item)
 
-    def __add__(self, item: Any) -> Self:
+    def __add__(self, item: Annotation | Iterable[Annotation]) -> Self:
         return self.add(item)
 
-    def add(self, item: Any) -> Self:
+    def add(self, item: Annotation | Iterable[Annotation]) -> Self:
         """Attach an annotation or collection of annotations to this view."""
-        if isinstance(item, (list, tuple, set)):
+        if not isinstance(item, Annotation):
+            if not isinstance(item, Iterable) or isinstance(item, str):
+                raise TypeError(f"Cannot add {type(item).__name__} to a SheetView.")
             for sub_item in item:
                 self.add(sub_item)
             return self
 
-        if hasattr(item, "_attach_to_view"):
-            item._attach_to_view(self)
+        item._attach_to_view(self)
 
         if item not in self.annotations:
             self.annotations.append(item)
@@ -377,7 +390,7 @@ class SheetView:
             return
 
         look_from, look_up = VIEW_VECTORS.get(self.view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
-        dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=False)
+        dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=False)
         edges = dwg.visible_lines.edges()
 
         # Identify holes/countersinks via feature recognizer
@@ -390,7 +403,7 @@ class SheetView:
                 csink_radii.append(round(rh.counterbore_dia / 2.0, 2))
 
         # Combine edges into closed wires
-        wires: list[Any] = []
+        wires: list[bd.Wire] = []
         try:
             wires = bd.Wire.combine(edges)
         except Exception:
@@ -398,7 +411,7 @@ class SheetView:
 
         if wires:
             wires.sort(
-                key=lambda w: bd.Face(w).area if getattr(w, "is_closed", False) else 0.0,
+                key=lambda w: bd.Face(w).area if w.is_closed else 0.0,
                 reverse=True,
             )
             outer_wire = wires[0]
@@ -412,10 +425,7 @@ class SheetView:
             circle_wires: list[tuple[int, tuple[float, float], float]] = []
             for idx, iw in enumerate(inner_wires):
                 cw_edges = iw.edges()
-                if (
-                    len(cw_edges) == 1
-                    and getattr(cw_edges[0], "geom_type", None) == bd.GeomType.CIRCLE
-                ):
+                if len(cw_edges) == 1 and cw_edges[0].geom_type == bd.GeomType.CIRCLE:
                     c = cw_edges[0].arc_center
                     circle_wires.append((idx, (float(c.X), float(c.Y)), float(cw_edges[0].radius)))
 
@@ -436,7 +446,7 @@ class SheetView:
                 is_csink = idx in concentric_csinks
                 if not is_csink:
                     for edge in iw.edges():
-                        if getattr(edge, "geom_type", None) == bd.GeomType.CIRCLE:
+                        if edge.geom_type == bd.GeomType.CIRCLE:
                             r = round(float(edge.radius), 2)
                             if any(abs(r - cr) < 0.5 for cr in csink_radii):
                                 is_csink = True
@@ -450,19 +460,11 @@ class SheetView:
 
         center_layer = layer_map["centerlines"]
         has_ann_centerlines = False
-        for ann in getattr(self, "annotations", []):
-            if hasattr(ann, "line_segments"):
-                has_ann_centerlines = True
-                for p0, p1 in ann.line_segments:
-                    msp.add_line(
-                        (p0[0] * scale, p0[1] * scale),
-                        (p1[0] * scale, p1[1] * scale),
-                        dxfattribs={"layer": center_layer},
-                    )
-            elif hasattr(ann, "center"):
+        for ann in self.annotations:
+            if isinstance(ann, (CenterMark, BoltCircle, DiameterDimension, RadialDimension)):
                 has_ann_centerlines = True
                 cx, cy = ann.center
-                r = getattr(ann, "radius", 5.0)
+                r = ann.radius if isinstance(ann, RadialDimension) else 5.0
                 msp.add_line(
                     ((cx - r - 2.0) * scale, cy * scale),
                     ((cx + r + 2.0) * scale, cy * scale),
@@ -506,14 +508,68 @@ class SheetView:
     def _rebind_annotations(self) -> None:
         """Re-resolve all anchored/topological annotations attached to this view."""
         for ann in list(self.annotations):
-            if hasattr(ann, "_rebind_to_view"):
-                ann._rebind_to_view(self)
+            ann._rebind_to_view(self)
 
-    def update_shape(self, new_shape: Any) -> Self:
-        """Update the view's 3D shape, re-project geometry, and re-bind all anchored annotations."""
-        self.shape = new_shape
-        if self.view_type not in (ViewType.SECTION, ViewType.DETAIL, ViewType.AUXILIARY):
-            reproj = project_shape_to_view(
+    def _copy_projection_from(self, reproj: SheetView) -> None:
+        """Adopt the layout fields of a fresh projection of the same view (``update_shape``)."""
+        self.width = reproj.width
+        self.height = reproj.height
+        self.unbroken_width = reproj.unbroken_width
+        self.unbroken_height = reproj.unbroken_height
+        self.min_x = reproj.min_x
+        self.max_x = reproj.max_x
+        self.min_y = reproj.min_y
+        self.max_y = reproj.max_y
+        self.bottom_annotation_y = reproj.bottom_annotation_y
+        self.model_origin = reproj.model_origin
+        self.origin_x = reproj.origin_x
+        self.origin_y = reproj.origin_y
+        self.projection_origin = reproj.projection_origin
+        self.proj_x = reproj.proj_x
+        self.proj_y = reproj.proj_y
+        self.orig_cx = reproj.orig_cx
+        self.orig_cy = reproj.orig_cy
+        self.svg_content = reproj.svg_content
+        self.inner_svg_content = reproj.inner_svg_content
+        self.view_label_pos = reproj.view_label_pos
+
+    def can_regenerate(self) -> bool:
+        """Return True if ``update_shape`` is able to re-project this view's geometry."""
+        if self.view_type == ViewType.DETAIL:
+            return self._regen_factory is not None and self.parent_view is not None
+        if self.view_type in (ViewType.SECTION, ViewType.AUXILIARY):
+            return self._regen_factory is not None
+        return True
+
+    def _regen_label_y(self) -> float | None:
+        """Explicit label Y to reuse on regeneration (tracks moves), or None for auto."""
+        if self._regen_kwargs.get("view_label_y") is not None and self.view_label_pos is not None:
+            return self.view_label_pos[1]
+        return None
+
+    def _reproject(self, new_shape: Any) -> SheetView:
+        """Re-run the factory this view was built with against ``new_shape``."""
+        kwargs = dict(self._regen_kwargs)
+        kwargs["view_label_y"] = self._regen_label_y()
+
+        if self.view_type == ViewType.DETAIL:
+            parent = self.parent_view
+            assert parent is not None and self._regen_factory is not None
+            if parent.shape is not new_shape:
+                parent.update_shape(new_shape)
+            if self._parent_callout_svg and self._parent_callout_svg in parent.svg_content:
+                parent.svg_content = parent.svg_content.replace(self._parent_callout_svg, "", 1)
+            return self._regen_factory(
+                parent_view=parent,
+                center_x=self.center_x,
+                center_y=self.center_y,
+                scale=self.scale,
+                **kwargs,
+            )
+
+        if self._regen_factory is None:
+            # Standard view built without a recorded spec (e.g. a hand-made SheetView).
+            return project_shape_to_view(
                 new_shape,
                 self.view_type,
                 self.center_x,
@@ -522,29 +578,59 @@ class SheetView:
                 show_hidden=self.show_hidden,
                 view_label=self.view_label,
                 rotation_angle_deg=self.rotation_angle_deg,
+                view_label_y=kwargs["view_label_y"],
             )
-            self.width = reproj.width
-            self.height = reproj.height
-            self.unbroken_width = reproj.unbroken_width
-            self.unbroken_height = reproj.unbroken_height
-            self.min_x = reproj.min_x
-            self.max_x = reproj.max_x
-            self.min_y = reproj.min_y
-            self.max_y = reproj.max_y
-            self.bottom_annotation_y = reproj.bottom_annotation_y
-            self.model_origin = reproj.model_origin
-            self.origin_x = reproj.origin_x
-            self.origin_y = reproj.origin_y
-            self.projection_origin = reproj.projection_origin
-            self.proj_x = reproj.proj_x
-            self.proj_y = reproj.proj_y
-            self.orig_cx = reproj.orig_cx
-            self.orig_cy = reproj.orig_cy
-            self.svg_content = reproj.svg_content
-            self.inner_svg_content = reproj.inner_svg_content
-            self.view_label_pos = reproj.view_label_pos
-            if self.breaks:
-                self._apply_breaks()
+
+        if self._regen_factory is project_shape_to_view:
+            kwargs["rotation_angle_deg"] = self.rotation_angle_deg
+        return self._regen_factory(
+            new_shape,
+            center_x=self.center_x,
+            center_y=self.center_y,
+            scale=self.scale,
+            **kwargs,
+        )
+
+    def update_shape(self, new_shape: Any) -> Self:
+        """Update the view's 3D shape, re-project geometry, and re-bind all anchored annotations.
+
+        Every view type is regenerated from the parameters it was built with (cut plane,
+        section path, detail region, auxiliary direction, explicit ``model_origin``,
+        label placement). Detail views follow their parent view: the parent is updated to
+        ``new_shape`` first if needed, then the detail is re-cut from it. Space reserved
+        below the view by dimensions (``bottom_annotation_y``) is kept, shifted with the
+        view's new bottom edge.
+
+        Raises:
+            ValueError: if this view has no recorded build parameters and cannot be
+                regenerated (section/detail/auxiliary views constructed by hand).
+        """
+        if not self.can_regenerate():
+            raise ValueError(
+                f"Cannot update shape of {self.view_type.value} view "
+                f"{self.view_label or ''!r}: it was not created by a projection factory, "
+                "so its build parameters are unknown. Recreate the view instead."
+            )
+
+        old_max_y = self.max_y
+        old_bottom = self.bottom_annotation_y
+        reproj = self._reproject(new_shape)
+
+        self.shape = reproj.shape if self.view_type == ViewType.DETAIL else new_shape
+        self._copy_projection_from(reproj)
+        if reproj.hatch_id is not None:
+            self.hatch = reproj.hatch
+            self.hatch_pitch = reproj.hatch_pitch
+            self.hatch_angle = reproj.hatch_angle
+            self.hatch_id = reproj.hatch_id
+        if reproj.parent_view is not None:
+            self.parent_view = reproj.parent_view
+        self._parent_callout_svg = reproj._parent_callout_svg
+        if self.breaks:
+            self._apply_breaks()
+
+        # Keep annotation space reserved below the view, moved with the view's bottom edge.
+        self.bottom_annotation_y = max(self.max_y, old_bottom + (self.max_y - old_max_y))
 
         self._rebind_annotations()
         return self
@@ -594,11 +680,9 @@ class SheetView:
         max_x = self.max_x
         max_y = self.max_y
 
-        if include_annotations and hasattr(self, "annotations"):
-            from build123d_techdraw.layout.linter import get_annotation_bbox_2d
-
+        if include_annotations:
             for ann in self.annotations:
-                bbox = get_annotation_bbox_2d(ann)
+                bbox = ann.bounding_box_2d()
                 if bbox is not None:
                     min_x = min(min_x, bbox[0])
                     min_y = min(min_y, bbox[1])
@@ -606,14 +690,14 @@ class SheetView:
                     max_y = max(max_y, bbox[3])
 
         if include_label and (self.view_label or self.scale_label):
-            label_y = getattr(self, "bottom_annotation_y", self.max_y) + 8.0
+            label_y = self.bottom_annotation_y + 8.0
             max_y = max(max_y, label_y + 4.0)
 
         return (min_x, min_y, max_x, max_y)
 
     def align_to(
         self,
-        other: "SheetView | tuple[Any, ...]",
+        other: AlignSpec,
         direction: str = "right",
         spacing: float = 25.0,
         include_annotations: bool = False,
@@ -1458,7 +1542,12 @@ class SheetView:
         return tc
 
 
-def _apply_align_to(view: Any, align_spec: Any) -> Any:
+AlignSpec: TypeAlias = SheetView | tuple[Any, ...] | list[Any] | dict[str, Any]
+"""``align_to`` argument: another view, ``(view, direction[, spacing])``, or a mapping with
+``other`` / ``direction`` / ``spacing`` keys."""
+
+
+def _apply_align_to(view: SheetView, align_spec: AlignSpec | None) -> SheetView:
     """Apply an align_to specification (tuple, dict, or SheetView) to a view."""
     if align_spec is None:
         return view
@@ -1501,7 +1590,7 @@ def project_shape_to_view(
     look_from, look_up = VIEW_VECTORS.get(view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
 
     # Use build123d.Drawing to project B-Rep edges
-    dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
+    dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
 
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
 
@@ -1678,6 +1767,15 @@ def project_shape_to_view(
     )
     view_res.inner_svg_content = inner_content
     view_res.rotation_angle_deg = rotation_angle_deg
+    view_res._regen_factory = project_shape_to_view
+    view_res._regen_kwargs = {
+        "view_type": view_type,
+        "show_hidden": show_hidden,
+        "view_label": view_label,
+        "view_label_y": view_label_y,
+        "view_label_offset_y": view_label_offset_y,
+        "model_origin": model_origin,
+    }
     return view_res
 
 
@@ -1862,7 +1960,7 @@ def _clip_2d_faces_x(
         try:
             inter = face.intersect(clip_rect)
             if inter is not None:
-                for sub in inter.faces() if hasattr(inter, "faces") else [inter]:
+                for sub in inter.faces():
                     if isinstance(sub, bd.Face) and sub.area > 1e-6:
                         clipped.append(sub)
         except Exception:
@@ -1882,6 +1980,35 @@ def _unify_2d_faces(faces: list[bd.Face]) -> list[bd.Face]:
         return faces
 
 
+def _section_local(shape: Shape[Any], plane: bd.Plane) -> Shape[Any]:
+    """Slice ``shape`` with ``plane`` and return the cut in the plane's local 2D frame."""
+    # build123d annotates ``section(obj: Part)``, but it slices any Solid / Compound.
+    sec = bd.section(shape, section_by=plane)  # pyright: ignore[reportArgumentType]
+    sec_local = plane.to_local_coords(sec)
+    if not isinstance(sec_local, Shape):
+        raise TypeError(f"Unexpected section result {type(sec_local).__name__}")
+    return sec_local
+
+
+def _split_keep_bottom(shape: Shape[Any], plane: bd.Plane) -> Shape[Any]:
+    """Return the half of ``shape`` behind ``plane`` (the material seen in a section view)."""
+    # build123d's ``SplitType`` omits Compound, but ``split`` handles compounds (multi-solid parts).
+    half = bd.split(shape, bisect_by=plane, keep=bd.Keep.BOTTOM)  # pyright: ignore[reportArgumentType]
+    if not isinstance(half, Shape):
+        raise TypeError(f"Unexpected split result {type(half).__name__}")
+    return half
+
+
+def _intersect_to_compound(shape: Shape[Any], tool: Shape[Any]) -> bd.Compound | None:
+    """Intersect two shapes and wrap the result in a single Compound.
+
+    ``Shape.intersect`` returns a ``ShapeList`` (or None), which cannot be rotated or
+    projected with ``Drawing`` directly.
+    """
+    result = shape.intersect(tool)
+    return bd.Compound(list(result)) if result else None
+
+
 def _make_plane_slab_box(
     base_plane: bd.Plane, u_min: float, u_max: float, extent: float
 ) -> bd.Solid:
@@ -1890,6 +2017,13 @@ def _make_plane_slab_box(
     uc = (u_min + u_max) / 2.0
     box_local = bd.Pos(uc, 0.0, 0.0) * bd.Box(w, extent * 2.0, extent * 2.0)
     return base_plane.from_local_coords(box_local)  # type: ignore[no-any-return]
+
+
+def _record_regen(view: SheetView, factory: Callable[..., SheetView], **kwargs: Any) -> SheetView:
+    """Remember how ``view`` was built so ``SheetView.update_shape`` can regenerate it."""
+    view._regen_factory = factory
+    view._regen_kwargs = kwargs
+    return view
 
 
 def project_section_to_view(
@@ -1908,20 +2042,19 @@ def project_section_to_view(
     hatch_angle: float = 45.0,
 ) -> SheetView:
     """Project a 2D section slice through 3D shape with ISO/ANSI material hatching and background visible lines."""
-    sec = bd.section(shape, section_by=cutting_plane)
-    sec_2d = cutting_plane.to_local_coords(sec)
+    sec_2d = _section_local(shape, cutting_plane)
 
     bg_shapes: list[Any] = []
     if show_background:
         with contextlib.suppress(Exception):
             look_from = cutting_plane.z_dir
             look_up = cutting_plane.y_dir
-            split_half = bd.split(shape, bisect_by=cutting_plane, keep=bd.Keep.BOTTOM)
-            dwg_bg = bd.Drawing(split_half, look_from=look_from, look_up=look_up, with_hidden=False)
+            split_half = _split_keep_bottom(shape, cutting_plane)
+            dwg_bg = Drawing(split_half, look_from=look_from, look_up=look_up, with_hidden=False)
             if len(dwg_bg.visible_lines.edges()) > 0:
                 bg_shapes.append(dwg_bg.visible_lines)
 
-    return _assemble_section_view(
+    view = _assemble_section_view(
         shape=shape,
         sec_faces=list(sec_2d.faces()),
         bg_edge_shapes=bg_shapes,
@@ -1936,6 +2069,19 @@ def project_section_to_view(
         hatch_pitch=hatch_pitch,
         hatch_angle=hatch_angle,
         fallback_shape=sec_2d,
+    )
+    return _record_regen(
+        view,
+        project_section_to_view,
+        cutting_plane=cutting_plane,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        model_origin=model_origin,
+        show_background=show_background,
+        hatch=hatch,
+        hatch_pitch=hatch_pitch,
+        hatch_angle=hatch_angle,
     )
 
 
@@ -1981,18 +2127,18 @@ def project_offset_section_to_view(
             x_dir=base_plane.x_dir,
             z_dir=base_plane.z_dir,
         )
-        sec_k = bd.section(shape, section_by=plane_k)
-        sec_2d_k = plane_k.to_local_coords(sec_k)
-        clipped_k = _clip_2d_faces_x(list(sec_2d_k.faces()), u_min, u_max, extent)
+        clipped_k = _clip_2d_faces_x(
+            list(_section_local(shape, plane_k).faces()), u_min, u_max, extent
+        )
         all_faces.extend(clipped_k)
 
         if show_background:
             with contextlib.suppress(Exception):
-                split_half = bd.split(shape, bisect_by=plane_k, keep=bd.Keep.BOTTOM)
+                split_half = _split_keep_bottom(shape, plane_k)
                 slab_box = _make_plane_slab_box(base_plane, u_min, u_max, extent)
-                slab_bg = split_half.intersect(slab_box)
+                slab_bg = _intersect_to_compound(split_half, slab_box)
                 if slab_bg is not None:
-                    dwg_bg = bd.Drawing(
+                    dwg_bg = Drawing(
                         slab_bg,
                         look_from=base_plane.z_dir,
                         look_up=base_plane.y_dir,
@@ -2004,7 +2150,7 @@ def project_offset_section_to_view(
     if not show_jog_lines:
         all_faces = _unify_2d_faces(all_faces)
 
-    return _assemble_section_view(
+    view = _assemble_section_view(
         shape=shape,
         sec_faces=all_faces,
         bg_edge_shapes=bg_shapes,
@@ -2015,6 +2161,21 @@ def project_offset_section_to_view(
         view_label_y=view_label_y,
         view_label_offset_y=view_label_offset_y,
         model_origin=model_origin,
+        hatch=hatch,
+        hatch_pitch=hatch_pitch,
+        hatch_angle=hatch_angle,
+    )
+    return _record_regen(
+        view,
+        project_offset_section_to_view,
+        base_plane=base_plane,
+        points=list(points),
+        show_jog_lines=show_jog_lines,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        model_origin=model_origin,
+        show_background=show_background,
         hatch=hatch,
         hatch_pitch=hatch_pitch,
         hatch_angle=hatch_angle,
@@ -2068,24 +2229,24 @@ def project_aligned_section_to_view(
         leg_z = r_dir.cross(base_plane.y_dir)
         leg_plane = bd.Plane(origin=pivot_3d, x_dir=r_dir, z_dir=leg_z)
 
-        sec_leg = bd.section(shape, section_by=leg_plane)
-        sec_2d_leg = leg_plane.to_local_coords(sec_leg)
-        clipped_leg = _clip_2d_faces_x(list(sec_2d_leg.faces()), 0.0, extent, extent)
+        clipped_leg = _clip_2d_faces_x(
+            list(_section_local(shape, leg_plane).faces()), 0.0, extent, extent
+        )
 
         place_negative = (leg_idx == 0 and du <= 0.0) or (
             leg_idx == 1 and du < 0.0 and leg_targets[0][0] >= u_piv
         )
         for face in clipped_leg:
-            oriented = bd.mirror(face, about=bd.Plane.YZ) if place_negative else face
+            oriented = face.mirror(bd.Plane.YZ) if place_negative else face
             if abs(u_piv) > 1e-6:
                 oriented = bd.Pos(u_piv, 0.0, 0.0) * oriented
             all_faces.append(oriented)
 
         if show_background:
             with contextlib.suppress(Exception):
-                split_half = bd.split(shape, bisect_by=leg_plane, keep=bd.Keep.BOTTOM)
+                split_half = _split_keep_bottom(shape, leg_plane)
                 half_box = _make_plane_slab_box(leg_plane, 0.0, extent, extent)
-                leg_bg = split_half.intersect(half_box)
+                leg_bg = _intersect_to_compound(split_half, half_box)
                 if leg_bg is not None:
                     target_dir = -base_plane.x_dir if place_negative else base_plane.x_dir
                     angle_rad = math.atan2(
@@ -2094,7 +2255,7 @@ def project_aligned_section_to_view(
                     )
                     axis = bd.Axis(pivot_3d, base_plane.y_dir)
                     rotated_bg = leg_bg.rotate(axis, math.degrees(angle_rad))
-                    dwg_bg = bd.Drawing(
+                    dwg_bg = Drawing(
                         rotated_bg,
                         look_from=base_plane.z_dir,
                         look_up=base_plane.y_dir,
@@ -2106,7 +2267,7 @@ def project_aligned_section_to_view(
     if not show_jog_lines:
         all_faces = _unify_2d_faces(all_faces)
 
-    return _assemble_section_view(
+    view = _assemble_section_view(
         shape=shape,
         sec_faces=all_faces,
         bg_edge_shapes=bg_shapes,
@@ -2117,6 +2278,21 @@ def project_aligned_section_to_view(
         view_label_y=view_label_y,
         view_label_offset_y=view_label_offset_y,
         model_origin=model_origin,
+        hatch=hatch,
+        hatch_pitch=hatch_pitch,
+        hatch_angle=hatch_angle,
+    )
+    return _record_regen(
+        view,
+        project_aligned_section_to_view,
+        base_plane=base_plane,
+        points=list(points),
+        show_jog_lines=show_jog_lines,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        model_origin=model_origin,
+        show_background=show_background,
         hatch=hatch,
         hatch_pitch=hatch_pitch,
         hatch_angle=hatch_angle,
@@ -2174,7 +2350,8 @@ def project_detail_to_view(
         <circle cx="{callout_tag_x + 8.0:.2f}" cy="{callout_tag_y - 8.0:.2f}" r="3.0" class="border-sub" fill="none"/>
         <text x="{callout_tag_x + 8.0:.2f}" y="{callout_tag_y - 6.8:.2f}" class="tb-title" text-anchor="middle" font-size="3.2">{html.escape(effective_letter)}</text>
     </g>"""
-    parent_view.svg_content += f"\n    {callout_svg}"
+    parent_callout_svg = f"\n    {callout_svg}"
+    parent_view.svg_content += parent_callout_svg
 
     paper_r = radius * scale
     view_id = f"detail_{effective_letter}_{int(center_x)}_{int(center_y)}"
@@ -2238,7 +2415,20 @@ def project_detail_to_view(
     view_res.inner_svg_content = inner_content
     view_res.parent_view = parent_view
     view_res.detail_shape = shape_type
-    return view_res
+    view_res._parent_callout_svg = parent_callout_svg
+    return _record_regen(
+        view_res,
+        project_detail_to_view,
+        focus_target=focus_target,
+        radius=radius,
+        view_label=view_label,
+        label_letter=label_letter,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        shape=shape,
+        region_center=region_center,
+        label=label,
+    )
 
 
 def project_auxiliary_view(
@@ -2262,6 +2452,8 @@ def project_auxiliary_view(
         look_from = (-float(face[0]), -float(face[1]), -float(face[2]))
     else:
         look_from = (0.0, -1.0, 0.0)
+    # Direction as a plain vector, so regeneration does not depend on the old Face.
+    face_normal = (-look_from[0], -look_from[1], -look_from[2])
 
     lf_vec = bd.Vector(look_from).normalized()
     ref_up = bd.Vector(0, 0, 1) if abs(lf_vec.Z) < 0.9 else bd.Vector(0, 1, 0)
@@ -2269,7 +2461,7 @@ def project_auxiliary_view(
     look_up_vec = bd.Vector(0, 1, 0) if look_up_vec.length < 1e-4 else look_up_vec.normalized()
     look_up = (float(look_up_vec.X), float(look_up_vec.Y), float(look_up_vec.Z))
 
-    dwg = bd.Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
+    dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
     if show_hidden and len(dwg.hidden_lines.edges()) > 0:
         exporter.add_layer(
@@ -2342,4 +2534,12 @@ def project_auxiliary_view(
         shape=shape,
     )
     view_res.inner_svg_content = inner_content
-    return view_res
+    return _record_regen(
+        view_res,
+        project_auxiliary_view,
+        face=face_normal,
+        show_hidden=show_hidden,
+        view_label=view_label,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+    )

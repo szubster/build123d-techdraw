@@ -5,16 +5,21 @@ from __future__ import annotations
 import html
 import math
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from build123d_techdraw.annotations.anchors import Anchor
+from build123d_techdraw.annotations.base import Annotation, BBox2D
 from build123d_techdraw.annotations.dimensions import render_arrowhead
 from build123d_techdraw.annotations.resolver import (
     ensure_anchor,
     is_topological_entity,
     resolve_point_to_sheet,
+    stale_point_to_sheet,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
+
+if TYPE_CHECKING:
+    from build123d_techdraw.core.view import SheetView
 
 
 class GDTCharacteristic(Enum):
@@ -36,7 +41,7 @@ class GDTCharacteristic(Enum):
     TOTAL_RUNOUT = "⇗"
 
 
-class FeatureControlFrame:
+class FeatureControlFrame(Annotation):
     """ISO 1101 Feature Control Frame ([ Symbol | Tolerance | Datum A | Datum B | Datum C ])."""
 
     def __init__(
@@ -54,7 +59,7 @@ class FeatureControlFrame:
         text_font_size: float = 3.0,
         leader_target: tuple[float, float] | None = None,
         datum_refs: list[str] | None = None,
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
     ):
@@ -106,27 +111,21 @@ class FeatureControlFrame:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         if not self._explicit_coords:
             self.resolved = False
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if not self.resolved and self.target is not None:
             if not isinstance(self.target, (tuple, list)):
-                self.target = (
-                    ensure_anchor(self.target, getattr(view, "shape", None)) or self.target
-                )
-            prev_lt = self.leader_target
-            prev_pos = self.position
-
+                self.target = ensure_anchor(self.target, view.shape) or self.target
             target_pt = resolve_point_to_sheet(self.target, view)
             if isinstance(self.target, Anchor) and self.target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.target.stale_reason
-                if prev_lt is not None:
-                    target_pt = prev_lt
+                target_pt = stale_point_to_sheet(self.target, view) or target_pt
             else:
                 self.anchor_stale = False
                 self.stale_reason = None
@@ -137,18 +136,17 @@ class FeatureControlFrame:
                     target_pt[0] + self.leader_offset[0],
                     target_pt[1] + self.leader_offset[1],
                 )
-            elif self.anchor_stale and prev_pos != (100.0, 100.0):
-                self.position = prev_pos
             self.resolved = True
         elif not self.resolved and self.target is None and not self.position_explicit:
             self.position = (view.center_x, view.center_y)
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
+
+    def bounding_box_2d(self) -> BBox2D:
+        x, y = self.position
+        w = 35.0  # approximate frame width
+        return (x, y, x + w, y + self.frame_height)
 
     def to_svg(self) -> str:
         x, y = self.position
@@ -205,7 +203,7 @@ class FeatureControlFrame:
         return f'<g class="gdt-fcf">{"".join(elements)}</g>'
 
 
-class DatumFeatureSymbol:
+class DatumFeatureSymbol(Annotation):
     """ISO 1101 Datum Feature Identifier tag (e.g. —▲— [A])."""
 
     def __init__(
@@ -215,7 +213,7 @@ class DatumFeatureSymbol:
         stem_length: float = 7.0,
         box_size: float = 5.5,
         direction: str = "up",
-        view: Any | None = None,
+        view: SheetView | None = None,
         *,
         anchor: Any = None,
     ):
@@ -251,25 +249,21 @@ class DatumFeatureSymbol:
             if target_sheet is not None and self not in target_sheet.annotations:
                 target_sheet.annotations.append(self)
 
-    def _rebind_to_view(self, view: Any) -> None:
+    def _rebind_to_view(self, view: SheetView) -> None:
         if not self._explicit_coords:
             self.resolved = False
             self._attach_to_view(view)
 
-    def _attach_to_view(self, view: Any) -> None:
+    def _attach_to_view(self, view: SheetView) -> None:
         self.view = view
         if not self.resolved and self.raw_target is not None:
             if not isinstance(self.raw_target, (tuple, list)):
-                self.raw_target = (
-                    ensure_anchor(self.raw_target, getattr(view, "shape", None)) or self.raw_target
-                )
-            prev_target = self.target
+                self.raw_target = ensure_anchor(self.raw_target, view.shape) or self.raw_target
             self.target = resolve_point_to_sheet(self.raw_target, view)
             if isinstance(self.raw_target, Anchor) and self.raw_target.is_stale:
                 self.anchor_stale = True
                 self.stale_reason = self.raw_target.stale_reason
-                if prev_target != (0.0, 0.0):
-                    self.target = prev_target
+                self.target = stale_point_to_sheet(self.raw_target, view) or self.target
             else:
                 self.anchor_stale = False
                 self.stale_reason = None
@@ -278,11 +272,7 @@ class DatumFeatureSymbol:
             self.target = (view.center_x, view.min_y)
             self.resolved = True
 
-        if hasattr(view, "annotations") and self not in view.annotations:
-            view.annotations.append(self)
-        t_sheet = getattr(view, "sheet", None) or CURRENT_SHEET.get()
-        if t_sheet is not None and self not in t_sheet.annotations:
-            t_sheet.annotations.append(self)
+        self._register(view)
 
     def to_svg(self) -> str:
         tx, ty = self.target

@@ -1,7 +1,8 @@
 """Multi-page drawing booklets and PDF/SVG package generation."""
 
 import os
-from typing import Any, Self
+from collections.abc import Iterable
+from typing import Self
 
 from build123d_techdraw.core.sheet import DrawingSheet
 from build123d_techdraw.renderers.pdf import PDFRenderer
@@ -14,7 +15,7 @@ class DrawingBooklet:
     def __init__(
         self,
         title: str = "ENGINEERING DRAWING PACKAGE",
-        sheets: list[DrawingSheet] | None = None,
+        sheets: Iterable[DrawingSheet] | None = None,
     ):
         self.title = title
         self.sheets: list[DrawingSheet] = []
@@ -29,21 +30,20 @@ class DrawingBooklet:
             sheet.title_info.sheet_no = f"{idx + 1}"
             sheet.title_info.total_sheets = f"{total}"
 
-    def add_sheet(self, sheet: DrawingSheet | Any) -> Self:
+    def add_sheet(self, sheet: DrawingSheet) -> Self:
         """Add a sheet to the drawing booklet and update pagination."""
-        actual_sheet = getattr(sheet, "sheet", sheet)
-        self.sheets.append(actual_sheet)
+        self.sheets.append(sheet)
         self._paginate()
         return self
 
-    def __iadd__(self, sheet: DrawingSheet | list[DrawingSheet] | Any) -> Self:
-        if isinstance(sheet, (list, tuple)):
-            for s in sheet:
-                self.add_sheet(s)
-            return self
-        return self.add_sheet(sheet)
+    def __iadd__(self, sheet: DrawingSheet | Iterable[DrawingSheet]) -> Self:
+        if isinstance(sheet, DrawingSheet):
+            return self.add_sheet(sheet)
+        for s in sheet:
+            self.add_sheet(s)
+        return self
 
-    def __add__(self, sheet: DrawingSheet | list[DrawingSheet] | Any) -> Self:
+    def __add__(self, sheet: DrawingSheet | Iterable[DrawingSheet]) -> Self:
         return self.__iadd__(sheet)
 
     def export_svgs(self, output_dir: str, theme: Theme | str = Theme.DARK_BLUEPRINT) -> list[str]:
@@ -79,9 +79,8 @@ class DrawingBooklet:
         ]
         sheet_titles = []
         for i, s in enumerate(self.sheets):
-            t_info = getattr(s, "title_info", None)
-            d_title = getattr(t_info, "drawing_title", None) or getattr(t_info, "title", None) or ""
-            d_no = getattr(t_info, "drawing_no", "")
+            d_title = s.title_info.drawing_title
+            d_no = s.title_info.drawing_no
             if d_no and d_title:
                 sheet_titles.append(f"{d_no} - {d_title}")
             elif d_title:
