@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import math
+import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -40,6 +41,33 @@ def format_dimension_value(value: float, precision: int = 2) -> str:
     if "." in formatted:
         formatted = formatted.rstrip("0").rstrip(".")
     return formatted
+
+
+def _view_axis_delta(
+    view: Any,
+    p0: tuple[float, float, float],
+    p1: tuple[float, float, float],
+    horizontal: bool,
+) -> float:
+    """Model-space distance between two 3D points along a view's horizontal or vertical axis.
+
+    Uses the view's own projection axes (``proj_x``/``proj_y``) when available, otherwise the
+    axes derived from ``VIEW_VECTORS`` for its view type. Unlike ``to_sheet_3d`` this ignores
+    break-line shifts, so the value is the true model length.
+    """
+    import build123d as bd
+
+    from build123d_techdraw.core.view import VIEW_VECTORS, ViewType
+
+    axis = getattr(view, "proj_x" if horizontal else "proj_y", None)
+    if not isinstance(axis, bd.Vector):
+        view_type = getattr(view, "view_type", ViewType.FRONT)
+        look_from, look_up = VIEW_VECTORS.get(view_type, VIEW_VECTORS[ViewType.FRONT])
+        p_dir = bd.Vector(look_from).normalized()
+        p_x = bd.Vector(look_up).normalized().cross(p_dir)
+        axis = p_x if horizontal else p_dir.cross(p_x)
+    delta = bd.Vector(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2])
+    return abs(float(delta.dot(axis)))
 
 
 class Tolerance(str):
@@ -179,6 +207,7 @@ class LinearDimension(Annotation):
         )
         self.nominal = nominal
         self._explicit_text = text is not None or nominal is not None
+        self._last_auto_text: str | None = None
         if text is None and nominal is not None:
             self.text: str | None = format_dimension_value(float(nominal))
         else:
@@ -234,6 +263,7 @@ class LinearDimension(Annotation):
         if not self._explicit_coords:
             self.resolved = False
             if not self._explicit_text:
+                self._last_auto_text = self.text
                 self.text = None
             self._attach_to_view(view)
 
@@ -255,28 +285,58 @@ class LinearDimension(Annotation):
             self.target = ensure_anchor(self.target, v_shape) or self.target
             self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
-            prev_text = self.text
+            prev_start = self.start
+            prev_end = self.end
+            prev_text = self._last_auto_text
 
             if self.target2 is None:
+                has_prev = prev_start != (0.0, 0.0) or prev_end != (0.0, 0.0)
+                edge_len: float | None
+                unresolved_reason: str | None = None
                 try:
                     s0, s1, edge_len = resolve_edge_to_sheet(self.target, view)
-                except TypeError:
-                    s0 = resolve_point_to_sheet(self.target, view)
-                    s1 = (view.center_x, view.center_y)
-                    edge_len = math.hypot(s1[0] - s0[0], s1[1] - s0[1]) / (view.scale or 1.0)
+                except TypeError as exc:
+                    # A single target must resolve to an edge. Never invent a second
+                    # point (e.g. the view centre): keep the last good geometry if the
+                    # anchor went stale, otherwise leave the dimension unresolved.
+                    s0, s1, edge_len = prev_start, prev_end, None
+                    unresolved_reason = str(exc)
 
-                if isinstance(self.target, Anchor) and self.target.is_stale:
+                stale_anchor = (
+                    self.target
+                    if isinstance(self.target, Anchor) and self.target.is_stale
+                    else None
+                )
+                stale = stale_anchor is not None
+                if stale_anchor is not None:
                     self.anchor_stale = True
-                    self.stale_reason = self.target.stale_reason
+                    self.stale_reason = stale_anchor.stale_reason
                     if prev_text is not None and not self._explicit_text:
                         self.text = prev_text
                 else:
                     self.anchor_stale = False
                     self.stale_reason = None
 
+                if edge_len is None and not (stale and has_prev):
+                    self.stale_reason = (
+                        self.stale_reason
+                        or "Single-target linear dimension requires an edge; "
+                        f"target did not resolve to one ({unresolved_reason})."
+                    )
+                    if not stale:
+                        warnings.warn(
+                            f"LinearDimension target {type(self.target).__name__} does not "
+                            "resolve to an edge; the dimension is left unresolved. Pass an "
+                            "edge, or two points/vertices to measure between.",
+                            UserWarning,
+                            stacklevel=3,
+                        )
+                    self._register(view)
+                    return
+
                 self.start = s0
                 self.end = s1
-                if self.text is None:
+                if self.text is None and edge_len is not None:
                     self.text = format_dimension_value(edge_len)
                 dx = abs(s1[0] - s0[0])
                 dy = abs(s1[1] - s0[1])
@@ -316,22 +376,15 @@ class LinearDimension(Annotation):
                 self.start = s0
                 self.end = s1
                 if self.text is None:
-                    if self.dim_type == DimensionType.HORIZONTAL:
-                        paper_span = abs(s1[0] - s0[0])
-                        if paper_span > 1e-4:
-                            model_dist = paper_span / view.scale if view.scale else paper_span
-                        elif p0_3d is not None and p1_3d is not None:
-                            model_dist = abs(p1_3d[0] - p0_3d[0])
+                    if self.dim_type in (DimensionType.HORIZONTAL, DimensionType.VERTICAL):
+                        horizontal = self.dim_type == DimensionType.HORIZONTAL
+                        if p0_3d is not None and p1_3d is not None:
+                            # Measure in model space along the view's projection axis so
+                            # breaks (which shorten the paper span) do not leak in.
+                            model_dist = _view_axis_delta(view, p0_3d, p1_3d, horizontal)
                         else:
-                            model_dist = 0.0
-                    elif self.dim_type == DimensionType.VERTICAL:
-                        paper_span = abs(s1[1] - s0[1])
-                        if paper_span > 1e-4:
+                            paper_span = abs(s1[0] - s0[0]) if horizontal else abs(s1[1] - s0[1])
                             model_dist = paper_span / view.scale if view.scale else paper_span
-                        elif p0_3d is not None and p1_3d is not None:
-                            model_dist = abs(p1_3d[2] - p0_3d[2])
-                        else:
-                            model_dist = 0.0
                     elif p0_3d is not None and p1_3d is not None:
                         model_dist = math.dist(p0_3d, p1_3d)
                     else:
@@ -383,6 +436,9 @@ class LinearDimension(Annotation):
         return (min(x1, x2) - 2.0, min(y1, y2) - 2.0, max(x1, x2) + 2.0, max(y1, y2) + 2.0)
 
     def to_svg(self) -> str:
+        if not self.resolved and self.target is not None:
+            # Target could not be resolved to geometry: draw nothing rather than garbage.
+            return ""
         x1, y1 = self.start
         x2, y2 = self.end
         ext_gap = 1.5
@@ -590,6 +646,7 @@ class RadialDimension(Annotation):
         self.suffix = suffix
         self.nominal = nominal
         self._explicit_text = text is not None or nominal is not None
+        self._last_auto_text: str | None = None
         if text is None and nominal is not None:
             self.text: str | None = f"R{format_dimension_value(float(nominal))}"
         else:
@@ -637,6 +694,7 @@ class RadialDimension(Annotation):
         if not self._explicit_coords:
             self.resolved = False
             if not self._explicit_text:
+                self._last_auto_text = self.text
                 self.text = None
             self._attach_to_view(view)
 
@@ -647,7 +705,7 @@ class RadialDimension(Annotation):
 
             if not isinstance(self.target, (tuple, list)):
                 self.target = ensure_anchor(self.target, view.shape) or self.target
-            prev_text = self.text
+            prev_text = self._last_auto_text
 
             try:
                 paper_c, paper_r, model_r = resolve_circle_or_cylinder_to_sheet(self.target, view)
@@ -743,6 +801,7 @@ class DiameterDimension(Annotation):
         self.suffix = suffix
         self.nominal = nominal
         self._explicit_text = text is not None or nominal is not None
+        self._last_auto_text: str | None = None
         if text is None and nominal is not None:
             self.text: str | None = f"⌀{format_dimension_value(float(nominal))}"
         else:
@@ -790,6 +849,7 @@ class DiameterDimension(Annotation):
         if not self._explicit_coords:
             self.resolved = False
             if not self._explicit_text:
+                self._last_auto_text = self.text
                 self.text = None
             self._attach_to_view(view)
 
@@ -800,7 +860,7 @@ class DiameterDimension(Annotation):
 
             if not isinstance(self.target, (tuple, list)):
                 self.target = ensure_anchor(self.target, view.shape) or self.target
-            prev_text = self.text
+            prev_text = self._last_auto_text
 
             try:
                 paper_c, paper_r, model_r = resolve_circle_or_cylinder_to_sheet(self.target, view)
@@ -912,6 +972,7 @@ class AngularDimension(Annotation):
         self.target1 = target1
         self.target2 = target2
         self._explicit_text = text is not None or nominal is not None
+        self._last_auto_text: str | None = None
         self._explicit_coords = False
         self.anchor_stale = False
         self.stale_reason: str | None = None
@@ -947,6 +1008,7 @@ class AngularDimension(Annotation):
         if not self._explicit_coords:
             self.resolved = False
             if not self._explicit_text:
+                self._last_auto_text = self.text
                 self.text = None
             self._attach_to_view(view)
 
@@ -959,7 +1021,7 @@ class AngularDimension(Annotation):
             self.target1 = ensure_anchor(self.target1, v_shape) or self.target1
             self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
-            prev_text = self.text
+            prev_text = self._last_auto_text
 
             ap, a1, a2, angle_val = resolve_angle_to_sheet(self.target1, self.target2, view)
 

@@ -264,6 +264,95 @@ def test_stale_anchor_fallback_and_linter_warning() -> None:
     assert all(i.severity == "WARNING" for i in stale_issues)
 
 
+def test_single_face_anchor_linear_dim_never_measures_to_view_center() -> None:
+    part = _make_bracket(length=100.0, width=60.0, thickness=20.0)
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    front = sheet.add_view(part, ViewType.FRONT, center=(150.0, 140.0), scale=1.0)
+
+    with pytest.warns(UserWarning, match="does not resolve to an edge"):
+        dim = LinearDimension(Anchor.face("+Z"), offset=10.0, view=front)
+
+    assert not dim.resolved
+    assert dim.text is None
+    center = (front.center_x, front.center_y)
+    assert dim.start != center
+    assert dim.end != center
+    assert dim.to_svg() == ""
+    assert dim.stale_reason is not None and "requires an edge" in dim.stale_reason
+
+
+def test_horizontal_dim_in_broken_view_reports_true_model_length() -> None:
+    part = _make_bracket(length=200.0, width=60.0, thickness=20.0, hole_x=0.0)
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    front = sheet.add_view(part, ViewType.FRONT, center=(200.0, 140.0), scale=1.0)
+    front.add_break(interval=(-50.0, 50.0), axis="X", gap=10.0)
+
+    left = bd.Vertex(-100.0, -30.0, 10.0)
+    right = bd.Vertex(100.0, -30.0, 10.0)
+    dim = LinearDimension(left, right, direction="horizontal", offset=15.0, view=front)
+
+    assert dim.resolved
+    # Paper span is shortened by the break; the value must still be the model length.
+    assert dim.end[0] - dim.start[0] < 150.0
+    assert dim.text == "200"
+
+    bottom = bd.Vertex(-100.0, -30.0, -10.0)
+    vdim = LinearDimension(bottom, left, direction="vertical", offset=15.0, view=front)
+    assert vdim.text == "20"
+
+
+def test_vertical_dim_uses_view_projection_axes() -> None:
+    part = _make_bracket(length=100.0, width=60.0, thickness=20.0)
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    top = sheet.add_view(part, ViewType.TOP, center=(150.0, 140.0), scale=1.0)
+    top.add_break(interval=(-20.0, 20.0), axis="Y", gap=10.0)
+
+    # In the top view, "vertical" on paper is model Y (not Z), and the break must not
+    # shorten the reported value.
+    a = bd.Vertex(-50.0, -30.0, 10.0)
+    b = bd.Vertex(-50.0, 30.0, 10.0)
+    vdim = LinearDimension(a, b, direction="vertical", offset=15.0, view=top)
+    assert vdim.text == "60"
+
+
+def test_stale_edge_anchor_keeps_previous_text_after_update_shape() -> None:
+    part_with_hole = _make_bracket(length=100.0, hole_radius=8.0, hole_x=25.0)
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    top = sheet.add_view(part_with_hole, ViewType.TOP, center=(180.0, 140.0), scale=1.0)
+
+    circle_edge = Anchor.edge(geom_type="circle", near=(25.0, 0.0, 10.0))
+    dim = LinearDimension(circle_edge, offset=10.0, view=top)
+    assert dim.resolved
+    assert not dim.anchor_stale
+    prev_text = dim.text
+    prev_start, prev_end = dim.start, dim.end
+    assert prev_text == "50.27"
+
+    sheet.update_shape(bd.Part() + bd.Box(100.0, 60.0, 20.0))
+
+    assert circle_edge.is_stale
+    assert dim.anchor_stale
+    assert dim.text == prev_text
+    # Last-known geometry is re-projected through the (unmoved) view.
+    assert dim.start == pytest.approx(prev_start, abs=1e-3)
+    assert dim.end == pytest.approx(prev_end, abs=1e-3)
+    assert (top.center_x, top.center_y) not in (dim.start, dim.end)
+    assert any(i.code == "STALE_ANCHOR" for i in run_sheet_lint(sheet))
+
+
+def test_stale_diameter_anchor_keeps_previous_text() -> None:
+    part_with_hole = _make_bracket(length=100.0, hole_radius=8.0, hole_x=25.0)
+    sheet = DrawingSheet(SheetSize.A3_LANDSCAPE)
+    top = sheet.add_view(part_with_hole, ViewType.TOP, center=(180.0, 140.0), scale=1.0)
+    dia = DiameterDimension(Anchor.hole(near=(25.0, 0.0, 0.0)), view=top)
+    assert dia.text == "⌀16"
+
+    sheet.update_shape(bd.Part() + bd.Box(100.0, 60.0, 20.0))
+
+    assert dia.anchor_stale
+    assert dia.text == "⌀16"
+
+
 def _hole_anchor_on_stale_view() -> tuple[Anchor, DrawingSheet, SheetView]:
     """Return a hole anchor plus a sheet/view whose shape no longer has that hole."""
     part_with_hole = _make_bracket(length=100.0, hole_radius=8.0, hole_x=25.0)
