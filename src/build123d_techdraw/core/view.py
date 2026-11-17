@@ -44,6 +44,31 @@ if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
 
 
+# Layout fields copied from a fresh projection in ``SheetView.update_shape``.
+_REPROJECTED_ATTRS = (
+    "width",
+    "height",
+    "unbroken_width",
+    "unbroken_height",
+    "min_x",
+    "max_x",
+    "min_y",
+    "max_y",
+    "bottom_annotation_y",
+    "model_origin",
+    "origin_x",
+    "origin_y",
+    "projection_origin",
+    "proj_x",
+    "proj_y",
+    "orig_cx",
+    "orig_cy",
+    "svg_content",
+    "inner_svg_content",
+    "view_label_pos",
+)
+
+
 @dataclass
 class BreakInfo:
     """Represents a broken-out region exclusion along an axis."""
@@ -523,26 +548,8 @@ class SheetView:
                 view_label=self.view_label,
                 rotation_angle_deg=self.rotation_angle_deg,
             )
-            self.width = reproj.width
-            self.height = reproj.height
-            self.unbroken_width = reproj.unbroken_width
-            self.unbroken_height = reproj.unbroken_height
-            self.min_x = reproj.min_x
-            self.max_x = reproj.max_x
-            self.min_y = reproj.min_y
-            self.max_y = reproj.max_y
-            self.bottom_annotation_y = reproj.bottom_annotation_y
-            self.model_origin = reproj.model_origin
-            self.origin_x = reproj.origin_x
-            self.origin_y = reproj.origin_y
-            self.projection_origin = reproj.projection_origin
-            self.proj_x = reproj.proj_x
-            self.proj_y = reproj.proj_y
-            self.orig_cx = reproj.orig_cx
-            self.orig_cy = reproj.orig_cy
-            self.svg_content = reproj.svg_content
-            self.inner_svg_content = reproj.inner_svg_content
-            self.view_label_pos = reproj.view_label_pos
+            for attr in _REPROJECTED_ATTRS:
+                setattr(self, attr, getattr(reproj, attr))
             if self.breaks:
                 self._apply_breaks()
 
