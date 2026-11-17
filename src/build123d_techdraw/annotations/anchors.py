@@ -987,9 +987,16 @@ class Anchor:
         self.last_resolved_point_3d = (float(best_v.X), float(best_v.Y), float(best_v.Z))
         return best_v
 
-    def resolve_point_3d(self, shape: Shape[Any] | None) -> tuple[float, float, float]:
-        """Resolve this anchor against ``shape`` to a 3D model point (X, Y, Z)."""
-        ent = self.resolve_entity(shape)
+    def resolve(
+        self, shape: Shape[Any] | None, *, prefer_kind: str | None = None
+    ) -> tuple[Any, tuple[float, float, float]]:
+        """Resolve once against ``shape``, returning ``(entity, point_3d)``.
+
+        ``entity`` is what :meth:`resolve_entity` returns (``None`` when stale) and
+        ``point_3d`` is what :meth:`resolve_point_3d` returns. Use this when a caller
+        needs both, to avoid re-running the topology search.
+        """
+        ent = self.resolve_entity(shape, prefer_kind=prefer_kind)
         if ent is not None:
             if isinstance(ent, bd.Edge) and self.point_mode in ("start", "end"):
                 pt = ent.start_point() if self.point_mode == "start" else ent.end_point()
@@ -997,11 +1004,15 @@ class Anchor:
             else:
                 res = entity_center_3d(ent)
             self.last_resolved_point_3d = res
-            return res
+            return ent, res
 
         if self.last_resolved_point_3d is not None:
-            return self.last_resolved_point_3d
-        return (0.0, 0.0, 0.0)
+            return None, self.last_resolved_point_3d
+        return None, (0.0, 0.0, 0.0)
+
+    def resolve_point_3d(self, shape: Shape[Any] | None) -> tuple[float, float, float]:
+        """Resolve this anchor against ``shape`` to a 3D model point (X, Y, Z)."""
+        return self.resolve(shape)[1]
 
     def resolve_to_sheet(self, view: SheetView) -> tuple[float, float]:
         """Resolve this anchor to 2D paper sheet coordinates (mm) on ``view``."""
