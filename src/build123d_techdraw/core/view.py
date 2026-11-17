@@ -49,11 +49,6 @@ if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
 
 
-AlignSpec: TypeAlias = "SheetView | tuple[Any, ...] | list[Any] | dict[str, Any]"
-"""``align_to`` argument: another view, ``(view, direction[, spacing])``, or a mapping with
-``other`` / ``direction`` / ``spacing`` keys."""
-
-
 @dataclass
 class BreakInfo:
     """Represents a broken-out region exclusion along an axis."""
@@ -1457,6 +1452,11 @@ class SheetView:
             view=self,
         )
         return tc
+
+
+AlignSpec: TypeAlias = SheetView | tuple[Any, ...] | list[Any] | dict[str, Any]
+"""``align_to`` argument: another view, ``(view, direction[, spacing])``, or a mapping with
+``other`` / ``direction`` / ``spacing`` keys."""
 
 
 def _apply_align_to(view: SheetView, align_spec: AlignSpec | None) -> SheetView:
