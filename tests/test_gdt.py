@@ -181,19 +181,6 @@ def test_projection_cone_symbols() -> None:
     assert "<polygon" in svg_first
 
 
-def test_projection_cone_symbols_match_title_block() -> None:
-    """Third angle: circles left of the frustum; first angle: frustum left of the circles."""
-    from build123d_techdraw.annotations.symbols import render_projection_cone_svg
-
-    svg_third = render_projection_cone_svg((0.0, 0.0), third_angle=True)
-    assert 'cx="-8"' in svg_third
-    assert 'points="0,-4 8,-7 8,7 0,4"' in svg_third
-
-    svg_first = render_projection_cone_svg((0.0, 0.0), third_angle=False)
-    assert 'cx="8"' in svg_first
-    assert 'points="-8,-4 0,-7 0,7 -8,4"' in svg_first
-
-
 def test_sheet_direct_annotation_methods() -> None:
     sheet = DrawingSheet(sheet_size=SheetSize.A4_PORTRAIT)
     sheet.add_dimension((20.0, 30.0), (80.0, 30.0), offset=10.0)

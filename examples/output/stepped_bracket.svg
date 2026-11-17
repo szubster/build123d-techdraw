@@ -186,7 +186,7 @@
         <text x="3" y="35.0" class="tb-field-val-sm" font-size="2.1">ANODIZED CLEAR</text>
 
         <text x="41" y="25.2" class="tb-field-label">SCALE</text>
-        <text x="41" y="28.2" class="tb-field-val-sm">1:1</text>
+        <text x="41" y="28.2" class="tb-field-val-sm">SCALE 1:1</text>
         <text x="41" y="32.0" class="tb-field-label">SHEET</text>
         <text x="41" y="35.0" class="tb-field-val-sm">1 OF 1</text>
 

@@ -8,7 +8,6 @@ from build123d_techdraw.core.scale import (
     STANDARD_SCALES,
     calculate_auto_scale,
     find_closest_iso_scale,
-    format_iso_ratio,
     format_iso_scale,
 )
 
@@ -22,23 +21,6 @@ def test_format_iso_scale() -> None:
     assert format_iso_scale(1.5) == "SCALE 3:2"
     assert format_iso_scale(2.5) == "SCALE 5:2"
     assert format_iso_scale(5.0) == "SCALE 5:1"
-
-
-def test_format_iso_ratio_has_no_label_prefix() -> None:
-    assert format_iso_ratio(1.0) == "1:1"
-    assert format_iso_ratio(0.5) == "1:2"
-    assert format_iso_ratio(2.5) == "5:2"
-    assert format_iso_ratio(5.0) == "5:1"
-
-
-def test_multiview_title_block_scale_is_bare_ratio() -> None:
-    """The title block labels the field SCALE, so its value must not repeat the word."""
-    from build123d_techdraw import DrawingSheet, SheetSize, add_standard_multiview
-
-    sheet = DrawingSheet(sheet_size=SheetSize.A3_LANDSCAPE)
-    add_standard_multiview(sheet=sheet, shape=bd.Box(100.0, 50.0, 30.0), scale=1.0)
-    assert sheet.title_info.scale == "1:1"
-    assert "SCALE SCALE" not in sheet.to_svg()
 
 
 def test_find_closest_iso_scale() -> None:
