@@ -11,6 +11,7 @@ from build123d_techdraw.annotations.resolver import (
     is_topological_entity,
     resolve_circle_or_cylinder_to_sheet,
     resolve_point_to_sheet,
+    stale_reason_of,
 )
 from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
 
@@ -89,10 +90,8 @@ class Centerline:
             import build123d as bd
 
             v_shape = getattr(view, "shape", None)
-            if not isinstance(self.target, (tuple, list)):
-                self.target = ensure_anchor(self.target, v_shape) or self.target
-            if self.target2 is not None and not isinstance(self.target2, (tuple, list)):
-                self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
+            self.target = ensure_anchor(self.target, v_shape) or self.target
+            self.target2 = ensure_anchor(self.target2, v_shape) or self.target2
 
             prev_start = self.start
             prev_end = self.end
@@ -135,17 +134,7 @@ class Centerline:
             stale2 = isinstance(self.target2, Anchor) and self.target2.is_stale
             if stale1 or stale2:
                 self.anchor_stale = True
-                r1 = (
-                    self.target.stale_reason
-                    if isinstance(self.target, Anchor) and self.target.is_stale
-                    else None
-                )
-                r2 = (
-                    self.target2.stale_reason
-                    if isinstance(self.target2, Anchor) and self.target2.is_stale
-                    else None
-                )
-                self.stale_reason = r1 or r2
+                self.stale_reason = stale_reason_of(self.target, self.target2)
                 if prev_start != (0.0, 0.0) or prev_end != (0.0, 0.0):
                     self.start, self.end = prev_start, prev_end
             else:
