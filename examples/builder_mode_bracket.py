@@ -60,10 +60,10 @@ def generate_builder_mode_drawing(output_dir: Path) -> None:
             flange_edge = part.edges().filter_by(bd.Axis.Z).sort_by(bd.Axis.X)[0]
             LinearDimension(flange_edge, offset=-15.0, tolerance="h9")
 
-            # Flatness GD&T frame and datum
+            # Datum A on the base; top face parallel to A (ISO 1101 orientation tolerance)
             DatumFeature(label="A", target=part.faces().sort_by(bd.Axis.Z)[0])
             FeatureControlFrame(
-                characteristic=GDTCharacteristic.FLATNESS,
+                characteristic=GDTCharacteristic.PARALLELISM,
                 tolerance_value="0.05",
                 datum_refs=["A"],
                 target=part.faces().sort_by(bd.Axis.Z)[-1],

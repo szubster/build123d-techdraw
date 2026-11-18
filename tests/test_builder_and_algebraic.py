@@ -89,7 +89,7 @@ def test_builder_mode_complete_flow(bracket_part: bd.Compound) -> None:
             # GD&T Datum and Feature Control Frame
             df = DatumFeature(label="A", target=bracket_part.faces().sort_by(bd.Axis.Z)[0])
             fcf = FeatureControlFrame(
-                characteristic=GDTCharacteristic.FLATNESS,
+                characteristic=GDTCharacteristic.PARALLELISM,
                 tolerance_value="0.05",
                 datum_refs=["A"],
                 target=bracket_part.faces().sort_by(bd.Axis.Z)[-1],

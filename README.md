@@ -130,7 +130,7 @@ with BuildDrawing(SheetSize.A3_LANDSCAPE) as sheet:
         LinearDimension(part.edges().filter_by(bd.Axis.Z).sort_by(bd.Axis.X)[0], offset=-15.0)
         DatumFeature("A", target=part.faces().sort_by(bd.Axis.Z)[0])
         FeatureControlFrame(
-            GDTCharacteristic.FLATNESS,
+            GDTCharacteristic.PARALLELISM,
             tolerance_value="0.05",
             datum_refs=["A"],
             target=part.faces().sort_by(bd.Axis.Z)[-1],
