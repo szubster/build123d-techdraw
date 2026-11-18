@@ -90,8 +90,10 @@ def generate_advanced_views(output_dir: Path) -> None:
             center=(250.0, 140.0),
             shape="circle",
         ):
+            # Leader ends on the upper edge of the chamfer face, not on the flat top face.
+            chamfer_edge = inclined_face.edges().filter_by(bd.Axis.Y).sort_by(bd.Axis.Z)[-1]
             ChamferCallout(
-                target_or_edge=(245.0, 140.0),
+                target_or_edge=chamfer_edge,
                 width=8.0,
                 angle_deg=45.0,
             )

@@ -125,3 +125,11 @@ layout.front.leader(
     terminator="arrow",  # or "dot"
 )
 ```
+
+Leader callouts (`LeaderNote`, `HoleCallout`, `ThreadCallout`, `ChamferCallout`) keep the
+requested elbow offset when the text is clear of the view's edges. If it is not, the elbow is
+moved outward in 2.5 mm steps, along the requested direction or its mirror images, until the text
+clears the edges, preferring the shortest leader that keeps the text outside the view and away
+from other annotations. The offset you asked for stays in `requested_elbow_offset`; `elbow_offset`
+is the one drawn. The check uses the part's edges, so the side outlines of curved surfaces are
+not considered, and rotated views are skipped.
