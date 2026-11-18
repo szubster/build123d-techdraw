@@ -33,6 +33,12 @@ layout.front.dim_vertical(
 )
 ```
 
+If the requested offset would put the dimension line or its text (rotated text and tolerance
+suffix included) on or inside the view outline, the dimension is pushed outward to the first free
+row: `FIRST_DIM_OFFSET_MM` (10 mm) from the view, then `DIM_STACK_STEP_MM` (7 mm) past any
+parallel dimension already there (ISO 129-1). The offset you asked for is kept in
+`requested_offset`. Text too long for the span goes on an extension of the dimension line.
+
 ### 3. Aligned (Skewed) Dimensions
 
 ```python

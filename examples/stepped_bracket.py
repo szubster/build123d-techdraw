@@ -46,15 +46,20 @@ def generate_stepped_bracket(output_dir: Path) -> None:
 
     # 4. Annotations & Dimensions
     assert layout.front is not None
-    layout.front.dim_vertical(
-        model_y1=-5.5,
-        model_y2=5.5,
-        model_x=-25.0,
+    assert layout.right is not None
+    # The hole axis lies in the front and right view planes: it gets a centre line there
+    # (a centre mark is only for the end-on circle). Its fit is dimensioned across the hidden
+    # bore lines in the right view, above the flange top (Z = 40).
+    layout.front.centerline_vertical(model_x=-25.0, model_y1=-7.5, model_y2=40.0, overhang=3.0)
+    layout.right.centerline_vertical(model_x=0.0, model_y1=-7.5, model_y2=40.0, overhang=3.0)
+    layout.right.dim_horizontal(
+        model_x1=-5.5,
+        model_x2=5.5,
+        model_y=40.0,
         prefix="⌀",
         tolerance="H11",
-        offset_x=-15.0,
+        offset_y=-10.0,
     )
-    layout.front.centermark(-25.0, 0.0, size=8.0)
     layout.front.add_gdt_frame(
         model_x=10.0,
         model_y=-7.5,
