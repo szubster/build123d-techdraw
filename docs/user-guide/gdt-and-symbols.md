@@ -98,7 +98,22 @@ layout.front.add_datum_symbol(
 
 ## 🪚 Surface Texture Symbols (ISO 1302)
 
-Surface finish annotations denote allowable roughness ($Ra$) and manufacturing processes:
+Surface finish annotations denote allowable roughness ($Ra$) and manufacturing processes. The
+symbol's vertex must touch the surface line (or its extension line / a leader). Give it a
+`target` face and the vertex snaps to the projected feature: a planar face seen edge-on lands
+exactly on its outline and follows the view if it moves:
+
+```python
+with FrontView(part, center=(290.0, 150.0), scale=1.0):
+    SurfaceFinishSymbol(
+        target=part.faces().sort_by(bd.Axis.Z)[-1],  # top face, seen edge-on
+        ra_value="Ra 1.6",
+        material_removal=MaterialRemoval.REQUIRED,
+    )
+```
+
+With model coordinates or `position=(x, y)` (sheet mm) you are responsible for putting the
+vertex on the outline:
 
 ```python
 from build123d_techdraw import MaterialRemoval

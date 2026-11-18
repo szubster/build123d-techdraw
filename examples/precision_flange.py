@@ -126,8 +126,9 @@ def generate_precision_flange(output_dir: Path) -> None:
                 jog=True,
                 view=front,
             )
+            # Vertex on the hub's top (sealing) face, seen edge-on in the front view (ISO 1302).
             SurfaceFinishSymbol(
-                position=(290.0, 134.0),
+                target=part.faces().sort_by(bd.Axis.Z)[-1],
                 ra_value="Ra 1.6",
                 material_removal=MaterialRemoval.REQUIRED,
             )
