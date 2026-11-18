@@ -986,6 +986,7 @@ class SheetView:
             offset=offset_y,
             dim_type=DimensionType.HORIZONTAL,
             text=text,
+            nominal=None if text is not None else abs(model_x2 - model_x1),
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
@@ -1017,6 +1018,7 @@ class SheetView:
             offset=offset_x,
             dim_type=DimensionType.VERTICAL,
             text=text,
+            nominal=None if text is not None else abs(model_y2 - model_y1),
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
@@ -1044,6 +1046,7 @@ class SheetView:
             offset=offset,
             dim_type=DimensionType.ALIGNED,
             text=text,
+            nominal=None if text is not None else math.dist(p1_model, p2_model),
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
@@ -1068,6 +1071,9 @@ class SheetView:
             offset=offset_y,
             dim_type=DimensionType.HORIZONTAL,
             text=text,
+            nominal=None
+            if text is not None or not self.scale
+            else self.unbroken_width / self.scale,
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
@@ -1094,6 +1100,9 @@ class SheetView:
             offset=offset_x,
             dim_type=DimensionType.VERTICAL,
             text=text,
+            nominal=None
+            if text is not None or not self.scale
+            else self.unbroken_height / self.scale,
             tolerance=tolerance,
             prefix=prefix,
             suffix=suffix,
