@@ -9,7 +9,7 @@ from build123d_techdraw import DrawingSheet, SheetSize, ViewType
 from build123d_techdraw.core.view import SheetView
 
 
-def _block(length: float, height: float = 20.0, hole_r: float = 4.0) -> bd.Part:
+def _block(length: float, height: float = 20.0, hole_r: float = 4.0) -> bd.Compound:
     box = bd.Box(length, 30.0, height)
     hole = bd.Pos(length / 4.0, 0.0, 0.0) * bd.Cylinder(hole_r, height * 2.0)
     return box - hole
