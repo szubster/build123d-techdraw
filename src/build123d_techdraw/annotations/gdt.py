@@ -7,6 +7,8 @@ import math
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+import build123d as bd
+
 from build123d_techdraw.annotations.anchors import Anchor
 from build123d_techdraw.annotations.base import Annotation, BBox2D
 from build123d_techdraw.annotations.dimensions import render_arrowhead
@@ -39,6 +41,49 @@ class GDTCharacteristic(Enum):
     SYMMETRY = "⌯"
     CIRCULAR_RUNOUT = "↗"
     TOTAL_RUNOUT = "⇗"
+
+
+DATUM_DIRECTIONS: tuple[str, ...] = ("up", "down", "left", "right")
+"""Sheet directions in which a datum feature symbol's frame can be placed from its triangle."""
+
+
+def _sheet_direction_name(dx: float, dy: float) -> str:
+    """Map a sheet-space vector (y grows downwards) to the nearest of ``DATUM_DIRECTIONS``."""
+    if abs(dy) >= abs(dx):
+        return "up" if dy < 0.0 else "down"
+    return "left" if dx < 0.0 else "right"
+
+
+def outward_sheet_direction(
+    entity: Any, point: tuple[float, float], view: SheetView
+) -> tuple[float, float]:
+    """Return the unit sheet-space direction pointing *out of the material* at ``point``.
+
+    For a planar ``Face`` the outward surface normal is projected through ``view``; a face seen
+    edge-on (the usual case for a datum or texture surface) then yields a vector perpendicular to
+    its projected edge, away from the part. When the entity is not a face, or the face is seen
+    face-on so its normal projects to (almost) nothing, the direction from the view centre to
+    ``point`` is used instead, which points outside the view silhouette. Falls back to "up"
+    (``(0, -1)``) when ``point`` coincides with the view centre.
+    """
+    if isinstance(entity, bd.Face):
+        center = entity.center()
+        normal = entity.normal_at(center)
+        p0 = view.to_sheet_3d(float(center.X), float(center.Y), float(center.Z))
+        p1 = view.to_sheet_3d(
+            float(center.X + normal.X), float(center.Y + normal.Y), float(center.Z + normal.Z)
+        )
+        dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+        length = math.hypot(dx, dy)
+        # Ignore normals that are (nearly) parallel to the viewing direction.
+        if length > 0.1 * view.scale:
+            return (dx / length, dy / length)
+
+    dx, dy = point[0] - view.center_x, point[1] - view.center_y
+    length = math.hypot(dx, dy)
+    if length < 1e-9:
+        return (0.0, -1.0)
+    return (dx / length, dy / length)
 
 
 class FeatureControlFrame(Annotation):
@@ -204,7 +249,15 @@ class FeatureControlFrame(Annotation):
 
 
 class DatumFeatureSymbol(Annotation):
-    """ISO 1101 Datum Feature Identifier tag (e.g. —▲— [A])."""
+    """ISO 5459 datum feature indicator: a filled triangle on the feature joined to a framed letter.
+
+    The triangle's base sits on the feature's outline (``target``) and the frame is placed on the
+    side *outside the material*. With ``direction=None`` (the default) and a topological target,
+    that side is found from the face's outward normal projected into the view (or, for edges,
+    vertices and face-on faces, from the side away from the view centre). Pass ``"up"``,
+    ``"down"``, ``"left"`` or ``"right"`` to force a side; explicit 2D coordinates without a
+    direction default to ``"up"``.
+    """
 
     def __init__(
         self,
@@ -212,7 +265,7 @@ class DatumFeatureSymbol(Annotation):
         target: Any = None,
         stem_length: float = 7.0,
         box_size: float = 5.5,
-        direction: str = "up",
+        direction: str | None = None,
         view: SheetView | None = None,
         *,
         anchor: Any = None,
@@ -220,10 +273,16 @@ class DatumFeatureSymbol(Annotation):
         if target is None and anchor is not None:
             target = anchor
 
+        if direction is not None and direction not in DATUM_DIRECTIONS:
+            raise ValueError(
+                f"direction must be one of {DATUM_DIRECTIONS} or None, got {direction!r}"
+            )
+
         self.label = label
         self.stem_length = stem_length
         self.box_size = box_size
-        self.direction = direction
+        self._auto_direction = direction is None
+        self.direction: str = direction if direction is not None else "up"
         self.view = view
         self.raw_target = target
         self.target: tuple[float, float] = (0.0, 0.0)
@@ -267,41 +326,66 @@ class DatumFeatureSymbol(Annotation):
             else:
                 self.anchor_stale = False
                 self.stale_reason = None
+            if self._auto_direction:
+                entity = (
+                    self.raw_target.last_resolved_entity
+                    if isinstance(self.raw_target, Anchor)
+                    else self.raw_target
+                )
+                dx, dy = outward_sheet_direction(entity, self.target, view)
+                self.direction = _sheet_direction_name(dx, dy)
             self.resolved = True
         elif not self.resolved and self.raw_target is None:
             self.target = (view.center_x, view.min_y)
+            if self._auto_direction:
+                self.direction = "up"
             self.resolved = True
 
         self._register(view)
 
+    def _geometry(
+        self,
+    ) -> tuple[list[tuple[float, float]], tuple[float, float], tuple[float, float]]:
+        """Return (triangle points, stem end, frame top-left corner) in sheet mm.
+
+        The triangle's base lies on the feature outline at ``target`` and its apex points away
+        from the material, towards the frame (ISO 5459).
+        """
+        tx, ty = self.target
+        half = 2.4  # half base width
+        height = half * 1.5
+        ux, uy = {"up": (0.0, -1.0), "down": (0.0, 1.0), "left": (-1.0, 0.0)}.get(
+            self.direction, (1.0, 0.0)
+        )
+        # Perpendicular to the outward direction, along the feature outline.
+        px, py = -uy, ux
+        tri = [
+            (tx + px * half, ty + py * half),
+            (tx - px * half, ty - py * half),
+            (tx + ux * height, ty + uy * height),
+        ]
+        stem_end = (tx + ux * self.stem_length, ty + uy * self.stem_length)
+        b = self.box_size
+        if self.direction == "up":
+            box = (stem_end[0] - b / 2.0, stem_end[1] - b)
+        elif self.direction == "down":
+            box = (stem_end[0] - b / 2.0, stem_end[1])
+        elif self.direction == "left":
+            box = (stem_end[0] - b, stem_end[1] - b / 2.0)
+        else:
+            box = (stem_end[0], stem_end[1] - b / 2.0)
+        return tri, stem_end, box
+
+    def bounding_box_2d(self) -> BBox2D:
+        tri, _stem_end, (box_x, box_y) = self._geometry()
+        xs = [p[0] for p in tri] + [box_x, box_x + self.box_size]
+        ys = [p[1] for p in tri] + [box_y, box_y + self.box_size]
+        return (min(xs), min(ys), max(xs), max(ys))
+
     def to_svg(self) -> str:
         tx, ty = self.target
-        tri_size = 2.4
-
-        if self.direction == "up":
-            tri_pts = f"{tx},{ty} {tx - tri_size},{ty - tri_size * 1.5} {tx + tri_size},{ty - tri_size * 1.5}"
-            stem_end_x = tx
-            stem_end_y = ty - self.stem_length
-            box_x = stem_end_x - self.box_size / 2.0
-            box_y = stem_end_y - self.box_size
-        elif self.direction == "down":
-            tri_pts = f"{tx},{ty} {tx - tri_size},{ty + tri_size * 1.5} {tx + tri_size},{ty + tri_size * 1.5}"
-            stem_end_x = tx
-            stem_end_y = ty + self.stem_length
-            box_x = stem_end_x - self.box_size / 2.0
-            box_y = stem_end_y
-        elif self.direction == "left":
-            tri_pts = f"{tx},{ty} {tx - tri_size * 1.5},{ty - tri_size} {tx - tri_size * 1.5},{ty + tri_size}"
-            stem_end_x = tx - self.stem_length
-            stem_end_y = ty
-            box_x = stem_end_x - self.box_size
-            box_y = stem_end_y - self.box_size / 2.0
-        else:
-            tri_pts = f"{tx},{ty} {tx + tri_size * 1.5},{ty - tri_size} {tx + tri_size * 1.5},{ty + tri_size}"
-            stem_end_x = tx + self.stem_length
-            stem_end_y = ty
-            box_x = stem_end_x
-            box_y = stem_end_y - self.box_size / 2.0
+        tri, (stem_end_x, stem_end_y), (box_x, box_y) = self._geometry()
+        tri_pts = " ".join(f"{px:.2f},{py:.2f}" for px, py in tri)
 
         elements = [
             f'<polygon points="{tri_pts}" class="dim-arrow"/>',
