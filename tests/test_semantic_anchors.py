@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import build123d as bd
 import pytest
+from build123d.topology import Shape
 
 from build123d_techdraw import (
     Anchor,
@@ -526,7 +529,7 @@ def test_callers_resolve_each_anchor_once_per_attach(monkeypatch: pytest.MonkeyP
     calls: list[Anchor] = []
     original = Anchor.resolve_entity
 
-    def counting(self: Anchor, shape: object, *, prefer_kind: str | None = None) -> object:
+    def counting(self: Anchor, shape: Shape[Any] | None, *, prefer_kind: str | None = None) -> Any:
         calls.append(self)
         return original(self, shape, prefer_kind=prefer_kind)
 
