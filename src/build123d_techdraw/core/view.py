@@ -51,12 +51,42 @@ if TYPE_CHECKING:
 
 @dataclass
 class BreakInfo:
-    """Represents a broken-out region exclusion along an axis."""
+    """A span removed from a view by a pair of break lines (ISO 128-3 interrupted view).
+
+    ``interval`` is in absolute model coordinates along the view's horizontal (``"X"``) or
+    vertical (``"Y"``) axis, the same frame as :meth:`SheetView.to_sheet_x` /
+    :meth:`SheetView.to_sheet_y`. ``gap`` is the paper-space distance (mm) left between the two
+    break lines.
+    """
 
     interval: tuple[float, float]
     axis: str = "X"
     style: str = "zigzag"
     gap: float = 10.0
+
+
+def _break_line_svg(pos: float, a: float, b: float, *, style: str, horizontal: bool) -> str:
+    """One break line across the view at ``pos`` along the break axis, spanning ``a``..``b``.
+
+    ``horizontal`` means the view is broken along X, so the line itself runs vertically.
+    """
+    m = (a + b) / 2.0
+
+    def pt(along: float, across: float) -> str:
+        x, y = (pos + along, across) if horizontal else (across, pos + along)
+        return f"{x:.2f},{y:.2f}" if style == "zigzag" else f"{x:.2f} {y:.2f}"
+
+    if style == "zigzag":
+        pts = " ".join(
+            (pt(0.0, a), pt(0.0, m - 4.0), pt(2.5, m - 1.5), pt(-2.5, m + 1.5), pt(0.0, m + 4.0))
+        )
+        pts += " " + pt(0.0, b)
+        return f'<polyline points="{pts}" class="break-line dim-line" stroke-width="0.35" fill="none"/>'
+    d = (
+        f"M {pt(0.0, a)} Q {pt(3.0, (a * 3.0 + b) / 4.0)} {pt(0.0, m)} "
+        f"Q {pt(-3.0, (a + b * 3.0) / 4.0)} {pt(0.0, b)}"
+    )
+    return f'<path d="{d}" class="break-line dim-line" stroke-width="0.35" fill="none"/>'
 
 
 class ViewType(Enum):
@@ -243,107 +273,189 @@ class SheetView:
         style: str = "zigzag",
         gap: float = 10.0,
     ) -> Self:
-        """Add a break line to cut out a uniform span of the view."""
-        b_info = BreakInfo(
-            interval=(min(interval[0], interval[1]), max(interval[0], interval[1])),
-            axis=axis.upper(),
-            style=style.lower(),
-            gap=gap,
-        )
-        self.breaks.append(b_info)
+        """Cut a uniform span out of the view (ISO 128-3 interrupted view).
+
+        Args:
+            interval: Start and end of the removed span in absolute model coordinates along
+                ``axis`` (the frame used by ``to_sheet_x`` / ``to_sheet_y``). Both ends must lie
+                strictly inside the part so material remains on both sides.
+            axis: ``"X"`` (horizontal break) or ``"Y"`` (vertical break). All breaks of one
+                view must use the same axis.
+            style: ``"zigzag"`` or ``"wavy"`` break lines.
+            gap: Paper distance in mm between the two break lines.
+
+        Dimensions keep reporting true model lengths; only the drawn span is shortened.
+        """
+        axis_u = axis.upper()
+        style_l = style.lower()
+        if axis_u not in ("X", "Y"):
+            raise ValueError(f"Break axis must be 'X' or 'Y', got {axis!r}.")
+        if style_l not in ("zigzag", "wavy"):
+            raise ValueError(f"Break style must be 'zigzag' or 'wavy', got {style!r}.")
+        if gap <= 0.0:
+            raise ValueError(f"Break gap must be positive, got {gap}.")
+        lo, hi = min(interval[0], interval[1]), max(interval[0], interval[1])
+        half = self._unbroken_paper_length(axis_u) / (2.0 * self.scale) if self.scale else 0.0
+        origin = self.origin_x if axis_u == "X" else self.origin_y
+        part_min, part_max = origin - half, origin + half
+        if not (part_min < lo < hi < part_max):
+            raise ValueError(
+                f"Break interval {interval} must lie strictly inside the part "
+                f"({part_min:g} < start < end < {part_max:g} along {axis_u}, model coordinates)."
+            )
+        if (hi - lo) * self.scale <= gap:
+            raise ValueError(
+                f"Break interval {interval} is shorter on paper than the gap ({gap} mm)."
+            )
+        for other in self.breaks:
+            if other.axis != axis_u:
+                raise ValueError("All breaks of a view must use the same axis.")
+            if lo < other.interval[1] and other.interval[0] < hi:
+                raise ValueError(f"Break interval {interval} overlaps {other.interval}.")
+        self.breaks.append(BreakInfo(interval=(lo, hi), axis=axis_u, style=style_l, gap=gap))
+        self.breaks.sort(key=lambda b: b.interval[0])
         self._apply_breaks()
         return self
 
+    def _unbroken_paper_length(self, axis: str) -> float:
+        return self.unbroken_width if axis == "X" else self.unbroken_height
+
+    def _break_cuts(self, axis: str) -> list[tuple[float, float, BreakInfo]]:
+        """Unbroken paper-space spans removed by the breaks along ``axis``, sorted ascending."""
+        cuts: list[tuple[float, float, BreakInfo]] = []
+        for b in self.breaks:
+            if b.axis != axis:
+                continue
+            lo, hi = b.interval
+            if axis == "X":
+                x_lo = self.center_x + (lo - self.origin_x) * self.scale
+                x_hi = self.center_x + (hi - self.origin_x) * self.scale
+                cuts.append((x_lo, x_hi, b))
+            else:
+                # Paper Y grows downward, so the model's upper bound maps to the smaller paper Y.
+                y_top = self.center_y - (hi - self.origin_y) * self.scale
+                y_bottom = self.center_y - (lo - self.origin_y) * self.scale
+                cuts.append((y_top, y_bottom, b))
+        cuts.sort(key=lambda c: c[0])
+        return cuts
+
+    def _removed_length(self, axis: str) -> float:
+        return sum(c1 - c0 - b.gap for c0, c1, b in self._break_cuts(axis))
+
+    def _map_through_breaks(self, raw: float, axis: str) -> float:
+        """Map an unbroken paper coordinate along ``axis`` to its position in the broken view.
+
+        The broken view stays centred on the view centre. Points inside a removed span are
+        spread proportionally across the gap between the break lines.
+        """
+        cuts = self._break_cuts(axis)
+        if not cuts:
+            return raw
+        pos = raw + sum(c1 - c0 - b.gap for c0, c1, b in cuts) / 2.0
+        for c0, c1, b in cuts:
+            if raw >= c1:
+                pos -= c1 - c0 - b.gap
+            elif raw > c0:
+                inside = raw - c0
+                pos -= inside - inside / (c1 - c0) * b.gap
+                break
+            else:
+                break
+        return pos
+
+    def break_gap_centers(self, axis: str) -> list[float]:
+        """Broken-view paper positions (mm) of the middle of each break gap along ``axis``."""
+        return [
+            self._map_through_breaks((c0 + c1) / 2.0, axis) for c0, c1, _ in self._break_cuts(axis)
+        ]
+
+    def _refresh_bounds(self) -> None:
+        """Recompute ``width``/``height`` and the min/max extents from the unbroken size."""
+        self.width = self.unbroken_width - self._removed_length("X")
+        self.height = self.unbroken_height - self._removed_length("Y")
+        self.min_x = self.center_x - self.width / 2.0
+        self.max_x = self.center_x + self.width / 2.0
+        self.min_y = self.center_y - self.height / 2.0
+        self.max_y = self.center_y + self.height / 2.0
+
     def _apply_breaks(self) -> None:
-        """Regenerate SVG and geometry bounds with break cuts and symbols."""
-        if not self.breaks or not self.inner_svg_content:
+        """Regenerate bounds and SVG: one clipped, shifted copy of the view per kept segment."""
+        if not self.breaks:
+            return
+        self._refresh_bounds()
+        if not self.inner_svg_content:
             return
 
-        b = self.breaks[0]
-        x0, x1 = min(b.interval), max(b.interval)
-        model_span = x1 - x0
-        paper_span = model_span * self.scale
-        shift = paper_span - b.gap
+        axis = self.breaks[0].axis
+        cuts = self._break_cuts(axis)
+        horizontal = axis == "X"
+        centre = self.center_x if horizontal else self.center_y
+        half = self._unbroken_paper_length(axis) / 2.0
 
-        if b.axis == "X":
-            self.width = max(b.gap + 10.0, self.unbroken_width - shift)
-            self.min_x = self.center_x - self.width / 2.0
-            self.max_x = self.center_x + self.width / 2.0
+        # Kept segments in unbroken paper coordinates along the break axis.
+        edges = [centre - half]
+        for c0, c1, _ in cuts:
+            edges.extend((c0, c1))
+        edges.append(centre + half)
+        segments = [(edges[i], edges[i + 1]) for i in range(0, len(edges), 2)]
 
-            m_min_x = self.origin_x - (self.unbroken_width / (2.0 * self.scale))
-            l1 = max(5.0, (x0 - m_min_x) * self.scale)
-            bx1 = self.min_x + l1
-            bx2 = bx1 + b.gap
-
-            view_id = f"view_{self.view_type.value}_{int(self.center_x)}_{int(self.center_y)}"
-            clip1_id = f"clip1_{view_id}"
-            clip2_id = f"clip2_{view_id}"
-
-            rot_str = (
-                f" rotate({self.rotation_angle_deg:.1f}, {self.orig_cx:.2f}, {self.orig_cy:.2f})"
-                if self.rotation_angle_deg != 0.0
-                else ""
+        view_id = f"view_{self.view_type.value}_{int(self.center_x)}_{int(self.center_y)}"
+        rot_str = (
+            f" rotate({self.rotation_angle_deg:.1f}, {self.orig_cx:.2f}, {self.orig_cy:.2f})"
+            if self.rotation_angle_deg != 0.0
+            else ""
+        )
+        pad = 10.0
+        clips: list[str] = []
+        groups: list[str] = []
+        break_positions: list[tuple[float, BreakInfo]] = []
+        for i, (a, b) in enumerate(segments):
+            mid = (a + b) / 2.0
+            shift = self._map_through_breaks(mid, axis) - mid
+            new_a, new_b = a + shift, b + shift
+            lo = new_a - (pad if i == 0 else 0.0)
+            hi = new_b + (pad if i == len(segments) - 1 else 0.0)
+            clip_id = f"clip{i + 1}_{view_id}"
+            if horizontal:
+                rect = (lo, self.min_y - pad, hi - lo, self.height + 2.0 * pad)
+                tx, ty = self.center_x + shift, self.center_y
+            else:
+                rect = (self.min_x - pad, lo, self.width + 2.0 * pad, hi - lo)
+                tx, ty = self.center_x, self.center_y + shift
+            clips.append(
+                f'<clipPath id="{clip_id}"><rect x="{rect[0]:.2f}" y="{rect[1]:.2f}" '
+                f'width="{rect[2]:.2f}" height="{rect[3]:.2f}"/></clipPath>'
             )
-
-            break_lines = []
-            for bx in [bx1, bx2]:
-                y_top = self.min_y - 2.0
-                y_bot = self.max_y + 2.0
-                ym = (y_top + y_bot) / 2.0
-                if b.style == "zigzag":
-                    pts = (
-                        f"{bx:.2f},{y_top:.2f} "
-                        f"{bx:.2f},{ym - 4.0:.2f} "
-                        f"{bx + 2.5:.2f},{ym - 1.5:.2f} "
-                        f"{bx - 2.5:.2f},{ym + 1.5:.2f} "
-                        f"{bx:.2f},{ym + 4.0:.2f} "
-                        f"{bx:.2f},{y_bot:.2f}"
-                    )
-                    break_lines.append(
-                        f'<polyline points="{pts}" class="break-line dim-line" stroke-width="0.35" fill="none"/>'
-                    )
-                else:
-                    d = (
-                        f"M {bx:.2f} {y_top:.2f} "
-                        f"Q {bx + 3.0:.2f} {(y_top * 3.0 + y_bot) / 4.0:.2f} {bx:.2f} {ym:.2f} "
-                        f"Q {bx - 3.0:.2f} {(y_top + y_bot * 3.0) / 4.0:.2f} {bx:.2f} {y_bot:.2f}"
-                    )
-                    break_lines.append(
-                        f'<path d="{d}" class="break-line dim-line" stroke-width="0.35" fill="none"/>'
-                    )
-
-            t1 = (
-                f"translate({self.center_x + shift / 2.0:.2f}, {self.center_y:.2f}) "
+            transform = (
+                f"translate({tx:.2f}, {ty:.2f}) "
                 f"scale({self.scale:.4f}, {self.scale:.4f}){rot_str} "
                 f"translate({-self.orig_cx:.2f}, {-self.orig_cy:.2f})"
             )
-            t2 = (
-                f"translate({self.center_x - shift / 2.0:.2f}, {self.center_y:.2f}) "
-                f"scale({self.scale:.4f}, {self.scale:.4f}){rot_str} "
-                f"translate({-self.orig_cx:.2f}, {-self.orig_cy:.2f})"
+            groups.append(
+                f'<g clip-path="url(#{clip_id})"><g transform="{transform}">'
+                f"{self.inner_svg_content}</g></g>"
             )
+            if i > 0:
+                break_positions.append((new_a, cuts[i - 1][2]))
+            if i < len(cuts):
+                break_positions.append((new_b, cuts[i][2]))
 
-            self.svg_content = f"""
+        break_lines = [
+            _break_line_svg(
+                pos,
+                (self.min_y if horizontal else self.min_x) - 2.0,
+                (self.max_y if horizontal else self.max_x) + 2.0,
+                style=b.style,
+                horizontal=horizontal,
+            )
+            for pos, b in break_positions
+        ]
+
+        self.svg_content = f"""
     <!-- View: {self.view_type.value.upper()} (Broken View) at ({self.center_x}, {self.center_y}) scale={self.scale} -->
-    <defs>
-        <clipPath id="{clip1_id}">
-            <rect x="{self.min_x - 10:.2f}" y="{self.min_y - 10:.2f}" width="{l1 + 10:.2f}" height="{self.height + 20:.2f}"/>
-        </clipPath>
-        <clipPath id="{clip2_id}">
-            <rect x="{bx2:.2f}" y="{self.min_y - 10:.2f}" width="{self.max_x - bx2 + 10:.2f}" height="{self.height + 20:.2f}"/>
-        </clipPath>
-    </defs>
+    <defs>{"".join(clips)}</defs>
     <g id="{view_id}" class="sheet-view broken-view">
-        <g clip-path="url(#{clip1_id})">
-            <g transform="{t1}">
-                {self.inner_svg_content}
-            </g>
-        </g>
-        <g clip-path="url(#{clip2_id})">
-            <g transform="{t2}">
-                {self.inner_svg_content}
-            </g>
-        </g>
+        {"".join(groups)}
         {"".join(break_lines)}
     </g>
     """
@@ -645,6 +757,8 @@ class SheetView:
         self.max_x = self.center_x + self.width / 2.0
         self.min_y = self.center_y - self.height / 2.0
         self.max_y = self.center_y + self.height / 2.0
+        if self.breaks:
+            self._refresh_bounds()
         self.bottom_annotation_y = self.max_y
         if self.view_label_pos is not None:
             self.view_label_pos = (self.view_label_pos[0] + dx, self.view_label_pos[1] + dy)
@@ -658,11 +772,15 @@ class SheetView:
             ratio = scale / self.scale
             self.width *= ratio
             self.height *= ratio
+            self.unbroken_width *= ratio
+            self.unbroken_height *= ratio
         self.scale = scale
         self.min_x = self.center_x - self.width / 2.0
         self.max_x = self.center_x + self.width / 2.0
         self.min_y = self.center_y - self.height / 2.0
         self.max_y = self.center_y + self.height / 2.0
+        if self.breaks:
+            self._refresh_bounds()
         self.bottom_annotation_y = self.max_y
         self.scale_label = format_iso_scale(scale)
         self._update_transform()
@@ -781,32 +899,14 @@ class SheetView:
         raise KeyError(key)
 
     def to_sheet_x(self, model_x: float) -> float:
-        """Transform 2D model X coordinate to sheet paper coordinate (mm)."""
+        """Transform 2D model X coordinate to sheet paper coordinate (mm), honouring breaks."""
         raw_x = self.center_x + ((model_x - self.origin_x) * self.scale)
-        if self.breaks:
-            for b in self.breaks:
-                if b.axis == "X":
-                    x0, x1 = min(b.interval), max(b.interval)
-                    shift = (x1 - x0) * self.scale - b.gap
-                    if model_x <= x0:
-                        raw_x += shift / 2.0
-                    elif model_x >= x1:
-                        raw_x -= shift / 2.0
-        return raw_x
+        return self._map_through_breaks(raw_x, "X")
 
     def to_sheet_y(self, model_y: float) -> float:
-        """Transform 2D model Y coordinate to sheet paper coordinate (mm)."""
+        """Transform 2D model Y coordinate to sheet paper coordinate (mm), honouring breaks."""
         raw_y = self.center_y - ((model_y - self.origin_y) * self.scale)
-        if self.breaks:
-            for b in self.breaks:
-                if b.axis == "Y":
-                    y0, y1 = min(b.interval), max(b.interval)
-                    shift = (y1 - y0) * self.scale - b.gap
-                    if model_y <= y0:
-                        raw_y += shift / 2.0
-                    elif model_y >= y1:
-                        raw_y -= shift / 2.0
-        return raw_y
+        return self._map_through_breaks(raw_y, "Y")
 
     def to_sheet_coords(self, model_x: float, model_y: float) -> tuple[float, float]:
         """Transform 2D model (X, Y) to sheet paper (X, Y) coordinates (mm)."""
@@ -819,29 +919,9 @@ class SheetView:
         p = bd.Vector(x, y, z) - self.projection_origin
         x2d = p.dot(self.proj_x)
         y2d = p.dot(self.proj_y)
-        svg_x = x2d
-        svg_y = -y2d
-        sx = self.center_x + (svg_x - self.orig_cx) * self.scale
-        sy = self.center_y + (svg_y - self.orig_cy) * self.scale
-        if self.breaks:
-            for b in self.breaks:
-                if b.axis == "X":
-                    x0, x1 = min(b.interval), max(b.interval)
-                    shift = (x1 - x0) * self.scale - b.gap
-                    m_x = x if abs(self.proj_x.X) > 0.9 else (y if abs(self.proj_x.Y) > 0.9 else z)
-                    if m_x <= x0:
-                        sx += shift / 2.0
-                    elif m_x >= x1:
-                        sx -= shift / 2.0
-                elif b.axis == "Y":
-                    y0, y1 = min(b.interval), max(b.interval)
-                    shift = (y1 - y0) * self.scale - b.gap
-                    m_y = z if abs(self.proj_y.Z) > 0.9 else (y if abs(self.proj_y.Y) > 0.9 else x)
-                    if m_y <= y0:
-                        sy += shift / 2.0
-                    elif m_y >= y1:
-                        sy -= shift / 2.0
-        return (sx, sy)
+        sx = self.center_x + (x2d - self.orig_cx) * self.scale
+        sy = self.center_y + (-y2d - self.orig_cy) * self.scale
+        return (self._map_through_breaks(sx, "X"), self._map_through_breaks(sy, "Y"))
 
     def dimension(
         self,
