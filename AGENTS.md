@@ -34,7 +34,7 @@ uv run pytest                          # tests + coverage
 uv run pytest tests/test_dimensions.py -k diameter -q --no-cov   # focused run
 uv run ruff check --fix . && uv run ruff format .
 uv run mypy src examples               # strict; must be clean
-uv run pyright                         # also configured; backs the pyright-lsp plugin
+uv run pyright                         # must be clean too (CI type-check job); backs pyright-lsp
 uv run python examples/generate_all.py # regenerate example drawings (see below)
 ```
 

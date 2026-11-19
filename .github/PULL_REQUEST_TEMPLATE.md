@@ -18,6 +18,6 @@ Closes #
 ## Checklist
 
 - [ ] My code adheres to the project's styling and type safety standards (`uv run ruff check` and `uv run ruff format --check`).
-- [ ] Full static typing added and verified (`uv run mypy src`).
+- [ ] Full static typing added and verified (`uv run mypy src examples` and `uv run pyright`).
 - [ ] All new and existing tests pass locally (`uv run pytest`).
 - [ ] Documentation updated where appropriate.
