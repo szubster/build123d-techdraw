@@ -187,7 +187,9 @@ class DXFRenderer:
                     if isinstance(seg, se.Move):
                         if dxf_path is not None and len(dxf_path):
                             subpaths.append(dxf_path)
-                        dxf_path = ezdxf.path.Path(start=(float(seg.end.x), float(h_mm - seg.end.y)))
+                        dxf_path = ezdxf.path.Path(
+                            start=(float(seg.end.x), float(h_mm - seg.end.y))
+                        )
                     elif isinstance(seg, se.Line):
                         if dxf_path is None:
                             dxf_path = ezdxf.path.Path(

@@ -11,7 +11,6 @@ from matplotlib.colors import to_rgba
 from build123d_techdraw.core.booklet import DrawingBooklet
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.view import ViewType
-from build123d_techdraw.renderers import dxf as dxf_module
 from build123d_techdraw.renderers.dxf import DXFRenderer
 from build123d_techdraw.renderers.pdf import MM_TO_PT, PDFRenderer
 from build123d_techdraw.renderers.svg import SVGRenderer
