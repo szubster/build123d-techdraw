@@ -90,6 +90,8 @@ an explicit opt-in. Never describe an ASME convention as "ISO" or "standard ISO"
 Conventional Commits, enforced on PR titles: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`,
 optional scope (`core`, `annotations`, `layout`, `renderers`, `dimensions`, …), `!` for breaking
 changes. `feat` → minor, `fix` → patch. Fill in `.github/PULL_REQUEST_TEMPLATE.md`.
+`main` accepts only squash/rebase merges of branches that are up to date with it and pass
+`lint`, `type-check` and `test (3.11–3.13)`; to land several PRs use the `merge-pr-queue` skill.
 
 Versioning follows Semantic Versioning. The project is **pre-1.0**: breaking API and behaviour
 changes are allowed and preferred over compatibility shims, deprecation wrappers or aliases kept
