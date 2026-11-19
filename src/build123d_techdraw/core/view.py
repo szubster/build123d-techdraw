@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import contextlib
+import io
 import math
 import os
 import re
-import tempfile
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
@@ -468,13 +468,12 @@ class SheetView:
         dxfversion: str = "R2010",
     ) -> None:
         """Export 1:1 CAM manufacturing DXF from this 2D view (outer profile, holes, centerlines)."""
-        from ezdxf.filemanagement import new as ezdxf_new
-
         from build123d_techdraw.recognizers.features import recognize_holes
 
         os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
-        doc = ezdxf_new(dxfversion=dxfversion)
-        msp = doc.modelspace()
+        exporter = bd.ExportDXF(version=dxfversion, unit=bd.Unit.MM)
+        doc = exporter._document
+        msp = exporter._modelspace
 
         layer_map = {
             "outer_profile": "CUT_OUTER",
@@ -498,8 +497,11 @@ class SheetView:
 
         shape = self.shape
         if shape is None:
-            doc.saveas(filepath)
+            exporter.write(filepath)
             return
+
+        def _export_edge(edge: Any, layer: str) -> None:
+            exporter.add_shape(edge.scale(scale) if scale != 1.0 else edge, layer=layer)
 
         look_from, look_up = VIEW_VECTORS.get(self.view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
         dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=False)
@@ -530,7 +532,7 @@ class SheetView:
             inner_wires = wires[1:]
 
             for edge in outer_wire.edges():
-                self._add_edge_to_dxf(msp, edge, layer_map["outer_profile"], scale)
+                _export_edge(edge, layer_map["outer_profile"])
 
             # Detect concentric circular wires where outer step is countersink/counterbore
             concentric_csinks: set[int] = set()
@@ -565,10 +567,10 @@ class SheetView:
                                 break
                 target_l = layer_map["countersinks"] if is_csink else layer_map["inner_holes"]
                 for edge in iw.edges():
-                    self._add_edge_to_dxf(msp, edge, target_l, scale)
+                    _export_edge(edge, target_l)
         else:
             for edge in edges:
-                self._add_edge_to_dxf(msp, edge, layer_map["outer_profile"], scale)
+                _export_edge(edge, layer_map["outer_profile"])
 
         center_layer = layer_map["centerlines"]
         has_ann_centerlines = False
@@ -609,13 +611,7 @@ class SheetView:
                     dxfattribs={"layer": center_layer},
                 )
 
-        doc.saveas(filepath)
-
-    @staticmethod
-    def _add_edge_to_dxf(msp: Any, edge: Any, layer: str, scale: float) -> None:
-        from build123d_techdraw.renderers.dxf import add_edge_to_dxf
-
-        add_edge_to_dxf(msp, edge, layer=layer, scale=scale)
+        exporter.write(filepath)
 
     def _rebind_annotations(self) -> None:
         """Re-resolve all anchored/topological annotations attached to this view."""
@@ -1662,6 +1658,29 @@ def _apply_align_to(view: SheetView, align_spec: AlignSpec | None) -> SheetView:
     )
 
 
+def _export_svg_to_inner(exporter: bd.ExportSVG) -> tuple[float, float, float, float, str]:
+    """Serialize an ExportSVG instance in memory and return (min_x, min_y, w, h, inner_svg)."""
+    buf = io.BytesIO()
+    exporter.write(buf)
+    raw_svg = buf.getvalue().decode("utf-8")
+
+    vb_m = re.search(r'viewBox="([^"]+)"', raw_svg)
+    viewbox_str = vb_m.group(1) if vb_m else "0 0 100 100"
+    vb_min_x, vb_min_y, vb_w, vb_h = (float(p) for p in viewbox_str.split())
+
+    inner_m = re.search(r"<svg[^>]*>(.*)</svg>", raw_svg, flags=re.DOTALL)
+    inner_content = inner_m.group(1).strip() if inner_m else raw_svg
+
+    # Clean XML namespaces
+    inner_content = re.sub(
+        r"</?[a-zA-Z0-9_]+:",
+        lambda m: "</" if m.group(0).startswith("</") else "<",
+        inner_content,
+    )
+    inner_content = re.sub(r'\s+xmlns(?::[a-zA-Z0-9_]+)?="[^"]*"', "", inner_content)
+    return vb_min_x, vb_min_y, vb_w, vb_h, inner_content
+
+
 def project_shape_to_view(
     shape: bd.Solid | bd.Compound | Any,
     view_type: ViewType,
@@ -1718,36 +1737,12 @@ def project_shape_to_view(
     exporter.add_layer("visible", line_color="black", line_weight=0.35)
     exporter.add_shape(dwg.visible_lines, layer="visible")
 
-    with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tf:
-        tmp_path = tf.name
-
-    try:
-        exporter.write(tmp_path)
-        with open(tmp_path, encoding="utf-8") as f:
-            raw_svg = f.read()
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-
-    vb_m = re.search(r'viewBox="([^"]+)"', raw_svg)
-    viewbox_str = vb_m.group(1) if vb_m else "0 0 100 100"
-    vb_parts = [float(p) for p in viewbox_str.split()]
-    vb_min_x, vb_min_y, vb_w, vb_h = vb_parts
+    vb_min_x, vb_min_y, vb_w, vb_h, inner_content = _export_svg_to_inner(exporter)
 
     orig_cx = vb_min_x + vb_w / 2.0
     orig_cy = vb_min_y + vb_h / 2.0
 
     view_id = f"view_{view_type.value}_{int(center_x)}_{int(center_y)}"
-    inner_m = re.search(r"<svg[^>]*>(.*)</svg>", raw_svg, flags=re.DOTALL)
-    inner_content = inner_m.group(1).strip() if inner_m else raw_svg
-
-    # Clean XML namespaces
-    inner_content = re.sub(
-        r"</?[a-zA-Z0-9_]+:",
-        lambda m: "</" if m.group(0).startswith("</") else "<",
-        inner_content,
-    )
-    inner_content = re.sub(r'\s+xmlns(?::[a-zA-Z0-9_]+)?="[^"]*"', "", inner_content)
 
     # Substitute styling with CSS custom properties
     inner_content = inner_content.replace('stroke="rgb(0,0,0)"', 'stroke="var(--line-visible)"')
@@ -1923,35 +1918,12 @@ def _assemble_section_view(
     )
     exporter.add_shape(section_compound, layer="visible")
 
-    with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tf:
-        tmp_path = tf.name
-
-    try:
-        exporter.write(tmp_path)
-        with open(tmp_path, encoding="utf-8") as f:
-            raw_svg = f.read()
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-
-    vb_m = re.search(r'viewBox="([^"]+)"', raw_svg)
-    viewbox_str = vb_m.group(1) if vb_m else "0 0 100 100"
-    vb_parts = [float(p) for p in viewbox_str.split()]
-    vb_min_x, vb_min_y, vb_w, vb_h = vb_parts
+    vb_min_x, vb_min_y, vb_w, vb_h, inner_content = _export_svg_to_inner(exporter)
 
     orig_cx = vb_min_x + vb_w / 2.0
     orig_cy = vb_min_y + vb_h / 2.0
 
     view_id = f"view_section_{int(center_x)}_{int(center_y)}"
-    inner_m = re.search(r"<svg[^>]*>(.*)</svg>", raw_svg, flags=re.DOTALL)
-    inner_content = inner_m.group(1).strip() if inner_m else raw_svg
-
-    inner_content = re.sub(
-        r"</?[a-zA-Z0-9_]+:",
-        lambda m: "</" if m.group(0).startswith("</") else "<",
-        inner_content,
-    )
-    inner_content = re.sub(r'\s+xmlns(?::[a-zA-Z0-9_]+)?="[^"]*"', "", inner_content)
     inner_content = inner_content.replace('stroke="rgb(0,0,0)"', 'stroke="var(--line-visible)"')
     inner_content = inner_content.replace(
         'stroke="rgb(128,128,128)"', 'stroke="var(--line-visible)"'
@@ -2560,27 +2532,12 @@ def project_auxiliary_view(
     exporter.add_layer("visible", line_color="black", line_weight=0.35)
     exporter.add_shape(dwg.visible_lines, layer="visible")
 
-    with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tf:
-        tmp_path = tf.name
-    try:
-        exporter.write(tmp_path)
-        with open(tmp_path, encoding="utf-8") as f:
-            raw_svg = f.read()
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-
-    vb_m = re.search(r'viewBox="([^"]+)"', raw_svg)
-    viewbox_str = vb_m.group(1) if vb_m else "0 0 100 100"
-    vb_parts = [float(p) for p in viewbox_str.split()]
-    vb_min_x, vb_min_y, vb_w, vb_h = vb_parts
+    vb_min_x, vb_min_y, vb_w, vb_h, inner_content = _export_svg_to_inner(exporter)
 
     orig_cx = vb_min_x + vb_w / 2.0
     orig_cy = vb_min_y + vb_h / 2.0
     view_id = f"view_auxiliary_{int(center_x)}_{int(center_y)}"
 
-    inner_m = re.search(r"<svg[^>]*>(.*)</svg>", raw_svg, flags=re.DOTALL)
-    inner_content = inner_m.group(1).strip() if inner_m else raw_svg
     inner_content = inner_content.replace('stroke="rgb(0,0,0)"', 'stroke="var(--line-visible)"')
     inner_content = inner_content.replace(
         'stroke="rgb(128,128,128)"', 'stroke="var(--line-hidden)"'
