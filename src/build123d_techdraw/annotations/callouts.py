@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import html
 import math
+import weakref
 from collections.abc import Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+import build123d as bd
+from build123d.topology import Shape
+
 from build123d_techdraw.annotations.anchors import Anchor
 from build123d_techdraw.annotations.base import Annotation, BBox2D
+from build123d_techdraw.annotations.centerlines import CenterMark
 from build123d_techdraw.annotations.dimensions import format_dimension_value, render_arrowhead
 from build123d_techdraw.annotations.resolver import (
     circle_from_resolved_anchor,
@@ -43,6 +48,244 @@ def leader_bbox_2d(
     return (min(tx, ex, sx), min(ty, ey) - 4.0, max(tx, ex, sx), max(ty, ey) + 4.0)
 
 
+Segment2D = tuple[float, float, float, float]
+"""Paper-space line segment ``(x1, y1, x2, y2)`` in mm."""
+
+# Approximate advance width of one character as a fraction of the font size (ISO 3098 type B
+# lettering, monospace rendering), used to estimate leader text extents.
+_CHAR_WIDTH_FACTOR = 0.62
+# Clearance kept between a leader's text/landing shelf and the view's projected edges (mm).
+_TEXT_CLEARANCE_MM = 0.8
+# Paper length of one chord when sampling curved edges for collision tests (mm).
+_SAMPLE_CHORD_MM = 1.5
+# Minimum overlap (width, height) the sheet linter reports as OVERLAP_ANNOTATION (mm).
+_OVERLAP_MIN_W_MM = 4.0
+_OVERLAP_MIN_H_MM = 3.0
+# When the requested landing collides with geometry, the elbow is pushed outward in steps of
+# _ELBOW_STEP_MM, up to _ELBOW_MAX_EXTENSION_MM beyond the requested elbow distance.
+_ELBOW_STEP_MM = 2.5
+_ELBOW_MAX_EXTENSION_MM = 100.0
+
+_VIEW_SEGMENT_CACHE: weakref.WeakKeyDictionary[
+    SheetView, tuple[tuple[float, ...], list[Segment2D]]
+] = weakref.WeakKeyDictionary()
+
+
+def _segment_cache_key(view: SheetView) -> tuple[float, ...]:
+    return (
+        float(id(view.shape)),
+        view.center_x,
+        view.center_y,
+        view.scale,
+        view.orig_cx,
+        view.orig_cy,
+        view.width,
+        view.height,
+        float(len(view.breaks)),
+    )
+
+
+def view_geometry_segments(view: SheetView) -> list[Segment2D]:
+    """Paper-space segments approximating every projected model edge drawn in ``view``.
+
+    Edges are sampled from the view's 3D shape and projected with ``SheetView.to_sheet_3d``.
+    For detail views the segments are clipped to the detail boundary (circle or square) and the
+    boundary itself is added, since it is drawn as a continuous wide line. Rotated views and
+    views without a build123d shape return no segments (no geometry is known to avoid).
+    """
+    shape = view.shape
+    if not isinstance(shape, Shape) or view.rotation_angle_deg != 0.0:
+        return []
+    key = _segment_cache_key(view)
+    cached = _VIEW_SEGMENT_CACHE.get(view)
+    if cached is not None and cached[0] == key:
+        return cached[1]
+
+    cx, cy = view.center_x, view.center_y
+    clip_r = view.width / 2.0
+    detail = view.detail_shape
+
+    def inside_clip(x: float, y: float) -> bool:
+        if detail is None:
+            return True
+        if detail == "rect":
+            return abs(x - cx) <= clip_r and abs(y - cy) <= clip_r
+        return math.hypot(x - cx, y - cy) <= clip_r
+
+    segments: list[Segment2D] = []
+    for edge in shape.edges():
+        n = max(1, min(256, math.ceil(edge.length * view.scale / _SAMPLE_CHORD_MM)))
+        if edge.geom_type == bd.GeomType.LINE and detail is None:
+            n = 1
+        pts = [view.to_sheet_3d(*edge.position_at(i / n)) for i in range(n + 1)]
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:], strict=False):
+            if math.hypot(x2 - x1, y2 - y1) < 1e-6:
+                continue
+            if inside_clip(x1, y1) and inside_clip(x2, y2):
+                segments.append((x1, y1, x2, y2))
+
+    if detail == "rect":
+        x0, y0, x1, y1 = cx - clip_r, cy - clip_r, cx + clip_r, cy + clip_r
+        segments += [(x0, y0, x1, y0), (x1, y0, x1, y1), (x1, y1, x0, y1), (x0, y1, x0, y0)]
+    elif detail is not None:
+        steps = 72
+        ring = [
+            (
+                cx + clip_r * math.cos(2.0 * math.pi * i / steps),
+                cy + clip_r * math.sin(2.0 * math.pi * i / steps),
+            )
+            for i in range(steps + 1)
+        ]
+        segments += [(a[0], a[1], b[0], b[1]) for a, b in zip(ring, ring[1:], strict=False)]
+
+    _VIEW_SEGMENT_CACHE[view] = (key, segments)
+    return segments
+
+
+def segment_intersects_rect(seg: Segment2D, rect: BBox2D) -> bool:
+    """True if segment ``seg`` touches the axis-aligned rectangle ``rect`` (Liang-Barsky clip)."""
+    x1, y1, x2, y2 = seg
+    rx0, ry0, rx1, ry1 = rect
+    dx, dy = x2 - x1, y2 - y1
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, x1 - rx0), (dx, rx1 - x1), (-dy, y1 - ry0), (dy, ry1 - y1)):
+        if p == 0.0:
+            if q < 0.0:
+                return False
+            continue
+        r = q / p
+        if p < 0.0:
+            t0 = max(t0, r)
+        else:
+            t1 = min(t1, r)
+        if t0 > t1:
+            return False
+    return True
+
+
+def leader_text_rect(
+    target: tuple[float, float],
+    elbow_offset: tuple[float, float],
+    lines: Sequence[str],
+    font_size: float,
+    shelf_length: float,
+    going_left: bool,
+) -> BBox2D:
+    """Paper-space box enclosing a leader's landing shelf and text block, as drawn by ``to_svg``.
+
+    Includes a ``_TEXT_CLEARANCE_MM`` margin on every side.
+    """
+    ex = target[0] + elbow_offset[0]
+    ey = target[1] + elbow_offset[1]
+    text_w = max((len(line) for line in lines), default=0) * font_size * _CHAR_WIDTH_FACTOR
+    run = max(shelf_length, text_w + 2.0)
+    x0, x1 = (ex - run, ex) if going_left else (ex, ex + run)
+    top = ey - 1.2 - (max(len(lines), 1) - 1) * 3.4 - 0.8 * font_size
+    bottom = ey + 0.1
+    pad = _TEXT_CLEARANCE_MM
+    return (x0 - pad, top - pad, x1 + pad, bottom + pad)
+
+
+def _rect_inside_sheet(rect: BBox2D, sheet: DrawingSheet | None) -> bool:
+    if sheet is None:
+        return True
+    return (
+        rect[0] >= sheet.left_margin
+        and rect[1] >= sheet.top_margin
+        and rect[2] <= sheet.width_mm - sheet.right_margin
+        and rect[3] <= sheet.height_mm - sheet.bottom_margin
+    )
+
+
+def _significant_overlap(a: BBox2D, b: BBox2D) -> bool:
+    """Overlap large enough for the sheet linter's ``OVERLAP_ANNOTATION`` check."""
+    ox = min(a[2], b[2]) - max(a[0], b[0])
+    oy = min(a[3], b[3]) - max(a[1], b[1])
+    return ox > _OVERLAP_MIN_W_MM and oy > _OVERLAP_MIN_H_MM
+
+
+def _rects_overlap(a: BBox2D, b: BBox2D) -> bool:
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+def clear_elbow_offset(
+    view: SheetView,
+    target: tuple[float, float],
+    requested: tuple[float, float],
+    lines: Sequence[str],
+    font_size: float,
+    shelf_length: float,
+    align_right: bool | None,
+    obstacles: Sequence[BBox2D] = (),
+) -> tuple[float, float]:
+    """Return an elbow offset whose landing shelf and text do not cross ``view``'s edges.
+
+    The requested offset is kept when it is already clear of the view's projected edges (an
+    explicit clear interior region is honoured). Otherwise the elbow is pushed outward along the
+    requested direction and along its mirror images, and the shortest candidate of the best
+    tier wins:
+
+    1. text block outside the view's extents and leader clear of ``obstacles``
+       (other annotations' boxes);
+    2. text block clear of the view's edges and leader clear of ``obstacles``;
+    3. text block outside the view's extents;
+    4. text block clear of the view's edges.
+
+    Every candidate stays inside the drawing frame; only the leader line itself may cross the
+    view outline. If nothing qualifies, the requested offset is returned unchanged.
+    """
+    dx, dy = requested
+    length = math.hypot(dx, dy)
+    if length == 0.0:
+        return requested
+    segments = view_geometry_segments(view)
+    if not segments:
+        return requested
+    sheet = view.sheet or CURRENT_SHEET.get()
+    view_box = (view.min_x, view.min_y, view.max_x, view.max_y)
+
+    def text_rect(offset: tuple[float, float]) -> BBox2D:
+        going_left = (offset[0] < 0) if align_right is None else align_right
+        return leader_text_rect(target, offset, lines, font_size, shelf_length, going_left)
+
+    def clear_of_geometry(offset: tuple[float, float]) -> bool:
+        rect = text_rect(offset)
+        if not _rect_inside_sheet(rect, sheet):
+            return False
+        return not any(segment_intersects_rect(seg, rect) for seg in segments)
+
+    if clear_of_geometry(requested):
+        return requested
+
+    steps = int(_ELBOW_MAX_EXTENSION_MM / _ELBOW_STEP_MM)
+    candidates = [
+        (dx * sx * k, dy * sy * k)
+        for sx, sy in ((1.0, 1.0), (-1.0, 1.0), (1.0, -1.0), (-1.0, -1.0))
+        for k in (1.0 + i * _ELBOW_STEP_MM / length for i in range(steps + 1))
+    ]
+    # Shortest leader first; ties keep the requested direction ahead of its mirror images.
+    clear = sorted((c for c in candidates if clear_of_geometry(c)), key=lambda c: math.hypot(*c))
+    if not clear:
+        return requested
+
+    def outside_view(offset: tuple[float, float]) -> bool:
+        return not _rects_overlap(text_rect(offset), view_box)
+
+    def free_of_obstacles(offset: tuple[float, float]) -> bool:
+        box = leader_bbox_2d(target, offset, shelf_length)
+        return not any(_significant_overlap(box, other) for other in obstacles)
+
+    for tier in (
+        lambda c: outside_view(c) and free_of_obstacles(c),
+        free_of_obstacles,
+        outside_view,
+    ):
+        for candidate in clear:
+            if tier(candidate):
+                return candidate
+    return clear[0]
+
+
 class LeaderNote(Annotation):
     """Multi-line leader note with pointer dot/arrow, elbow, and horizontal shelf."""
 
@@ -70,7 +313,8 @@ class LeaderNote(Annotation):
         self.align_right = align_right
         self.terminator = terminator
         self.font_size = font_size
-        self.elbow_offset = leader_offset or elbow_offset
+        self.requested_elbow_offset: tuple[float, float] = leader_offset or elbow_offset
+        self.elbow_offset = self.requested_elbow_offset
         self.view = view
         self.raw_target: Any = None
         self.target: tuple[float, float] = (0.0, 0.0)
@@ -154,7 +398,31 @@ class LeaderNote(Annotation):
             self.target = (view.center_x, view.center_y)
             self.resolved = True
 
+        # Keep the landing shelf and text clear of the view's projected edges.
+        self.elbow_offset = clear_elbow_offset(
+            view,
+            self.target,
+            self.requested_elbow_offset,
+            self.lines,
+            self.font_size,
+            self.shelf_length,
+            self.align_right,
+            obstacles=self._other_annotation_boxes(view),
+        )
         self._register(view)
+
+    def _other_annotation_boxes(self, view: SheetView) -> list[BBox2D]:
+        """Boxes of the other annotations already placed on ``view``'s sheet (or the view)."""
+        sheet = view.sheet or CURRENT_SHEET.get()
+        pool = sheet.annotations if sheet is not None else view.annotations
+        boxes: list[BBox2D] = []
+        for ann in pool:
+            if ann is self or isinstance(ann, CenterMark):
+                continue
+            box = ann.bounding_box_2d()
+            if box is not None:
+                boxes.append(box)
+        return boxes
 
     def bounding_box_2d(self) -> BBox2D:
         return leader_bbox_2d(self.target, self.elbow_offset, self.shelf_length)
@@ -785,8 +1053,6 @@ class ChamferCallout(LeaderNote):
         if self.raw_target is not None and not isinstance(self.raw_target, (tuple, list)):
             self.raw_target = ensure_anchor(self.raw_target, view.shape) or self.raw_target
         if not self._explicit_width and self.raw_target is not None:
-            import build123d as bd
-
             entity = self.raw_target
             if isinstance(entity, Anchor):
                 if not self.resolved and resolved_target is None:
