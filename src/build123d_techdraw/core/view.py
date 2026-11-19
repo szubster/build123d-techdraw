@@ -1070,8 +1070,8 @@ class SheetView:
             view=self,
         )
         self.add(dim)
-        if offset_y > 0:
-            self.bottom_annotation_y = max(self.bottom_annotation_y, sy + offset_y + 4.0)
+        if dim.offset > 0:
+            self.bottom_annotation_y = max(self.bottom_annotation_y, sy + dim.offset + 4.0)
         return dim
 
     def dim_vertical(
@@ -1157,8 +1157,8 @@ class SheetView:
             view=self,
         )
         self.add(dim)
-        if offset_y > 0:
-            self.bottom_annotation_y = max(self.bottom_annotation_y, y_ref + offset_y + 4.0)
+        if dim.offset > 0:
+            self.bottom_annotation_y = max(self.bottom_annotation_y, y_ref + dim.offset + 4.0)
         return dim
 
     def add_overall_vertical(

@@ -27,7 +27,9 @@ def test_duplicate_annotation_registration_fix() -> None:
         v2 = FrontView(box, center=(120.0, 120.0))
         v2.dim_horizontal(0.0, 50.0, model_y=0.0, offset_y=-5.0)
         v2.dim_vertical(0.0, 25.0, model_x=0.0, offset_x=-5.0)
-        v2.add_overall_vertical()
+        # The inner dim is pushed out of the outline to the first row (10 mm); the overall
+        # dimension goes on the next row (ISO 129-1: larger dimensions outside smaller ones).
+        v2.add_overall_vertical(offset_x=-17.0)
 
     sheet2 = s2
     assert len(sheet2.annotations) == 3

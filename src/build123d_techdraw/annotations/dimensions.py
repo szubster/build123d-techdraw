@@ -235,6 +235,7 @@ class LinearDimension(Annotation):
             target2_or_end = anchor2
 
         self.offset = offset
+        self.requested_offset = offset
         self.dim_type = (
             dim_type if isinstance(dim_type, DimensionType) else DimensionType(dim_type.lower())
         )
@@ -455,6 +456,7 @@ class LinearDimension(Annotation):
 
         if self.resolved:
             self._update_break_flag(view)
+            self._keep_clear_of_view(view)
         self._register(view)
 
     def _update_break_flag(self, view: SheetView) -> None:
@@ -470,6 +472,75 @@ class LinearDimension(Annotation):
             return
         self.has_break = any(lo < g < hi for g in gaps)
 
+    def _text_band(self, line_pos: float) -> tuple[float, float]:
+        """Extent of dimension line + text perpendicular to the line, for a line at ``line_pos``.
+
+        Text sits above a horizontal dimension line and, rotated counter-clockwise, to the left
+        of a vertical one, so the band always extends towards smaller paper coordinates.
+        """
+        return (line_pos - 1.4 - self.font_size, line_pos)
+
+    def _line_geometry(self) -> tuple[float, float, float, float] | None:
+        """``(base, line, span_lo, span_hi)`` across/along the line for H/V dimensions."""
+        x1, y1 = self.start
+        x2, y2 = self.end
+        if self.dim_type == DimensionType.VERTICAL:
+            base = (x1 + x2) / 2.0
+            return (base, base + self.offset, min(y1, y2), max(y1, y2))
+        if self.dim_type == DimensionType.HORIZONTAL:
+            base = (y1 + y2) / 2.0
+            return (base, base + self.offset, min(x1, x2), max(x1, x2))
+        return None
+
+    def _keep_clear_of_view(self, view: SheetView) -> None:
+        """Push a dimension line that lands on or inside the view outline out of the view.
+
+        ISO 129-1 places dimension lines outside the outline where possible. When the requested
+        offset puts the line or its text on/inside the view's outline, the line is moved to the
+        first free row beyond the outline on the requested side: ``FIRST_DIM_OFFSET_MM`` from
+        the outline, then every ``DIM_STACK_STEP_MM`` past rows already taken by parallel
+        dimensions of the view. Dimensions already outside the outline keep their offset.
+        """
+        from build123d_techdraw.layout.auto_dimension import (
+            DIM_STACK_STEP_MM,
+            FIRST_DIM_OFFSET_MM,
+        )
+
+        self.offset = self.requested_offset
+        geom = self._line_geometry()
+        if geom is None:
+            return
+        base, line, span_lo, span_hi = geom
+        vertical = self.dim_type == DimensionType.VERTICAL
+        along_lo, along_hi = (view.min_y, view.max_y) if vertical else (view.min_x, view.max_x)
+        across_lo, across_hi = (view.min_x, view.max_x) if vertical else (view.min_y, view.max_y)
+        if span_hi <= along_lo or span_lo >= along_hi:
+            return
+        touch = 1.0
+        band = self._text_band(line)
+        if band[1] <= across_lo - touch or band[0] >= across_hi + touch:
+            return
+
+        side = -1.0 if self.requested_offset < 0 else 1.0
+        edge = across_lo if side < 0 else across_hi
+        taken: list[tuple[float, float]] = []
+        for ann in view.annotations:
+            if ann is self or not isinstance(ann, LinearDimension):
+                continue
+            if ann.dim_type != self.dim_type or not ann.resolved:
+                continue
+            other = ann._line_geometry()
+            if other is None or other[3] <= span_lo or other[2] >= span_hi:
+                continue
+            taken.append(ann._text_band(other[1]))
+        target = edge + side * FIRST_DIM_OFFSET_MM
+        for _ in range(20):
+            lo, hi = self._text_band(target)
+            if not any(lo < t_hi + touch and t_lo - touch < hi for t_lo, t_hi in taken):
+                break
+            target += side * DIM_STACK_STEP_MM
+        self.offset = target - base
+
     def _jog_positions(self, lo: float, hi: float, axis: str) -> list[float]:
         """Positions of break jogs on a dimension line spanning ``lo``..``hi`` along ``axis``.
 
@@ -484,15 +555,38 @@ class LinearDimension(Annotation):
             jogs = [g for g in self.view.break_gap_centers(axis) if lo + margin < g < hi - margin]
         return jogs or [(lo + hi) / 2.0]
 
+    def _full_text(self, dist: float) -> str:
+        disp_val = self.text if self.text is not None else format_dimension_value(dist)
+        full_str = f"{self.prefix}{disp_val}{self.suffix}"
+        if self.tolerance:
+            full_str += f" {self.tolerance}"
+        return full_str
+
+    def _text_overflows(self, dist: float, full_str: str) -> bool:
+        """True when the text does not fit between the terminations of a non-narrow dim."""
+        if dist < 2.0 * self.arrow_size + 4.0:
+            return False
+        return _estimate_text_width(full_str, self.font_size) + 2.0 > dist
+
     def bounding_box_2d(self) -> BBox2D:
         x1, y1 = self.start
         x2, y2 = self.end
         if self.dim_type == DimensionType.HORIZONTAL:
             dim_y = (y1 + y2) / 2.0 + self.offset
-            return (min(x1, x2), dim_y - 3.5, max(x1, x2), dim_y + 2.0)
+            hi_x = max(x1, x2)
+            dist = hi_x - min(x1, x2)
+            full_str = self._full_text(dist)
+            if not self.has_break and self._text_overflows(dist, full_str):
+                hi_x += _estimate_text_width(full_str, self.font_size) + 3.0
+            return (min(x1, x2), dim_y - 3.5, hi_x, dim_y + 2.0)
         if self.dim_type == DimensionType.VERTICAL:
             dim_x = (x1 + x2) / 2.0 + self.offset
-            return (dim_x - 3.5, min(y1, y2), dim_x + 2.0, max(y1, y2))
+            lo_y = min(y1, y2)
+            dist = max(y1, y2) - lo_y
+            full_str = self._full_text(dist)
+            if not self.has_break and self._text_overflows(dist, full_str):
+                lo_y -= _estimate_text_width(full_str, self.font_size) + 3.0
+            return (dim_x - 3.5, lo_y, dim_x + 2.0, max(y1, y2))
         return (min(x1, x2) - 2.0, min(y1, y2) - 2.0, max(x1, x2) + 2.0, max(y1, y2) + 2.0)
 
     def to_svg(self) -> str:
@@ -540,7 +634,18 @@ class LinearDimension(Annotation):
                     render_arrowhead(right_x, dim_y, 1.0, 0.0, length=self.arrow_size),
                 ]
                 text_w = _estimate_text_width(full_str, self.font_size)
-                text_x = _text_centre_clear_of_jogs(left_x, right_x, jogs, text_w, self.arrow_size)
+                if not jogs and self._text_overflows(dist, full_str):
+                    # ISO 129-1: text too long for the space goes on an extension of the
+                    # dimension line beyond the right-hand termination.
+                    run_end = right_x + text_w + 3.0
+                    arrow_elems.append(
+                        f'<line x1="{right_x:.2f}" y1="{dim_y:.2f}" x2="{run_end:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+                    )
+                    text_x = right_x + 1.5 + text_w / 2.0
+                else:
+                    text_x = _text_centre_clear_of_jogs(
+                        left_x, right_x, jogs, text_w, self.arrow_size
+                    )
                 text_elem = f'<text x="{text_x:.2f}" y="{dim_y - 1.2:.2f}" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>'
 
             # Dimension line
@@ -605,6 +710,14 @@ class LinearDimension(Annotation):
                 ]
 
             jogs = [] if is_narrow else self._jog_positions(top_y, bottom_y, "Y")
+            if not is_narrow and not jogs and self._text_overflows(dist, full_str):
+                # Text too long for the space: on an extension beyond the upper termination.
+                text_w = _estimate_text_width(full_str, self.font_size)
+                run_end = top_y - text_w - 3.0
+                arrow_elems.append(
+                    f'<line x1="{dim_x:.2f}" y1="{run_end:.2f}" x2="{dim_x:.2f}" y2="{top_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+                )
+                mid_y = top_y - 1.5 - text_w / 2.0
             if jogs:
                 mid_y = _text_centre_clear_of_jogs(
                     top_y,
