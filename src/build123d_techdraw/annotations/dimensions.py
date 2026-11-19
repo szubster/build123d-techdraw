@@ -8,8 +8,11 @@ import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from build123d.topology import Shape
+
 from build123d_techdraw.annotations.anchors import Anchor
 from build123d_techdraw.annotations.base import Annotation, BBox2D
+from build123d_techdraw.annotations.centerlines import BoltCircle
 from build123d_techdraw.annotations.resolver import (
     ensure_anchor,
     is_topological_entity,
@@ -74,6 +77,74 @@ def _text_centre_clear_of_jogs(
     pieces = [(cuts[i], cuts[i + 1]) for i in range(0, len(cuts), 2)]
     a, b = max(pieces, key=lambda piece: piece[1] - piece[0])
     return (a + b) / 2.0
+
+
+Segment2D = tuple[tuple[float, float], tuple[float, float]]
+"""Paper-space line segment ``((x0, y0), (x1, y1))`` in mm."""
+
+_SAMPLE_STEP_MM = 1.0
+"""Paper-space spacing used to sample curved model edges into segments."""
+
+
+def _view_contour_segments(view: SheetView) -> list[Segment2D]:
+    """Paper-space polyline approximation of every edge of the view's shape.
+
+    All model edges are projected (visible and hidden alike), which is conservative for
+    placing text clear of the drawn geometry. Views without a build123d shape yield nothing.
+    """
+    shape = view.shape
+    if not isinstance(shape, Shape):
+        return []
+    segments: list[Segment2D] = []
+    for edge in shape.edges():
+        paper_len = float(edge.length) * view.scale
+        n = max(1, min(720, math.ceil(paper_len / _SAMPLE_STEP_MM)))
+        pts = [
+            view.to_sheet_3d(v.X, v.Y, v.Z) for v in edge.positions([i / n for i in range(n + 1)])
+        ]
+        segments.extend((pts[i], pts[i + 1]) for i in range(n))
+    return segments
+
+
+def _circle_segments(center: tuple[float, float], radius: float) -> list[Segment2D]:
+    """Polyline approximation of a paper-space circle."""
+    n = max(12, min(720, math.ceil(2.0 * math.pi * radius / _SAMPLE_STEP_MM)))
+    pts = [
+        (
+            center[0] + radius * math.cos(2.0 * math.pi * i / n),
+            center[1] + radius * math.sin(2.0 * math.pi * i / n),
+        )
+        for i in range(n + 1)
+    ]
+    return [(pts[i], pts[i + 1]) for i in range(n)]
+
+
+def _segment_hits_box(seg: Segment2D, box: BBox2D) -> bool:
+    """True if the segment touches the axis-aligned box (Liang-Barsky clipping)."""
+    (x0, y0), (x1, y1) = seg
+    dx, dy = x1 - x0, y1 - y0
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, x0 - box[0]), (dx, box[2] - x0), (-dy, y0 - box[1]), (dy, box[3] - y0)):
+        if p == 0.0:
+            if q < 0.0:
+                return False
+            continue
+        r = q / p
+        if p < 0.0:
+            t0 = max(t0, r)
+        else:
+            t1 = min(t1, r)
+        if t0 > t1:
+            return False
+    return True
+
+
+def _union_boxes(a: BBox2D, b: BBox2D) -> BBox2D:
+    return (min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3]))
+
+
+def _boxes_overlap(a: BBox2D, b: BBox2D) -> bool:
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
 
 
 def _view_axis_delta(
@@ -1013,6 +1084,9 @@ class DiameterDimension(Annotation):
         self._explicit_coords = False
         self.anchor_stale = False
         self.stale_reason: str | None = None
+        self._leader_cache: tuple[tuple[object, ...], float] | None = None
+        self._contour_cache: tuple[tuple[object, ...], list[Segment2D]] | None = None
+        self._placing_leader = False
 
         if center is not None and diameter is not None:
             self.center = (float(center[0]), float(center[1]))
@@ -1087,31 +1161,155 @@ class DiameterDimension(Annotation):
 
         self._register(view)
 
-    def to_svg(self) -> str:
-        cx, cy = self.center
-        radius = self.diameter / 2.0
-        rad = math.radians(self.angle_deg)
-        ux = math.cos(rad)
-        uy = -math.sin(rad)
+    _DEFAULT_LEADER_MM = 10.0
+    _CLEARANCE_MM = 1.0
 
-        p1_x = cx - ux * radius
-        p1_y = cy - uy * radius
-        p2_x = cx + ux * radius
-        p2_y = cy + uy * radius
-
-        leader_len = 10.0
-        elbow_x = p2_x + ux * leader_len
-        elbow_y = p2_y + uy * leader_len
-
-        shelf_dir = 1.0 if ux >= 0 else -1.0
-        shelf_x = elbow_x + shelf_dir * self.shelf_length
-
+    def _display_text(self) -> str:
         disp_val = (
             self.text if self.text is not None else f"⌀{format_dimension_value(self.diameter)}"
         )
         full_str = f"{self.prefix}{disp_val}{self.suffix}"
         if self.tolerance:
             full_str += f" {self.tolerance}"
+        return full_str
+
+    def _direction(self) -> tuple[float, float]:
+        rad = math.radians(self.angle_deg)
+        return (math.cos(rad), -math.sin(rad))
+
+    def _landing(self, leader_len: float) -> tuple[float, float, float, BBox2D]:
+        """Elbow point, shelf end X and the shelf + text box for a given leader length."""
+        cx, cy = self.center
+        ux, uy = self._direction()
+        reach = self.diameter / 2.0 + leader_len
+        elbow_x = cx + ux * reach
+        elbow_y = cy + uy * reach
+        shelf_dir = 1.0 if ux >= 0 else -1.0
+        text_w = _estimate_text_width(self._display_text(), self.font_size)
+        far_x = elbow_x + shelf_dir * max(self.shelf_length, 2.0 + text_w)
+        box = (
+            min(elbow_x, far_x),
+            elbow_y - 1.2 - self.font_size,
+            max(elbow_x, far_x),
+            elbow_y,
+        )
+        shelf_x = elbow_x + shelf_dir * self.shelf_length
+        return elbow_x, elbow_y, shelf_x, box
+
+    def _obstacles(self, view: SheetView) -> tuple[list[Segment2D], list[BBox2D]]:
+        """Drawn geometry (as segments) and other annotation boxes the landing must avoid."""
+        key: tuple[object, ...] = (
+            id(view.shape),
+            view.center_x,
+            view.center_y,
+            view.scale,
+            tuple((b.interval, b.gap) for b in view.breaks),
+        )
+        if self._contour_cache is None or self._contour_cache[0] != key:
+            self._contour_cache = (key, _view_contour_segments(view))
+        segments = list(self._contour_cache[1])
+        boxes: list[BBox2D] = []
+        for ann in view.annotations:
+            if ann is self or isinstance(ann, DiameterDimension):
+                continue
+            if isinstance(ann, BoltCircle):
+                segments.extend(_circle_segments(ann.center, ann.diameter / 2.0))
+                continue
+            bbox = ann.bounding_box_2d()
+            if bbox is not None:
+                boxes.append(bbox)
+        return segments, boxes
+
+    def _leader_length(self) -> float:
+        """Leader length (mm, beyond the circle) that lands the shelf and text in clear space.
+
+        The default short leader is kept when its text is clear of the view's geometry and of
+        other annotations (a clear interior region). Otherwise the leader is extended along
+        ``angle_deg`` until the landing is clear, at most to just outside the view outline.
+        """
+        view = self.view
+        if view is None or self._placing_leader:
+            return self._DEFAULT_LEADER_MM
+        key: tuple[object, ...] = (
+            self.center,
+            self.diameter,
+            self.angle_deg,
+            self._display_text(),
+            view.center_x,
+            view.center_y,
+            view.scale,
+            id(view.shape),
+            len(view.annotations),
+        )
+        if self._leader_cache is not None and self._leader_cache[0] == key:
+            return self._leader_cache[1]
+
+        self._placing_leader = True
+        try:
+            cx, cy = self.center
+            ux, uy = self._direction()
+            # Distance along the ray at which it leaves the view's bounding box.
+            exits = []
+            if ux > 1e-9:
+                exits.append((view.max_x - cx) / ux)
+            elif ux < -1e-9:
+                exits.append((view.min_x - cx) / ux)
+            if uy > 1e-9:
+                exits.append((view.max_y - cy) / uy)
+            elif uy < -1e-9:
+                exits.append((view.min_y - cy) / uy)
+            exit_dist = max(0.0, min(exits)) if exits else 0.0
+            max_len = max(
+                self._DEFAULT_LEADER_MM,
+                exit_dist - self.diameter / 2.0 + self.font_size + 1.2 + 2.0 * self._CLEARANCE_MM,
+            )
+
+            segments, boxes = self._obstacles(view)
+            # Only obstacles near any candidate landing matter.
+            reach_box = _union_boxes(
+                self._landing(self._DEFAULT_LEADER_MM)[3], self._landing(max_len)[3]
+            )
+            near = [s for s in segments if _segment_hits_box(s, reach_box)]
+            pad = self._CLEARANCE_MM
+
+            def clear(length: float) -> bool:
+                b = self._landing(length)[3]
+                padded = (b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad)
+                if any(_boxes_overlap(padded, other) for other in boxes):
+                    return False
+                return not any(_segment_hits_box(s, padded) for s in near)
+
+            length = self._DEFAULT_LEADER_MM
+            while length < max_len and not clear(length):
+                length += 1.0
+            length = min(length, max_len)
+        finally:
+            self._placing_leader = False
+        self._leader_cache = (key, length)
+        return length
+
+    def bounding_box_2d(self) -> BBox2D:
+        cx, cy = self.center
+        ux, uy = self._direction()
+        r = self.diameter / 2.0
+        _, _, shelf_x, box = self._landing(self._leader_length())
+        xs = [cx - ux * r, cx + ux * r, shelf_x, box[0], box[2]]
+        ys = [cy - uy * r, cy + uy * r, box[1], box[3]]
+        return (min(xs), min(ys), max(xs), max(ys))
+
+    def to_svg(self) -> str:
+        cx, cy = self.center
+        radius = self.diameter / 2.0
+        ux, uy = self._direction()
+
+        p1_x = cx - ux * radius
+        p1_y = cy - uy * radius
+        p2_x = cx + ux * radius
+        p2_y = cy + uy * radius
+
+        elbow_x, elbow_y, shelf_x, _ = self._landing(self._leader_length())
+        shelf_dir = 1.0 if ux >= 0 else -1.0
+        full_str = self._display_text()
 
         text_anchor = "start" if shelf_dir > 0 else "end"
         text_x = elbow_x + (2.0 if shelf_dir > 0 else -2.0)

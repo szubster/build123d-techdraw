@@ -73,6 +73,10 @@ sheet.add_diameter_dimension(
 )
 ```
 
+The leader keeps its short default length when the landing shelf and text are clear of the view's
+edges, bolt circles and other annotations. Otherwise it is lengthened until the text clears them,
+at most to just outside the view's outline.
+
 ---
 
 ## 🏷️ Centerlines & Crosshairs
