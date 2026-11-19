@@ -42,6 +42,7 @@ from build123d_techdraw.annotations.gdt import (
     GDTCharacteristic,
 )
 from build123d_techdraw.annotations.surface import MaterialRemoval, SurfaceFinishSymbol
+from build123d_techdraw.annotations.threads import CosmeticThread, auto_cosmetic_threads
 from build123d_techdraw.context import CURRENT_VIEW
 from build123d_techdraw.core.scale import format_iso_scale
 
@@ -1626,6 +1627,51 @@ class SheetView:
         )
         return tc
 
+    def cosmetic_thread(
+        self,
+        target: Any = None,
+        thread: str | Any | None = None,
+        nominal_diameter: float | None = None,
+        minor_diameter: float | None = None,
+        thread_type: str = "internal",
+        depth: float | None = None,
+        model_x: float | None = None,
+        model_y: float | None = None,
+        view_mode: str | None = None,
+    ) -> CosmeticThread:
+        """Add an ISO 6410-1 cosmetic thread representation to this view."""
+        center_pt = (
+            self.to_sheet_coords(model_x, model_y)
+            if model_x is not None and model_y is not None
+            else None
+        )
+        return CosmeticThread(
+            target=target,
+            thread=thread,
+            nominal_diameter=nominal_diameter,
+            minor_diameter=minor_diameter,
+            thread_type=thread_type,
+            depth=depth,
+            center=center_pt,
+            view_mode=view_mode,
+            view=self,
+        )
+
+    def auto_cosmetic_threads(
+        self,
+        *,
+        threaded_diameters: dict[float, str] | None = None,
+        infer_threads: bool = False,
+        tolerance: float = 0.08,
+    ) -> list[CosmeticThread]:
+        """Automatically generate ISO 6410-1 CosmeticThread annotations from recognized holes."""
+        return auto_cosmetic_threads(
+            self,
+            threaded_diameters=threaded_diameters,
+            infer_threads=infer_threads,
+            tolerance=tolerance,
+        )
+
 
 AlignSpec: TypeAlias = SheetView | tuple[Any, ...] | list[Any] | dict[str, Any]
 """``align_to`` argument: another view, ``(view, direction[, spacing])``, or a mapping with
@@ -1899,6 +1945,9 @@ def _assemble_section_view(
     hatch_pitch: float,
     hatch_angle: float,
     fallback_shape: Any | None = None,
+    projection_origin: bd.Vector | None = None,
+    proj_x: bd.Vector | None = None,
+    proj_y: bd.Vector | None = None,
 ) -> SheetView:
     """Export 2D section faces and background edges into a hatched SheetView."""
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
@@ -1976,6 +2025,9 @@ def _assemble_section_view(
         width=exact_w * scale,
         height=exact_h * scale,
         model_origin=(orig_u, orig_v),
+        projection_origin=projection_origin,
+        proj_x=proj_x,
+        proj_y=proj_y,
         orig_cx=orig_cx,
         orig_cy=orig_cy,
         svg_content=svg_view_group,
@@ -2130,6 +2182,9 @@ def project_section_to_view(
         hatch_pitch=hatch_pitch,
         hatch_angle=hatch_angle,
         fallback_shape=sec_2d,
+        projection_origin=cutting_plane.origin,
+        proj_x=cutting_plane.x_dir,
+        proj_y=cutting_plane.y_dir,
     )
     return _record_regen(
         view,

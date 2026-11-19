@@ -101,6 +101,17 @@ class BookmarkedPdfPages(PdfPages):
         super().close()  # type: ignore[no-untyped-call]
 
 
+def _parse_stroke_width(raw: Any, default: float) -> float:
+    """Parse an SVG stroke-width value (e.g. '0.25', '0.25px', '0.25mm') to float mm."""
+    if raw is None:
+        return default
+    cleaned = str(raw).replace("px", "").replace("mm", "").strip()
+    try:
+        return float(cleaned)
+    except ValueError:
+        return default
+
+
 class PDFRenderer:
     """Renders vector technical drawings to multi-page publication-ready PDF documents."""
 
@@ -274,14 +285,19 @@ class PDFRenderer:
                         or "line-visible" in raw_stroke
                     ):
                         stroke = colors.line_visible
-                        lw = float(el.values.get("stroke-width", 0.50)) * MM_TO_PT
+                        lw = _parse_stroke_width(el.values.get("stroke-width"), 0.50) * MM_TO_PT
                     elif "line-center" in cls_list:
                         stroke = colors.line_center
                         lw = 0.25 * MM_TO_PT
                         ls = (0, (6, 2, 1, 2))
+                    elif "line-thread" in cls_list:
+                        stroke = colors.line_visible
+                        lw = _parse_stroke_width(el.values.get("stroke-width"), 0.25) * MM_TO_PT
+                        if "line-thread-dashed" in cls_list:
+                            ls = (0, (3, 2))
                     elif "line-section" in cls_list or "line-section-thick" in cls_list:
                         stroke = colors.line_section
-                        lw = float(el.values.get("stroke-width", 0.6)) * MM_TO_PT
+                        lw = _parse_stroke_width(el.values.get("stroke-width"), 0.6) * MM_TO_PT
                     elif "section-arrow-head" in cls_list:
                         fill = colors.line_section
                     elif "border-main" in cls_list:
@@ -289,10 +305,10 @@ class PDFRenderer:
                         lw = 0.70 * MM_TO_PT
                     elif "border-sub" in cls_list or "panel-sub" in cls_list:
                         stroke = colors.border_sub
-                        lw = float(el.values.get("stroke-width", 0.35)) * MM_TO_PT
+                        lw = _parse_stroke_width(el.values.get("stroke-width"), 0.35) * MM_TO_PT
                     elif "panel-stroke" in cls_list:
                         stroke = colors.border
-                        lw = float(el.values.get("stroke-width", 0.50)) * MM_TO_PT
+                        lw = _parse_stroke_width(el.values.get("stroke-width"), 0.50) * MM_TO_PT
                     elif "title-bg" in cls_list or "panel-bg" in cls_list:
                         fill = colors.title_bg
                         stroke = colors.border

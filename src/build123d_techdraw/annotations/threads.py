@@ -2,10 +2,21 @@
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+import build123d as bd
+from build123d.topology import Shape
+
+from build123d_techdraw.annotations.base import Annotation, BBox2D
+from build123d_techdraw.annotations.resolver import is_topological_entity, resolve_point_to_sheet
+from build123d_techdraw.context import CURRENT_SHEET, CURRENT_VIEW
+
+if TYPE_CHECKING:
+    from build123d_techdraw.core.view import SheetView
 
 # ISO 261 coarse pitches (mm) for metric threads M1.5 - M64
 _ISO_261_COARSE_PITCH: dict[float, float] = {
@@ -440,3 +451,433 @@ def find_threads_by_tap_drill(diameter: float, tolerance: float = 0.08) -> list[
             matches.append((diff, priority, spec))
     matches.sort(key=lambda item: (round(item[0], 4), item[1], item[2].major_diameter))
     return [item[2] for item in matches]
+
+
+def resolve_thread_diameters(
+    thread: str | Any | None = None,
+    nominal_diameter: float | None = None,
+    minor_diameter: float | None = None,
+) -> tuple[float, float]:
+    """Resolve ``(nominal_diameter, minor_diameter)`` in mm from a thread spec or explicit values."""
+    parsed_major: float | None = None
+    parsed_minor: float | None = None
+    if thread is not None:
+        spec = get_thread_spec(thread)
+        parsed_major = spec.major_diameter
+        parsed_minor = spec.tap_drill
+
+    nom = nominal_diameter if nominal_diameter is not None else parsed_major
+    min_d = minor_diameter if minor_diameter is not None else parsed_minor
+
+    if nom is None and min_d is None:
+        raise ValueError(
+            "CosmeticThread requires 'thread', 'nominal_diameter', or 'minor_diameter'."
+        )
+    if nom is None and min_d is not None:
+        nom = round(min_d / 0.85, 3)
+    if min_d is None and nom is not None:
+        min_d = round(nom * 0.85, 3)
+
+    assert nom is not None and min_d is not None
+    return (float(nom), float(min_d))
+
+
+class CosmeticThread(Annotation):
+    """ISO 6410-1 cosmetic thread representation for internal and external threads.
+
+    - End view: 3/4 (270°) thin circular arc (``stroke-width="0.25"``) with a 90° gap in the
+      upper-right quadrant, drawn at nominal (major) diameter for internal threads and at
+      minor (root) diameter for external threads.
+    - Side / Section view: parallel thin lines at the thread crest/root diameter, rendered
+      solid in ``SectionView`` and dashed in unsectioned side views.
+    """
+
+    def __init__(
+        self,
+        target: Any = None,
+        thread: str | Any | None = None,
+        nominal_diameter: float | None = None,
+        minor_diameter: float | None = None,
+        thread_type: str = "internal",
+        depth: float | None = None,
+        center: tuple[float, float] | None = None,
+        start: tuple[float, float] | None = None,
+        end: tuple[float, float] | None = None,
+        view_mode: str | None = None,
+        gap_start_deg: float = 15.0,
+        gap_angle_deg: float = 90.0,
+        stroke_width: float = 0.25,
+        view: SheetView | None = None,
+    ) -> None:
+        self.target = target
+        self.thread = thread
+        self.thread_type = thread_type.lower().strip()
+        if self.thread_type not in ("internal", "external"):
+            raise ValueError(
+                f"Invalid thread_type {thread_type!r}; expected 'internal' or 'external'."
+            )
+        self.depth = depth
+        self.view_mode = view_mode.lower().strip() if view_mode is not None else None
+        self.gap_start_deg = float(gap_start_deg)
+        self.gap_angle_deg = float(gap_angle_deg)
+        self.stroke_width = float(stroke_width)
+        self.view: SheetView | None = view
+
+        self._explicit_nominal = nominal_diameter
+        self._explicit_minor = minor_diameter
+        self.nominal_diameter: float = float(nominal_diameter) if nominal_diameter else 0.0
+        self.minor_diameter: float = float(minor_diameter) if minor_diameter else 0.0
+
+        self.center: tuple[float, float] | None = (
+            (float(center[0]), float(center[1])) if center is not None else None
+        )
+        self.start: tuple[float, float] | None = (
+            (float(start[0]), float(start[1])) if start is not None else None
+        )
+        self.end: tuple[float, float] | None = (
+            (float(end[0]), float(end[1])) if end is not None else None
+        )
+        self.paper_radius: float = 0.0
+        self.has_end_cap: bool = depth is not None
+        self.resolved: bool = False
+        self._skip: bool = False
+
+        if self.center is not None and (
+            thread is not None or nominal_diameter is not None or minor_diameter is not None
+        ):
+            self.nominal_diameter, self.minor_diameter = resolve_thread_diameters(
+                thread, nominal_diameter, minor_diameter
+            )
+            if self.view_mode is None:
+                self.view_mode = "end"
+            scale = view.scale if view is not None else 1.0
+            d_eff = self.nominal_diameter if self.thread_type == "internal" else self.minor_diameter
+            self.paper_radius = (d_eff / 2.0) * float(scale)
+            self.resolved = True
+        elif self.start is not None and self.end is not None:
+            self.nominal_diameter, self.minor_diameter = resolve_thread_diameters(
+                thread, nominal_diameter, minor_diameter
+            )
+            if self.view_mode is None:
+                self.view_mode = "side"
+            scale = view.scale if view is not None else 1.0
+            d_eff = self.nominal_diameter if self.thread_type == "internal" else self.minor_diameter
+            self.paper_radius = (d_eff / 2.0) * float(scale)
+            self.resolved = True
+
+        target_view = view or CURRENT_VIEW.get()
+        if target_view is not None:
+            self._attach_to_view(target_view)
+        else:
+            target_sheet = CURRENT_SHEET.get()
+            if target_sheet is not None and self not in target_sheet.annotations:
+                target_sheet.annotations.append(self)
+
+    @staticmethod
+    def _get_view_direction(view: SheetView) -> tuple[float, float, float]:
+        """Return unit 3D view projection direction (look_from)."""
+        px = view.proj_x
+        py = view.proj_y
+        if px is not None and py is not None:
+            c = px.cross(py)
+            length = math.sqrt(float(c.X) ** 2 + float(c.Y) ** 2 + float(c.Z) ** 2)
+            if length > 1e-6:
+                return (float(c.X) / length, float(c.Y) / length, float(c.Z) / length)
+
+        from build123d_techdraw.core.view import VIEW_VECTORS
+
+        if view.view_type in VIEW_VECTORS:
+            lf = VIEW_VECTORS[view.view_type][0]
+            length = math.sqrt(lf[0] ** 2 + lf[1] ** 2 + lf[2] ** 2)
+            if length > 1e-6:
+                return (lf[0] / length, lf[1] / length, lf[2] / length)
+        return (0.0, -1.0, 0.0)
+
+    @staticmethod
+    def _span_along_axis(
+        shape: Shape[Any] | None,
+        axis_pos: tuple[float, float, float],
+        axis_dir: tuple[float, float, float],
+        max_depth: float | None = None,
+    ) -> tuple[tuple[float, float, float], tuple[float, float, float]] | None:
+        """Compute 3D endpoints of ``shape`` projected onto ``(axis_pos, axis_dir)``."""
+        if shape is None:
+            return None
+        pts: list[tuple[float, float, float]] = []
+        try:
+            pts = [(float(v.X), float(v.Y), float(v.Z)) for v in shape.vertices()]
+        except Exception:
+            pts = []
+        if not pts:
+            bb = shape.bounding_box()
+            pts = [
+                (float(bb.min.X), float(bb.min.Y), float(bb.min.Z)),
+                (float(bb.max.X), float(bb.max.Y), float(bb.max.Z)),
+            ]
+        ts = [
+            (px - axis_pos[0]) * axis_dir[0]
+            + (py - axis_pos[1]) * axis_dir[1]
+            + (pz - axis_pos[2]) * axis_dir[2]
+            for px, py, pz in pts
+        ]
+        t_min, t_max = min(ts), max(ts)
+        if max_depth is not None and max_depth > 0.0:
+            t_max = min(t_max, t_min + float(max_depth))
+        p0 = (
+            axis_pos[0] + axis_dir[0] * t_min,
+            axis_pos[1] + axis_dir[1] * t_min,
+            axis_pos[2] + axis_dir[2] * t_min,
+        )
+        p1 = (
+            axis_pos[0] + axis_dir[0] * t_max,
+            axis_pos[1] + axis_dir[1] * t_max,
+            axis_pos[2] + axis_dir[2] * t_max,
+        )
+        return p0, p1
+
+    def _attach_to_view(self, view: SheetView) -> None:
+        from build123d_techdraw.core.view import ViewType
+        from build123d_techdraw.recognizers.features import RecognizedHole
+
+        self.view = view
+        scale = float(view.scale)
+
+        if not self.resolved and self.target is not None:
+            axis_pos: tuple[float, float, float] | None = None
+            axis_dir: tuple[float, float, float] | None = None
+            face_dia: float | None = None
+            p0_3d: tuple[float, float, float] | None = None
+            p1_3d: tuple[float, float, float] | None = None
+
+            if isinstance(self.target, bd.Face) and self.target.geom_type == bd.GeomType.CYLINDER:
+                axis = self.target.axis_of_rotation
+                if axis is not None:
+                    axis_pos = (
+                        float(axis.position.X),
+                        float(axis.position.Y),
+                        float(axis.position.Z),
+                    )
+                    d_len = math.sqrt(
+                        float(axis.direction.X) ** 2
+                        + float(axis.direction.Y) ** 2
+                        + float(axis.direction.Z) ** 2
+                    )
+                    if d_len > 1e-6:
+                        axis_dir = (
+                            float(axis.direction.X) / d_len,
+                            float(axis.direction.Y) / d_len,
+                            float(axis.direction.Z) / d_len,
+                        )
+                if self.target.radius is not None:
+                    face_dia = 2.0 * float(self.target.radius)
+                if axis_pos is not None and axis_dir is not None:
+                    span = self._span_along_axis(self.target, axis_pos, axis_dir, self.depth)
+                    if span is not None:
+                        p0_3d, p1_3d = span
+            elif isinstance(self.target, bd.Edge) and self.target.geom_type == bd.GeomType.CIRCLE:
+                c = self.target.arc_center
+                axis_pos = (float(c.X), float(c.Y), float(c.Z))
+                face_dia = 2.0 * float(self.target.radius)
+                try:
+                    n = self.target.normal()
+                    axis_dir = (float(n.X), float(n.Y), float(n.Z))
+                except Exception:
+                    axis_dir = (0.0, 0.0, 1.0)
+            elif isinstance(self.target, RecognizedHole):
+                c3 = self.target.center_3d
+                axis_pos = (float(c3[0]), float(c3[1]), float(c3[2]))
+                ad = self.target.axis_dir
+                d_len = math.sqrt(ad[0] ** 2 + ad[1] ** 2 + ad[2] ** 2) or 1.0
+                axis_dir = (ad[0] / d_len, ad[1] / d_len, ad[2] / d_len)
+                face_dia = float(self.target.diameter)
+                if self.thread is None and self.target.thread_spec is not None:
+                    self.thread = self.target.thread_spec
+                h_depth = self.depth
+                if h_depth is None and isinstance(self.target.depth, (int, float)):
+                    h_depth = float(self.target.depth)
+                    self.has_end_cap = True
+                if h_depth is not None and h_depth > 0.0:
+                    p0_3d = axis_pos
+                    p1_3d = (
+                        axis_pos[0] + axis_dir[0] * h_depth,
+                        axis_pos[1] + axis_dir[1] * h_depth,
+                        axis_pos[2] + axis_dir[2] * h_depth,
+                    )
+                elif isinstance(view.shape, Shape):
+                    span = self._span_along_axis(view.shape, axis_pos, axis_dir)
+                    if span is not None:
+                        p0_3d, p1_3d = span
+            elif is_topological_entity(self.target):
+                self.center = resolve_point_to_sheet(self.target, view)
+                axis_dir = self._get_view_direction(view)
+
+            inferred_minor = (
+                self._explicit_minor
+                if self._explicit_minor is not None
+                else (face_dia if self.thread_type == "internal" and self.thread is None else None)
+            )
+            inferred_nominal = (
+                self._explicit_nominal
+                if self._explicit_nominal is not None
+                else (face_dia if self.thread_type == "external" and self.thread is None else None)
+            )
+            self.nominal_diameter, self.minor_diameter = resolve_thread_diameters(
+                self.thread, inferred_nominal, inferred_minor
+            )
+
+            d_eff = self.nominal_diameter if self.thread_type == "internal" else self.minor_diameter
+            self.paper_radius = (d_eff / 2.0) * scale
+
+            if self.view_mode is None and axis_dir is not None:
+                v_dir = self._get_view_direction(view)
+                dot = abs(axis_dir[0] * v_dir[0] + axis_dir[1] * v_dir[1] + axis_dir[2] * v_dir[2])
+                if dot > 0.9:
+                    self.view_mode = "end"
+                elif dot < 0.2:
+                    self.view_mode = "section" if view.view_type == ViewType.SECTION else "side"
+                else:
+                    self._skip = True
+                    self.resolved = True
+
+            if not self._skip:
+                if self.view_mode == "end" and self.center is None and axis_pos is not None:
+                    self.center = view.to_sheet_3d(axis_pos[0], axis_pos[1], axis_pos[2])
+                elif (
+                    self.view_mode in ("side", "section")
+                    and p0_3d is not None
+                    and p1_3d is not None
+                ):
+                    self.start = view.to_sheet_3d(p0_3d[0], p0_3d[1], p0_3d[2])
+                    self.end = view.to_sheet_3d(p1_3d[0], p1_3d[1], p1_3d[2])
+                elif self.center is None and axis_pos is not None:
+                    self.center = view.to_sheet_3d(axis_pos[0], axis_pos[1], axis_pos[2])
+                    self.view_mode = "end"
+                self.resolved = True
+
+        elif (
+            self.resolved
+            and self.paper_radius == 0.0
+            and (self.nominal_diameter > 0.0 or self.minor_diameter > 0.0)
+        ):
+            d_eff = self.nominal_diameter if self.thread_type == "internal" else self.minor_diameter
+            self.paper_radius = (d_eff / 2.0) * scale
+
+        self._register(view)
+
+    def bounding_box_2d(self) -> BBox2D | None:
+        """Approximate paper-space bounds for the sheet linter."""
+        if self._skip or self.paper_radius <= 0.0:
+            return None
+        r = self.paper_radius
+        if self.view_mode == "end" and self.center is not None:
+            cx, cy = self.center
+            return (cx - r, cy - r, cx + r, cy + r)
+        if (
+            self.view_mode in ("side", "section")
+            and self.start is not None
+            and self.end is not None
+        ):
+            x0, y0 = self.start
+            x1, y1 = self.end
+            return (min(x0, x1) - r, min(y0, y1) - r, max(x0, x1) + r, max(y0, y1) + r)
+        return None
+
+    def to_svg(self) -> str:
+        """Render the cosmetic thread as ISO 6410-1 SVG vector geometry."""
+        if self._skip:
+            return ""
+
+        if self.view_mode == "end" and self.center is not None and self.paper_radius > 0.0:
+            cx, cy = self.center
+            r = self.paper_radius
+            a_start = math.radians(self.gap_start_deg + self.gap_angle_deg)
+            a_end = math.radians(self.gap_start_deg)
+            x1 = cx + r * math.cos(a_start)
+            y1 = cy - r * math.sin(a_start)
+            x2 = cx + r * math.cos(a_end)
+            y2 = cy - r * math.sin(a_end)
+            sweep_deg = 360.0 - self.gap_angle_deg
+            large_arc = 1 if sweep_deg > 180.0 else 0
+            return (
+                f'<path d="M {x1:.2f} {y1:.2f} A {r:.2f} {r:.2f} 0 {large_arc} 0 {x2:.2f} {y2:.2f}" '
+                f'class="line-thread" stroke-width="{self.stroke_width:.2f}" fill="none"/>'
+            )
+
+        if (
+            self.view_mode in ("side", "section")
+            and self.start is not None
+            and self.end is not None
+            and self.paper_radius > 0.0
+        ):
+            x0, y0 = self.start
+            x1, y1 = self.end
+            dx = x1 - x0
+            dy = y1 - y0
+            length = math.hypot(dx, dy)
+            if length < 1e-6:
+                return ""
+            nx = -dy / length
+            ny = dx / length
+            r = self.paper_radius
+            ax0, ay0 = x0 + nx * r, y0 + ny * r
+            ax1, ay1 = x1 + nx * r, y1 + ny * r
+            bx0, by0 = x0 - nx * r, y0 - ny * r
+            bx1, by1 = x1 - nx * r, y1 - ny * r
+
+            if self.view_mode == "section":
+                cls = "line-thread"
+                dash_attr = ""
+            else:
+                cls = "line-thread line-thread-dashed"
+                dash_attr = ' stroke-dasharray="2.0,1.2"'
+
+            parts = [
+                f'<line x1="{ax0:.2f}" y1="{ay0:.2f}" x2="{ax1:.2f}" y2="{ay1:.2f}" '
+                f'class="{cls}"{dash_attr} stroke-width="{self.stroke_width:.2f}"/>',
+                f'<line x1="{bx0:.2f}" y1="{by0:.2f}" x2="{bx1:.2f}" y2="{by1:.2f}" '
+                f'class="{cls}"{dash_attr} stroke-width="{self.stroke_width:.2f}"/>',
+            ]
+            if self.has_end_cap:
+                parts.append(
+                    f'<line x1="{ax1:.2f}" y1="{ay1:.2f}" x2="{bx1:.2f}" y2="{by1:.2f}" '
+                    f'class="{cls}"{dash_attr} stroke-width="{self.stroke_width:.2f}"/>'
+                )
+            return "\n".join(parts)
+
+        return ""
+
+
+def auto_cosmetic_threads(
+    view: SheetView,
+    shape: Shape[Any] | None = None,
+    *,
+    threaded_diameters: dict[float, str] | None = None,
+    infer_threads: bool = False,
+    tolerance: float = 0.08,
+) -> list[CosmeticThread]:
+    """Recognize threaded holes in a view's 3D shape and attach ISO 6410-1 CosmeticThreads."""
+    from build123d_techdraw.recognizers.features import recognize_holes
+
+    target_shape = shape if shape is not None else view.shape
+    if target_shape is None:
+        return []
+
+    holes = recognize_holes(
+        target_shape,
+        infer_threads=infer_threads,
+        threaded_diameters=threaded_diameters,
+        thread_tolerance=tolerance,
+    )
+    created: list[CosmeticThread] = []
+    for h in holes:
+        if not h.is_threaded or h.thread_spec is None:
+            continue
+        ct = CosmeticThread(
+            target=h,
+            thread=h.thread_spec,
+            thread_type="internal",
+            view=view,
+        )
+        if not ct._skip:
+            created.append(ct)
+    return created

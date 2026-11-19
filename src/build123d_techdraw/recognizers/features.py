@@ -124,6 +124,8 @@ def recognize_holes(
     shape: bd.Solid | bd.Compound | Any,
     *,
     infer_threads: bool = False,
+    threaded_diameters: dict[float, str] | None = None,
+    thread_tolerance: float = 0.08,
 ) -> list[RecognizedHole]:
     """Inspect build123d topological faces to detect hole features, counterbores, and countersinks."""
     if not isinstance(shape, Shape):
@@ -277,6 +279,19 @@ def recognize_holes(
                 break
 
     # Infer threads from tap-drill diameters only when explicitly requested
+    if threaded_diameters:
+        from build123d_techdraw.annotations.threads import get_thread_spec
+
+        for r_hole in recognized:
+            if r_hole.is_threaded:
+                continue
+            for tap_dia, designation in threaded_diameters.items():
+                if abs(r_hole.diameter - float(tap_dia)) <= thread_tolerance:
+                    r_hole.is_threaded = True
+                    r_hole.thread_spec = get_thread_spec(designation).designation
+                    r_hole.thread_source = "explicit"
+                    break
+
     if infer_threads:
         from build123d_techdraw.annotations.threads import find_threads_by_tap_drill
 

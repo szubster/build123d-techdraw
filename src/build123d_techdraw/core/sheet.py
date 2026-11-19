@@ -42,6 +42,7 @@ from build123d_techdraw.annotations.surface import (
     SurfaceFinishSymbol,
 )
 from build123d_techdraw.annotations.tables import RawSVG, Table
+from build123d_techdraw.annotations.threads import CosmeticThread
 from build123d_techdraw.context import CURRENT_SHEET
 from build123d_techdraw.core.directive import SheetDirective
 from build123d_techdraw.core.title_block import (
@@ -1056,6 +1057,34 @@ class DrawingSheet:
         if tc not in self.annotations:
             self.annotations.append(tc)
         return tc
+
+    def add_cosmetic_thread(
+        self,
+        center: tuple[float, float] | None = None,
+        thread: str | Any | None = None,
+        nominal_diameter: float | None = None,
+        minor_diameter: float | None = None,
+        thread_type: str = "internal",
+        depth: float | None = None,
+        start: tuple[float, float] | None = None,
+        end: tuple[float, float] | None = None,
+        view_mode: str | None = None,
+    ) -> CosmeticThread:
+        """Add an ISO 6410-1 cosmetic thread in sheet paper coordinates."""
+        ct = CosmeticThread(
+            thread=thread,
+            nominal_diameter=nominal_diameter,
+            minor_diameter=minor_diameter,
+            thread_type=thread_type,
+            depth=depth,
+            center=center,
+            start=start,
+            end=end,
+            view_mode=view_mode,
+        )
+        if ct not in self.annotations:
+            self.annotations.append(ct)
+        return ct
 
     def add_table(
         self,

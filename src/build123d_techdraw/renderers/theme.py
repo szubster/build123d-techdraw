@@ -173,6 +173,8 @@ def generate_theme_css(default_theme: Theme = Theme.DARK_BLUEPRINT) -> str:
     .line-visible, #layer_visible, #layer_visible * {{ stroke: var(--line-visible); stroke-dasharray: none; fill: none; }}
     .line-hidden, #layer_hidden, #layer_hidden * {{ stroke: var(--line-hidden); stroke-dasharray: 2.0, 1.2; fill: none; }}
     .line-center {{ stroke: var(--line-center); fill: none; }}
+    .line-thread {{ stroke: var(--line-visible); stroke-width: 0.25px; fill: none; }}
+    .line-thread-dashed {{ stroke: var(--line-visible); stroke-width: 0.25px; stroke-dasharray: 2.0, 1.2; fill: none; }}
     .line-section-thick {{ stroke: var(--line-section); fill: none; }}
     .section-arrow-head {{ fill: var(--line-section); }}
     .section-label-text {{ fill: var(--line-section); }}
@@ -189,6 +191,8 @@ def generate_theme_css(default_theme: Theme = Theme.DARK_BLUEPRINT) -> str:
     .theme-iso-white .line-visible, .theme-iso-white #layer_visible, .theme-iso-white #layer_visible * {{ stroke: #000000; stroke-width: 0.5px; }}
     .theme-iso-white .line-hidden, .theme-iso-white #layer_hidden, .theme-iso-white #layer_hidden * {{ stroke: #64748B; stroke-width: 0.25px; stroke-dasharray: 2.0, 1.2; }}
     .theme-iso-white .line-center {{ stroke: #0F172A; stroke-width: 0.25px; stroke-dasharray: 8.0, 1.5, 1.5, 1.5; }}
+    .theme-iso-white .line-thread {{ stroke: #000000; stroke-width: 0.25px; fill: none; }}
+    .theme-iso-white .line-thread-dashed {{ stroke: #000000; stroke-width: 0.25px; stroke-dasharray: 2.0, 1.2; fill: none; }}
     .theme-iso-white .dim-line {{ stroke: #000000; stroke-width: 0.25px; }}
     .theme-iso-white .dim-arrow {{ fill: #000000; }}
     .theme-iso-white .dim-text {{ fill: #000000; }}
