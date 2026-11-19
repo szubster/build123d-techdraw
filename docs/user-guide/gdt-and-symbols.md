@@ -60,7 +60,23 @@ layout.front.add_gdt_frame(
 
 ## 🏷️ Datum Feature Symbols
 
-ISO datum tags identify reference datum planes and axes:
+ISO 5459 datum feature indicators identify reference datum planes and axes. The filled triangle
+sits with its base on the feature outline and the framed letter is placed **outside the
+material**. When `DatumFeature` / `DatumFeatureSymbol` targets a face, that side is found
+automatically from the face's outward normal projected into the view (for edges, vertices and
+faces seen face-on: the side away from the view centre):
+
+```python
+import build123d as bd
+from build123d_techdraw import DatumFeature
+
+with FrontView(part, center=(150.0, 105.0), scale=1.0):
+    # Bottom face: triangle on the bottom edge, frame below the part.
+    DatumFeature(label="A", target=part.faces().sort_by(bd.Axis.Z)[0])
+```
+
+Pass `direction="up" | "down" | "left" | "right"` to force the side, e.g. at explicit
+coordinates:
 
 ```python
 # Add Datum A pointing upwards to base
