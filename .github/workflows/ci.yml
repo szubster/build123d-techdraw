@@ -43,6 +43,8 @@ jobs:
         run: uv sync --all-groups
       - name: Run mypy
         run: uv run mypy src examples
+      - name: Run pyright
+        run: uv run pyright
 
   examples:
     runs-on: ubuntu-latest

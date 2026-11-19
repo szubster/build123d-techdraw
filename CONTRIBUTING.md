@@ -23,8 +23,9 @@ uv run pytest
 uv run ruff check
 uv run ruff format --check
 
-# Run static type checker
-uv run mypy src
+# Run static type checkers (both run in CI)
+uv run mypy src examples
+uv run pyright
 ```
 
 ---
@@ -68,7 +69,8 @@ Before submitting a pull request, ensure all checks pass:
    ```
 2. **Type Checking:** Full strict type annotations are required on all public classes, functions, and module interfaces:
    ```bash
-   uv run mypy src
+   uv run mypy src examples
+   uv run pyright
    ```
 3. **Tests & Coverage:**
    ```bash

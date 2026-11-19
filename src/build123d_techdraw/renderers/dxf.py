@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 import build123d as bd
 import ezdxf.path
 import svgelements as se
+from build123d.exporters import ColorIndex
 from build123d.topology import Shape
 from ezdxf.document import Drawing
 from ezdxf.filemanagement import new as new_dxf_document
@@ -51,9 +52,9 @@ class DXFRenderer:
         """Export 2D cross-section, flat pattern, or 3D plate primary face to a 1:1 DXF file."""
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         exporter = bd.ExportDXF(version=dxfversion, unit=bd.Unit.MM)
-        exporter.add_layer("VISIBLE", color=bd.ColorIndex.BLACK)
-        exporter.add_layer("HIDDEN", color=bd.ColorIndex.GRAY, line_type=bd.LineType.DASHED)
-        exporter.add_layer("CENTER", color=bd.ColorIndex.CYAN, line_type=bd.LineType.CENTER)
+        exporter.add_layer("VISIBLE", color=ColorIndex.BLACK)
+        exporter.add_layer("HIDDEN", color=ColorIndex.GRAY, line_type=bd.LineType.DASHED)
+        exporter.add_layer("CENTER", color=ColorIndex.CYAN, line_type=bd.LineType.CENTER)
 
         target_shape = shape
         active_plane = plane
@@ -64,6 +65,8 @@ class DXFRenderer:
         for idx, edge in enumerate(edges):
             try:
                 projected = active_plane.to_local_coords(edge) if active_plane is not None else edge
+                if not isinstance(projected, Shape):
+                    raise TypeError(f"Expected a projected Shape, got {type(projected).__name__}")
                 exporter.add_shape(projected, layer="VISIBLE")
             except Exception as exc:
                 if strict:
