@@ -50,7 +50,9 @@ from build123d_techdraw.annotations.surface import (
 from build123d_techdraw.annotations.symbols import render_projection_cone_svg
 from build123d_techdraw.annotations.tables import Card, RawSVG, Schedule, Table, TextBox
 from build123d_techdraw.annotations.threads import (
+    CosmeticThread,
     ThreadSpec,
+    auto_cosmetic_threads,
     find_threads_by_tap_drill,
     get_clearance_hole,
     get_tap_drill,
@@ -71,6 +73,7 @@ __all__ = [
     "Centerline",
     "ChainDimensionGroup",
     "ChamferCallout",
+    "CosmeticThread",
     "DatumFeatureSymbol",
     "DiameterDimension",
     "DimensionType",
@@ -98,6 +101,7 @@ __all__ = [
     "Tolerance",
     "WeldType",
     "WeldingSymbol",
+    "auto_cosmetic_threads",
     "ensure_anchor",
     "find_threads_by_tap_drill",
     "format_dimension_value",

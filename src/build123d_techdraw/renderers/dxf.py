@@ -98,6 +98,7 @@ class DXFRenderer:
             ("DIMENSIONS", 2, "CONTINUOUS"),  # Yellow
             ("ANNOTATIONS", 3, "CONTINUOUS"),  # Green
             ("HATCH", 9, "CONTINUOUS"),  # Light Gray
+            ("THREADS", 6, "CONTINUOUS"),  # Magenta (ISO 6410-1 cosmetic threads)
         ]
         for name, color, ltype in layers_cfg:
             with contextlib.suppress(Exception):
@@ -141,6 +142,8 @@ class DXFRenderer:
                 target_layer = "TITLE_BLOCK"
             elif any(c in cls_list for c in ["line-center"]):
                 target_layer = "CENTER"
+            elif any(c in cls_list for c in ["line-thread", "line-thread-dashed"]):
+                target_layer = "THREADS"
             elif any(
                 c in cls_list
                 for c in [
