@@ -109,7 +109,7 @@ def generate_advanced_views(output_dir: Path) -> None:
         # BreakView on a 400 mm long tie-rod
         with FrontView(tie_rod, center=(430.0, 180.0), scale=0.8) as rod_view:
             rod_view.add_break(
-                interval=(70.0, 330.0),
+                interval=(-130.0, 130.0),
                 axis="X",
                 style="zigzag",
                 gap=10.0,

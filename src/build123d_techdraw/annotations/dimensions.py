@@ -43,6 +43,39 @@ def format_dimension_value(value: float, precision: int = 2) -> str:
     return formatted
 
 
+_TEXT_CHAR_WIDTH_FACTOR = 0.6
+"""Approximate advance width of one dimension-text character, as a fraction of font size."""
+
+_JOG_HALF_WIDTH_MM = 3.5
+"""Half the length of the break jog drawn in a dimension line across a view break."""
+
+
+def _estimate_text_width(text: str, font_size: float) -> float:
+    """Approximate paper width (mm) of a single line of dimension text."""
+    return len(text) * font_size * _TEXT_CHAR_WIDTH_FACTOR
+
+
+def _text_centre_clear_of_jogs(
+    lo: float, hi: float, jogs: list[float], text_len: float, reserve: float
+) -> float:
+    """Centre position for text on a dimension line ``lo``..``hi`` that avoids break jogs.
+
+    Keeps the text centred on the line when that is clear of every jog; otherwise centres it on
+    the longest jog-free piece of the line (``reserve`` mm at each end is kept for arrowheads).
+    """
+    centre = (lo + hi) / 2.0
+    clearance = _JOG_HALF_WIDTH_MM + 1.0
+    if all(abs(centre - j) >= clearance + text_len / 2.0 for j in jogs):
+        return centre
+    cuts = [lo + reserve]
+    for j in sorted(jogs):
+        cuts.extend((j - clearance, j + clearance))
+    cuts.append(hi - reserve)
+    pieces = [(cuts[i], cuts[i + 1]) for i in range(0, len(cuts), 2)]
+    a, b = max(pieces, key=lambda piece: piece[1] - piece[0])
+    return (a + b) / 2.0
+
+
 def _view_axis_delta(
     view: Any,
     p0: tuple[float, float, float],
@@ -418,11 +451,38 @@ class LinearDimension(Annotation):
                     view.bottom_annotation_y = max(
                         view.bottom_annotation_y, y_ref + self.offset + 4.0
                     )
-            if view.breaks:
-                self.has_break = True
             self.resolved = True
 
+        if self.resolved:
+            self._update_break_flag(view)
         self._register(view)
+
+    def _update_break_flag(self, view: SheetView) -> None:
+        """Flag a horizontal/vertical dimension whose span crosses a break of ``view``."""
+        if self.dim_type == DimensionType.HORIZONTAL:
+            lo, hi = sorted((self.start[0], self.end[0]))
+            gaps = view.break_gap_centers("X")
+        elif self.dim_type == DimensionType.VERTICAL:
+            lo, hi = sorted((self.start[1], self.end[1]))
+            gaps = view.break_gap_centers("Y")
+        else:
+            self.has_break = False
+            return
+        self.has_break = any(lo < g < hi for g in gaps)
+
+    def _jog_positions(self, lo: float, hi: float, axis: str) -> list[float]:
+        """Positions of break jogs on a dimension line spanning ``lo``..``hi`` along ``axis``.
+
+        Jogs sit where the view is actually broken; without view information (or if no break
+        gap falls on the line) a single jog is drawn at the middle.
+        """
+        if not self.has_break:
+            return []
+        margin = _JOG_HALF_WIDTH_MM + self.arrow_size
+        jogs: list[float] = []
+        if self.view is not None:
+            jogs = [g for g in self.view.break_gap_centers(axis) if lo + margin < g < hi - margin]
+        return jogs or [(lo + hi) / 2.0]
 
     def bounding_box_2d(self) -> BBox2D:
         x1, y1 = self.start
@@ -472,22 +532,32 @@ class LinearDimension(Annotation):
                 text_x = right_x + 6.0 if dist < 8.0 else (left_x + right_x) / 2.0
                 text_anchor = "start" if dist < 8.0 else "middle"
                 text_elem = f'<text x="{text_x:.2f}" y="{dim_y - 1.2:.2f}" class="dim-text" text-anchor="{text_anchor}" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>'
+                jogs: list[float] = []
             else:
+                jogs = self._jog_positions(left_x, right_x, "X")
                 arrow_elems = [
                     render_arrowhead(left_x, dim_y, -1.0, 0.0, length=self.arrow_size),
                     render_arrowhead(right_x, dim_y, 1.0, 0.0, length=self.arrow_size),
                 ]
-                text_elem = f'<text x="{(left_x + right_x) / 2.0:.2f}" y="{dim_y - 1.2:.2f}" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>'
+                text_w = _estimate_text_width(full_str, self.font_size)
+                text_x = _text_centre_clear_of_jogs(left_x, right_x, jogs, text_w, self.arrow_size)
+                text_elem = f'<text x="{text_x:.2f}" y="{dim_y - 1.2:.2f}" class="dim-text" text-anchor="middle" font-size="{self.font_size:.2f}">{html.escape(full_str)}</text>'
 
             # Dimension line
-            if self.has_break:
-                jog_x = (left_x + right_x) / 2.0
-                jw, jh = 3.5, 2.5
-                dim_line_elem = (
-                    f'<line x1="{left_x:.2f}" y1="{dim_y:.2f}" x2="{jog_x - jw:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>'
-                    f'<polyline points="{jog_x - jw:.2f},{dim_y:.2f} {jog_x - jw / 3.0:.2f},{dim_y - jh:.2f} {jog_x + jw / 3.0:.2f},{dim_y + jh:.2f} {jog_x + jw:.2f},{dim_y:.2f}" class="dim-line break-jog" stroke-width="0.3" fill="none"/>'
-                    f'<line x1="{jog_x + jw:.2f}" y1="{dim_y:.2f}" x2="{right_x:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+            if jogs:
+                jw, jh = _JOG_HALF_WIDTH_MM, 2.5
+                parts: list[str] = []
+                seg_start = left_x
+                for jog_x in jogs:
+                    parts.append(
+                        f'<line x1="{seg_start:.2f}" y1="{dim_y:.2f}" x2="{jog_x - jw:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+                        f'<polyline points="{jog_x - jw:.2f},{dim_y:.2f} {jog_x - jw / 3.0:.2f},{dim_y - jh:.2f} {jog_x + jw / 3.0:.2f},{dim_y + jh:.2f} {jog_x + jw:.2f},{dim_y:.2f}" class="dim-line break-jog" stroke-width="0.3" fill="none"/>'
+                    )
+                    seg_start = jog_x + jw
+                parts.append(
+                    f'<line x1="{seg_start:.2f}" y1="{dim_y:.2f}" x2="{right_x:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>'
                 )
+                dim_line_elem = "".join(parts)
             else:
                 dim_line_elem = f'<line x1="{left_x:.2f}" y1="{dim_y:.2f}" x2="{right_x:.2f}" y2="{dim_y:.2f}" class="dim-line" stroke-width="0.3"/>'
 
@@ -534,14 +604,28 @@ class LinearDimension(Annotation):
                     render_arrowhead(dim_x, bottom_y, 0.0, 1.0, length=self.arrow_size),
                 ]
 
-            if self.has_break:
-                jog_y = (top_y + bottom_y) / 2.0
-                jw, jh = 2.5, 3.5
-                dim_line_elem = (
-                    f'<line x1="{dim_x:.2f}" y1="{top_y:.2f}" x2="{dim_x:.2f}" y2="{jog_y - jh:.2f}" class="dim-line" stroke-width="0.3"/>'
-                    f'<polyline points="{dim_x:.2f},{jog_y - jh:.2f} {dim_x - jw:.2f},{jog_y - jh / 3.0:.2f} {dim_x + jw:.2f},{jog_y + jh / 3.0:.2f} {dim_x:.2f},{jog_y + jh:.2f}" class="dim-line break-jog" stroke-width="0.3" fill="none"/>'
-                    f'<line x1="{dim_x:.2f}" y1="{jog_y + jh:.2f}" x2="{dim_x:.2f}" y2="{bottom_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+            jogs = [] if is_narrow else self._jog_positions(top_y, bottom_y, "Y")
+            if jogs:
+                mid_y = _text_centre_clear_of_jogs(
+                    top_y,
+                    bottom_y,
+                    jogs,
+                    _estimate_text_width(full_str, self.font_size),
+                    self.arrow_size,
                 )
+                jw, jh = 2.5, _JOG_HALF_WIDTH_MM
+                v_parts: list[str] = []
+                seg_start = top_y
+                for jog_y in jogs:
+                    v_parts.append(
+                        f'<line x1="{dim_x:.2f}" y1="{seg_start:.2f}" x2="{dim_x:.2f}" y2="{jog_y - jh:.2f}" class="dim-line" stroke-width="0.3"/>'
+                        f'<polyline points="{dim_x:.2f},{jog_y - jh:.2f} {dim_x - jw:.2f},{jog_y - jh / 3.0:.2f} {dim_x + jw:.2f},{jog_y + jh / 3.0:.2f} {dim_x:.2f},{jog_y + jh:.2f}" class="dim-line break-jog" stroke-width="0.3" fill="none"/>'
+                    )
+                    seg_start = jog_y + jh
+                v_parts.append(
+                    f'<line x1="{dim_x:.2f}" y1="{seg_start:.2f}" x2="{dim_x:.2f}" y2="{bottom_y:.2f}" class="dim-line" stroke-width="0.3"/>'
+                )
+                dim_line_elem = "".join(v_parts)
             else:
                 dim_line_elem = f'<line x1="{dim_x:.2f}" y1="{top_y:.2f}" x2="{dim_x:.2f}" y2="{bottom_y:.2f}" class="dim-line" stroke-width="0.3"/>'
 

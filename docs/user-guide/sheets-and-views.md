@@ -78,6 +78,23 @@ section_view = sheet.add_section_view(
 )
 ```
 
+### Broken Views (ISO 128-3)
+
+`view.add_break(interval=(lo, hi), axis="X", style="zigzag", gap=10.0)` cuts a span out of a long
+part. `interval` is in absolute model coordinates, the same frame as `to_sheet_x` / `to_sheet_y`:
+a 400 mm rod centred on the origin runs from -200 to 200, so `interval=(-130.0, 130.0)` keeps
+70 mm at each end. Dimensions across the break still show the true length, with the
+dimension-line jog at the gap and the text moved clear of it.
+
+```python
+rod_view = sheet.add_view(tie_rod, ViewType.FRONT, center=(430.0, 180.0), scale=0.8)
+rod_view.add_break(interval=(-130.0, 130.0), axis="X", style="zigzag", gap=10.0)
+```
+
+A view can have several breaks on one axis (`"X"` or `"Y"`). `add_break` raises `ValueError` if
+the interval is not strictly inside the part, is no longer on paper than `gap`, overlaps another
+break, or uses a different axis from the view's existing breaks.
+
 ### Updating the Model (`update_shape`)
 
 When the part changes, `sheet.update_shape(new_part)` re-projects every view and re-binds

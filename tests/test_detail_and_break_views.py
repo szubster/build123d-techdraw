@@ -101,7 +101,7 @@ def test_break_view_via_add_break() -> None:
         FrontView(long_beam, center=(200.0, 100.0), scale=1.0) as fv,
     ):
         fv.add_break(
-            interval=(80.0, 920.0),
+            interval=(-420.0, 420.0),
             axis="X",
             style="zigzag",
             gap=10.0,
@@ -135,7 +135,7 @@ def test_break_view_class_wavy_style() -> None:
         BuildDrawing(sheet_size="A3") as sheet,
         BreakView(
             long_rail,
-            interval=(100.0, 700.0),
+            interval=(-300.0, 300.0),
             axis="X",
             style="wavy",
             gap=12.0,
