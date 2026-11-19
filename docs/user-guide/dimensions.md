@@ -133,3 +133,11 @@ clears the edges, preferring the shortest leader that keeps the text outside the
 from other annotations. The offset you asked for stays in `requested_elbow_offset`; `elbow_offset`
 is the one drawn. The check uses the part's edges, so the side outlines of curved surfaces are
 not considered, and rotated views are skipped.
+
+### Welding Symbols (ISO 2553, system A)
+
+`WeldingSymbol` draws the solid reference line with a dashed identification line 1.5 mm below
+it. The arrow-side weld symbol (`arrow_side=True`) sits on the solid line; the other-side symbol
+(`arrow_side=False`) hangs below the dashed line, so neither line crosses the text. The tail fork
+is at the far end of the reference line, and the field-weld flag is drawn filled at the elbow.
+Weld symbols do not move away from geometry by themselves; choose `elbow_offset` accordingly.

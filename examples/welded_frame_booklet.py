@@ -58,7 +58,8 @@ def generate_welded_frame_booklet(output_dir: Path) -> None:
                 view=fv,
             )
             WeldingSymbol(
-                target=(115.0, 175.0),
+                # On the gusset-to-base-plate joint line (model z = 5).
+                target=(115.0, 180.0),
                 weld_type=WeldType.FILLET,
                 size="a4",
                 field_weld=True,

@@ -1083,6 +1083,20 @@ class WeldType(Enum):
     SEAM = "○"
 
 
+WELD_IDENT_LINE_GAP_MM = 1.5
+"""Distance from the continuous reference line to the dashed identification line (ISO 2553)."""
+WELD_TEXT_GAP_MM = 0.6
+"""Gap between a weld symbol/dimension text and the line it is written on."""
+_CAP_HEIGHT_FACTOR = 0.75
+"""Approximate cap height of the lettering as a fraction of the font size."""
+_WELD_GLYPH_BELOW_LINE: dict[WeldType, str] = {
+    WeldType.FILLET: "▽",
+    WeldType.V_BUTT: "Λ",
+    WeldType.U_BUTT: "∩",
+}
+"""Mirror images of the elementary symbols drawn below the reference line (ISO 2553)."""
+
+
 class WeldingSymbol(Annotation):
     """ISO 2553 welding annotation symbol with reference line, joint arrow, and process codes."""
 
@@ -1185,7 +1199,12 @@ class WeldingSymbol(Annotation):
         self._register(view)
 
     def bounding_box_2d(self) -> BBox2D:
-        return leader_bbox_2d(self.target, self.elbow_offset, self.shelf_length)
+        x0, y0, x1, y1 = leader_bbox_2d(self.target, self.elbow_offset, self.shelf_length)
+        if not self.arrow_side:
+            ey = self.target[1] + self.elbow_offset[1]
+            below = WELD_IDENT_LINE_GAP_MM + WELD_TEXT_GAP_MM + 1.1 * self.font_size
+            y1 = max(y1, ey + below)
+        return (x0, y0, x1, y1)
 
     def to_svg(self) -> str:
         tx, ty = self.target
@@ -1218,24 +1237,33 @@ class WeldingSymbol(Annotation):
                 f'<circle cx="{ex:.2f}" cy="{ey:.2f}" r="2.2" class="dim-line weld-all-around" stroke-width="0.3" fill="none"/>'
             )
 
-        # Field weld flag
+        # Field weld flag at the junction of arrow line and reference line, pointing to the tail.
         if self.field_weld:
             flag_dir = -1.0 if going_left else 1.0
             elements.append(
-                f'<path d="M {ex:.2f} {ey:.2f} L {ex:.2f} {ey - 4.5:.2f} L {ex + flag_dir * 3.5:.2f} {ey - 3.2:.2f} L {ex:.2f} {ey - 2.0:.2f}" class="dim-line weld-flag" stroke-width="0.3" fill="currentColor"/>'
+                f'<path d="M {ex:.2f} {ey:.2f} L {ex:.2f} {ey - 4.5:.2f} L {ex + flag_dir * 3.5:.2f} {ey - 3.2:.2f} L {ex:.2f} {ey - 2.0:.2f}" class="dim-line dim-arrow weld-flag" stroke-width="0.3"/>'
             )
 
-        # Dashed identification line for other side (ISO 2553)
-        if not self.arrow_side:
-            dashed_y = ey + 2.0
-            elements.append(
-                f'<line x1="{ex:.2f}" y1="{dashed_y:.2f}" x2="{sx:.2f}" y2="{dashed_y:.2f}" class="dim-line weld-ref-dashed" stroke-width="0.25" stroke-dasharray="2,1.5"/>'
-            )
+        # Dashed identification line parallel to and below the reference line (ISO 2553
+        # system A). The arrow-side symbol sits on the continuous line (above it); the
+        # other-side symbol hangs from the dashed line (below it), so neither line crosses text.
+        dashed_y = ey + WELD_IDENT_LINE_GAP_MM
+        elements.append(
+            f'<line x1="{ex:.2f}" y1="{dashed_y:.2f}" x2="{sx:.2f}" y2="{dashed_y:.2f}" class="dim-line weld-ref-dashed" stroke-width="0.25" stroke-dasharray="2,1.5"/>'
+        )
 
-        # Weld symbol and dimension text
-        sym_y = ey - 1.2 if self.arrow_side else ey + 3.2
-        text_y = ey - 1.2 if self.arrow_side else ey + 3.2
         mid_x = (ex + sx) / 2.0
+        sym_size = self.font_size * 1.1
+        if self.arrow_side:
+            text_y = ey - WELD_TEXT_GAP_MM
+            glyph = self.weld_type.value
+        else:
+            # Below the line the symbol is drawn mirrored, hanging from the dashed line.
+            text_y = dashed_y + WELD_TEXT_GAP_MM + _CAP_HEIGHT_FACTOR * sym_size
+            glyph = _WELD_GLYPH_BELOW_LINE.get(self.weld_type, self.weld_type.value)
+        elements.append(
+            f'<text x="{mid_x:.2f}" y="{text_y:.2f}" class="tb-title" text-anchor="middle" font-size="{sym_size:.2f}">{html.escape(glyph)}</text>'
+        )
 
         # Dimensions: size on left of symbol, length(pitch) on right
         size_str = self.size
@@ -1245,9 +1273,6 @@ class WeldingSymbol(Annotation):
             if self.pitch:
                 len_pitch_str += f"({self.pitch})"
 
-        elements.append(
-            f'<text x="{mid_x:.2f}" y="{sym_y:.2f}" class="tb-title" text-anchor="middle" font-size="{self.font_size * 1.1:.2f}">{self.weld_type.value}</text>'
-        )
         if size_str:
             elements.append(
                 f'<text x="{mid_x - 3.5:.2f}" y="{text_y:.2f}" class="dim-text" text-anchor="end" font-size="{self.font_size:.2f}">{html.escape(size_str)}</text>'
@@ -1257,11 +1282,11 @@ class WeldingSymbol(Annotation):
                 f'<text x="{mid_x + 3.5:.2f}" y="{text_y:.2f}" class="dim-text" text-anchor="start" font-size="{self.font_size:.2f}">{html.escape(len_pitch_str.strip())}</text>'
             )
 
-        # Tail text (fork at end of reference line)
+        # Tail: fork opening away from the far end of the reference line, then the process text.
         if self.tail_text:
             fork_x = sx + shelf_dir * 3.0
             elements.append(
-                f'<polyline points="{sx:.2f},{ey - 2.0:.2f} {fork_x:.2f},{ey:.2f} {sx:.2f},{ey + 2.0:.2f}" class="dim-line" stroke-width="0.3" fill="none"/>'
+                f'<polyline points="{fork_x:.2f},{ey - 2.0:.2f} {sx:.2f},{ey:.2f} {fork_x:.2f},{ey + 2.0:.2f}" class="dim-line weld-tail" stroke-width="0.3" fill="none"/>'
             )
             t_anchor = "end" if going_left else "start"
             elements.append(
