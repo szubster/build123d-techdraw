@@ -7,7 +7,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from build123d_techdraw.annotations.anchors import Anchor
-from build123d_techdraw.annotations.base import Annotation
+from build123d_techdraw.annotations.base import Annotation, BBox2D
 from build123d_techdraw.annotations.resolver import (
     ensure_anchor,
     is_topological_entity,
@@ -27,7 +27,14 @@ class MaterialRemoval(Enum):
 
 
 class SurfaceFinishSymbol(Annotation):
-    """ISO 1302 surface texture / roughness symbol."""
+    """ISO 1302 / ISO 21920-1 surface texture (roughness) symbol.
+
+    The symbol's vertex must touch the surface it applies to (its outline, an extension line of
+    it, or a leader end). Pass ``target`` (a ``Face``, ``Edge``, ``Vertex`` or ``Anchor``) to
+    place the vertex on the projected feature: a planar face seen edge-on projects its centre
+    onto its outline, so the tick sits exactly on the surface line and follows the view when it
+    moves or the model changes. ``position`` places the vertex at fixed sheet coordinates (mm).
+    """
 
     def __init__(
         self,
@@ -108,6 +115,21 @@ class SurfaceFinishSymbol(Annotation):
 
         self._register(view)
 
+    def _shelf_length(self) -> float:
+        s = self.scale
+        return max(12.0 * s, len(self.ra_value) * 2.2 * s + 4.0 * s)
+
+    def bounding_box_2d(self) -> BBox2D:
+        """Paper-space bounds: from the short leg to the end of the shelf, vertex to lettering."""
+        x, y = self.position
+        s = self.scale
+        min_x = x - 2.5 * s
+        max_x = x + 5.0 * s + self._shelf_length()
+        text_top = y - 8.66 * s - 1.2 * s - 2.8 * s
+        if self.process:
+            text_top -= 3.2 * s
+        return (min_x, text_top, max_x, y)
+
     def to_svg(self) -> str:
         x, y = self.position
         s = self.scale
@@ -116,7 +138,7 @@ class SurfaceFinishSymbol(Annotation):
         p_vertex = (x, y)
         p_left = (x - 2.5 * s, y - 4.33 * s)
         p_right = (x + 5.0 * s, y - 8.66 * s)
-        shelf_len = max(12.0 * s, len(self.ra_value) * 2.2 * s + 4.0 * s)
+        shelf_len = self._shelf_length()
         p_shelf_end = (p_right[0] + shelf_len, p_right[1])
 
         elements = [
