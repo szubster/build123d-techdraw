@@ -24,12 +24,18 @@ The `GDTCharacteristic` enum provides full ISO 1101 symbols:
 | `ANGULARITY` | `∠` | Angularity |
 | `CYLINDRICITY` | `⌭` | Cylindricity |
 | `FLATNESS` | `⏢` | Flatness |
-| `ROUNDNESS` | `○` | Circularity / Roundness |
+| `CIRCULARITY` | `○` | Circularity / Roundness |
 | `STRAIGHTNESS` | `―` | Straightness |
 | `PROFILE_SURFACE`| `⌒` | Profile of a Surface |
 | `PROFILE_LINE` | `⌓` | Profile of a Line |
 | `CIRCULAR_RUNOUT`| `↗` | Circular Runout |
 | `TOTAL_RUNOUT` | `⇗` | Total Runout |
+
+Straightness, flatness, circularity and cylindricity are **form tolerances** (ISO 1101): they
+control a feature on its own and never reference a datum. `FeatureControlFrame` raises
+`ValueError` if one of them (`build123d_techdraw.annotations.gdt.FORM_CHARACTERISTICS`) is given
+`datum_refs` / `datum_a..c`. To relate a surface to a datum, use an orientation tolerance such as
+`PARALLELISM`.
 
 ### Code Example
 

@@ -43,6 +43,16 @@ class GDTCharacteristic(Enum):
     TOTAL_RUNOUT = "⇗"
 
 
+FORM_CHARACTERISTICS: frozenset[GDTCharacteristic] = frozenset(
+    {
+        GDTCharacteristic.STRAIGHTNESS,
+        GDTCharacteristic.FLATNESS,
+        GDTCharacteristic.CIRCULARITY,
+        GDTCharacteristic.CYLINDRICITY,
+    }
+)
+"""Form tolerances (ISO 1101 Table 2): they control a single feature and never take a datum."""
+
 DATUM_DIRECTIONS: tuple[str, ...] = ("up", "down", "left", "right")
 """Sheet directions in which a datum feature symbol's frame can be placed from its triangle."""
 
@@ -87,7 +97,13 @@ def outward_sheet_direction(
 
 
 class FeatureControlFrame(Annotation):
-    """ISO 1101 Feature Control Frame ([ Symbol | Tolerance | Datum A | Datum B | Datum C ])."""
+    """ISO 1101 Feature Control Frame ([ Symbol | Tolerance | Datum A | Datum B | Datum C ]).
+
+    Raises:
+        ValueError: if a form characteristic (``FORM_CHARACTERISTICS``: straightness, flatness,
+            circularity, cylindricity) is given datum references. ISO 1101 form tolerances
+            apply to the feature alone and never reference a datum.
+    """
 
     def __init__(
         self,
@@ -132,6 +148,14 @@ class FeatureControlFrame(Annotation):
             self.datum_a = datum_a
             self.datum_b = datum_b
             self.datum_c = datum_c
+
+        if characteristic in FORM_CHARACTERISTICS and (
+            self.datum_a or self.datum_b or self.datum_c
+        ):
+            raise ValueError(
+                f"{characteristic.name} is an ISO 1101 form tolerance and must not reference a "
+                "datum; use an orientation tolerance (e.g. PARALLELISM) to relate it to a datum."
+            )
 
         if position is not None:
             self.position = (float(position[0]), float(position[1]))
