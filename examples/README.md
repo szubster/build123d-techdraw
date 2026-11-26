@@ -16,6 +16,11 @@ This directory contains standalone, runnable examples demonstrating the capabili
 | [`advanced_views.py`](advanced_views.py) | `SectionView` with `SectionCuttingLine`, magnified `DetailView` with `ChamferCallout`, `AuxiliaryView` on an inclined face, and `add_break` zigzag break view. | [SVG (Dark)](output/advanced_views.svg), [SVG (White)](output/advanced_views_white.svg), [PDF](output/advanced_views.pdf), [DXF](output/advanced_views.dxf) |
 | [`precision_flange.py`](precision_flange.py) | CAD feature recognition (`recognize_holes`, `recognize_bolt_circles`), `BoltCircle`, `DiameterDimension`, `RadialDimension`, `AngularDimension`, `OrdinateDimensionSet`, `ThreadCallout`, `HoleCallout`, `SurfaceFinishSymbol`, `LeaderNote`, and `run_sheet_lint`. | [SVG (Dark)](output/precision_flange.svg), [SVG (White)](output/precision_flange_white.svg), [PDF](output/precision_flange.pdf), [DXF](output/precision_flange.dxf) |
 | [`welded_frame_booklet.py`](welded_frame_booklet.py) | Multi-page `DrawingBooklet` with PDF bookmarks, ISO 2553 `WeldingSymbol`, `StepBadge`, `Table`, `Card`, `ChainDimensionGroup`, and `BaselineDimensionGroup`. | [SVG (Dark)](output/welded_frame_booklet.svg), [SVG (White)](output/welded_frame_booklet_white.svg), [PDF](output/welded_frame_booklet.pdf), [DXF](output/welded_frame_booklet.dxf) |
+| [`shaded_technical_views.py`](shaded_technical_views.py) | WebGPU-shaded technical illustration views (`GOOCH`, `BLUEPRINT_SHADED`, `SHADED_WITH_EDGES` + `color_by_part`, `XRAY`, `ssao=True`) composited under exact vector edges, plus standalone PNG renders. | [SVG (Dark)](output/shaded_technical_views.svg), [SVG (White)](output/shaded_technical_views_white.svg), [PDF](output/shaded_technical_views.pdf), [Gooch PNG](output/shaded_gooch.png), [Blueprint PNG](output/shaded_blueprint.png), [BOM PNG](output/shaded_bom_colors.png), [X-Ray PNG](output/shaded_xray.png) |
+| [`gpu_hlr_assembly.py`](gpu_hlr_assembly.py) | Finned gearbox assembly (>300 B-Rep faces) projected with WebGPU Visibility-Buffer HLR (`hlr="gpu"`) into crisp vector SVG/PDF/DXF with automated BOM and Exact-vs-GPU benchmark. | [SVG (Dark)](output/gpu_hlr_assembly.svg), [SVG (White)](output/gpu_hlr_assembly_white.svg), [PDF](output/gpu_hlr_assembly.pdf), [DXF](output/gpu_hlr_assembly.dxf) |
+| [`sdf_smart_layout.py`](sdf_smart_layout.py) | L-shaped CNC hydraulic manifold using 2D Euclidean Distance-Field (`compute_sheet_sdf` WebGPU JFA+1 / SciPy EDT) for zero-lint auto-dimensions, BOM balloons, and leader notes + clearance heatmap. | [SVG (Dark)](output/sdf_smart_layout.svg), [SVG (White)](output/sdf_smart_layout_white.svg), [PDF](output/sdf_smart_layout.pdf), [DXF](output/sdf_smart_layout.dxf), [Heatmap PNG](output/sdf_smart_layout_heatmap.png) |
+| [`interactive_3d_blueprint.py`](interactive_3d_blueprint.py) | Flanged bearing housing assembly exported to a zero-CDN self-contained interactive 3D-in-2D HTML5 blueprint (`sheet.export_html`) with WebGL2 orbit, section cut, explode, and BOM linking. | [Interactive HTML5](output/interactive_3d_blueprint.html), [SVG (Dark)](output/interactive_3d_blueprint.svg), [SVG (White)](output/interactive_3d_blueprint_white.svg), [PDF](output/interactive_3d_blueprint.pdf), [DXF](output/interactive_3d_blueprint.dxf) |
+| [`benchmark_performance.py`](benchmark_performance.py) | Reproducible CPU & native PDF 1.4 performance benchmark (4D spatial-hash hidden-edge dedup, parallel multi-view projection, native PDF vector+RGBA export). | Console benchmark report |
 
 ---
 
@@ -38,6 +43,11 @@ uv run python examples/builder_mode_bracket.py
 uv run python examples/advanced_views.py
 uv run python examples/precision_flange.py
 uv run python examples/welded_frame_booklet.py
+uv run python examples/shaded_technical_views.py
+uv run python examples/gpu_hlr_assembly.py
+uv run python examples/sdf_smart_layout.py
+uv run python examples/interactive_3d_blueprint.py
+uv run python examples/benchmark_performance.py
 ```
 
 All outputs are written to the `examples/output/` directory.
@@ -63,3 +73,15 @@ All outputs are written to the `examples/output/` directory.
 
 ### 6. Welded Frame Booklet (Welding Symbols, Tables, Cards, Step Badges)
 ![Welded Frame Booklet](output/welded_frame_booklet.svg)
+
+### 7. Shaded Technical Views (WebGPU Gooch, Blueprint, BOM Colors, X-Ray)
+![Shaded Technical Views](output/shaded_technical_views.svg)
+
+### 8. GPU Visibility-Buffer HLR Assembly (>300 Faces)
+![GPU HLR Assembly](output/gpu_hlr_assembly.svg)
+
+### 9. SDF / Jump-Flooding Smart Layout & Clearance Heatmap
+![SDF Smart Layout](output/sdf_smart_layout.svg)
+
+### 10. Interactive 3D-in-2D HTML5 Blueprint
+![Interactive 3D Blueprint](output/interactive_3d_blueprint.svg)

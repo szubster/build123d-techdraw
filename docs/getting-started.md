@@ -18,14 +18,25 @@ Install via `uv` or `pip`:
 === "uv"
 
     ```bash
+    # Core package (100% GPU-free)
     uv add build123d-techdraw
+
+    # Optional WebGPU acceleration (shaded views, GPU HLR, WGSL SDF layout)
+    uv add build123d-techdraw --extra gpu
     ```
 
 === "pip"
 
     ```bash
+    # Core package (100% GPU-free)
     pip install build123d-techdraw
+
+    # Optional WebGPU acceleration
+    pip install "build123d-techdraw[gpu]"
     ```
+
+!!! note "Optional GPU Extra"
+    The core package requires no GPU drivers or `wgpu` dependency. Add the `gpu` extra only when you want WebGPU shaded views, GPU visibility-buffer HLR, or GPU-accelerated Jump Flooding SDF layout (see [GPU & Shaders](user-guide/gpu-acceleration.md)).
 
 ---
 
