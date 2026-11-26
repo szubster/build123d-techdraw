@@ -96,6 +96,7 @@ from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.title_block import BOMItem, RevisionEntry, TitleBlockInfo
 from build123d_techdraw.core.view import SheetView, ViewType, project_shape_to_svg_fragment
 from build123d_techdraw.gpu.runtime import gpu_info, is_gpu_available, is_gpu_enabled
+from build123d_techdraw.gpu.shading import ViewStyle
 from build123d_techdraw.layout.linter import LintIssue, run_sheet_lint
 from build123d_techdraw.layout.multiview import (
     MultiviewLayout,
@@ -206,6 +207,7 @@ __all__ = [
     "Tolerance",
     "TopView",
     "View",
+    "ViewStyle",
     "ViewType",
     "WeldType",
     "WeldingSymbol",
