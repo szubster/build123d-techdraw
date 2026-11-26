@@ -110,6 +110,11 @@ from build123d_techdraw.recognizers.features import (
     recognize_holes,
 )
 from build123d_techdraw.renderers.dxf import DXFRenderer
+from build123d_techdraw.renderers.html import (
+    HTMLRenderer,
+    export_interactive_html,
+    render_interactive_html,
+)
 from build123d_techdraw.renderers.pdf import PDFRenderer
 from build123d_techdraw.renderers.svg import SVGRenderer
 from build123d_techdraw.renderers.theme import THEME_COLORS, Theme, ThemeColors
@@ -154,6 +159,7 @@ __all__ = [
     "FrontView",
     "GDTCharacteristic",
     "GeneralNotes",
+    "HTMLRenderer",
     "HoleCallout",
     "IsometricView",
     "LeaderNote",
@@ -207,6 +213,7 @@ __all__ = [
     "add_standard_multiview",
     "auto_cosmetic_threads",
     "calculate_auto_scale",
+    "export_interactive_html",
     "find_closest_iso_scale",
     "find_threads_by_tap_drill",
     "format_dimension_value",
@@ -224,6 +231,7 @@ __all__ = [
     "project_shape_to_svg_fragment",
     "recognize_bolt_circles",
     "recognize_holes",
+    "render_interactive_html",
     "render_projection_cone_svg",
     "run_sheet_lint",
     "set_part_info",
