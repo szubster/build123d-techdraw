@@ -1,0 +1,678 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 420.0 297.0"
+     width="420.0mm"
+     height="297.0mm"
+     class="theme-dark-blueprint"
+     id="sheet_MNF-204-SDF">
+  <defs>
+    <style type="text/css">
+      
+    :root, .theme-dark-blueprint {
+        --bg-color: #0B192C;
+        --grid-color: #38BDF812;
+        --border-main: #38BDF8;
+        --border-sub: #1E3A5F;
+        --title-bg: #0F172AE6;
+        --title-border: #38BDF8;
+        --text-main: #F8FAFC;
+        --text-muted: #94A3B8;
+        --text-accent: #38BDF8;
+        --line-visible: #FFFFFF;
+        --line-hidden: #475569;
+        --line-center: #38BDF8;
+        --line-section: #F43F5E;
+        --hatch-color: #0284C7;
+        --dim-color: #38BDF8;
+        --dim-text: #38BDF8;
+        --balloon-bg: #0F172A;
+        --balloon-border: #F43F5E;
+        --balloon-text: #FFFFFF;
+        --table-header-bg: #1E293B;
+        --table-row-alt: #1E293B99;
+    }
+    .theme-iso-white {
+        --bg-color: #FFFFFF;
+        --grid-color: #00000008;
+        --border-main: #0F172A;
+        --border-sub: #CBD5E1;
+        --title-bg: #F8FAFC;
+        --title-border: #0F172A;
+        --text-main: #0F172A;
+        --text-muted: #475569;
+        --text-accent: #0284C7;
+        --line-visible: #000000;
+        --line-hidden: #94A3B8;
+        --line-center: #2563EB;
+        --line-section: #DC2626;
+        --hatch-color: #64748B;
+        --dim-color: #DC2626;
+        --dim-text: #DC2626;
+        --balloon-bg: #FFFFFF;
+        --balloon-border: #DC2626;
+        --balloon-text: #0F172A;
+        --table-header-bg: #E2E8F0;
+        --table-row-alt: #F1F5F9;
+    }
+    svg {
+        font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Liberation Sans', sans-serif;
+        background-color: var(--bg-color);
+    }
+    .sheet-bg { fill: var(--bg-color); }
+    .border-main { stroke: var(--border-main); fill: none; }
+    .border-sub { stroke: var(--border-sub); fill: none; }
+    .title-bg { fill: var(--title-bg); stroke: var(--border-main); }
+    .panel-bg { fill: var(--title-bg); stroke: var(--border-main); }
+    .panel-stroke { stroke: var(--border-main); fill: none; }
+    .panel-sub { stroke: var(--border-sub); fill: none; }
+    .panel-text { fill: var(--text-main); }
+    .panel-muted { fill: var(--text-muted); }
+    .accent-text { fill: var(--text-accent); font-weight: 700; }
+    .table-header-bg { fill: var(--table-header-bg); }
+    .table-row-alt { fill: var(--table-row-alt); }
+    .zone-text { fill: var(--text-muted); font-size: 2.8px; font-weight: bold; text-anchor: middle; }
+    .tb-field-label { fill: var(--text-muted); font-size: 2.1px; font-weight: 600; letter-spacing: 0.2px; }
+    .tb-field-val-sm { fill: var(--text-main); font-size: 2.6px; font-weight: 500; }
+    .tb-field-val-bold { fill: var(--text-main); font-size: 3.4px; font-weight: 700; }
+    .tb-title { fill: var(--text-accent); font-size: 3.0px; font-weight: 700; letter-spacing: 0.2px; }
+    .notes-text { fill: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 2.4px; }
+    .view-title { fill: var(--text-main); letter-spacing: 0.5px; }
+    .view-scale { fill: var(--text-muted); }
+    .line-visible, #layer_visible, #layer_visible * { stroke: var(--line-visible); stroke-dasharray: none; fill: none; }
+    .line-hidden, #layer_hidden, #layer_hidden * { stroke: var(--line-hidden); stroke-dasharray: 2.0, 1.2; fill: none; }
+    .line-center { stroke: var(--line-center); fill: none; }
+    .line-thread { stroke: var(--line-visible); stroke-width: 0.25px; fill: none; }
+    .line-thread-dashed { stroke: var(--line-visible); stroke-width: 0.25px; stroke-dasharray: 2.0, 1.2; fill: none; }
+    .line-section-thick { stroke: var(--line-section); fill: none; }
+    .section-arrow-head { fill: var(--line-section); }
+    .section-label-text { fill: var(--line-section); }
+    .dim-line { stroke: var(--dim-color); fill: none; }
+    .dim-arrow { fill: var(--dim-color); }
+    .dim-text { fill: var(--dim-text); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .leader-dot { fill: var(--dim-color); }
+    .leader-text { fill: var(--text-main); font-family: 'JetBrains Mono', monospace; font-size: 2.7px; font-weight: 500; }
+    .balloon-dot { fill: var(--balloon-border); }
+    .balloon-leader { stroke: var(--balloon-border); fill: none; }
+    .balloon-circle { fill: var(--balloon-bg); stroke: var(--balloon-border); }
+    .balloon-text { fill: var(--balloon-text); }
+    .theme-iso-white .blueprint-grid { display: none; }
+    .theme-iso-white .line-visible, .theme-iso-white #layer_visible, .theme-iso-white #layer_visible * { stroke: #000000; stroke-width: 0.5px; }
+    .theme-iso-white .line-hidden, .theme-iso-white #layer_hidden, .theme-iso-white #layer_hidden * { stroke: #64748B; stroke-width: 0.25px; stroke-dasharray: 2.0, 1.2; }
+    .theme-iso-white .line-center { stroke: #0F172A; stroke-width: 0.25px; stroke-dasharray: 8.0, 1.5, 1.5, 1.5; }
+    .theme-iso-white .line-thread { stroke: #000000; stroke-width: 0.25px; fill: none; }
+    .theme-iso-white .line-thread-dashed { stroke: #000000; stroke-width: 0.25px; stroke-dasharray: 2.0, 1.2; fill: none; }
+    .theme-iso-white .dim-line { stroke: #000000; stroke-width: 0.25px; }
+    .theme-iso-white .dim-arrow { fill: #000000; }
+    .theme-iso-white .dim-text { fill: #000000; }
+    
+    </style>
+    <pattern id="techGrid" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M 10 0 L 0 0 0 10" fill="none" stroke="var(--grid-color)" stroke-width="0.15"/>
+      <circle cx="0" cy="0" r="0.3" fill="var(--grid-color)"/>
+    </pattern>
+    <pattern id="sectionHatch" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_steel" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_aluminum" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="1.2" y1="0" x2="1.2" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_brass" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="2" y1="0" x2="2" y2="4" stroke="var(--hatch-color)" stroke-width="0.35" stroke-dasharray="1.5,1.5"/>
+    </pattern>
+    <pattern id="hatch_plastic" width="4" height="4" patternTransform="rotate(60 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="var(--hatch-color)" stroke-width="0.35"/>
+      <line x1="0" y1="0" x2="4" y2="0" stroke="var(--hatch-color)" stroke-width="0.35"/>
+    </pattern>
+    <pattern id="hatch_rubber" width="4" height="4" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="0" cy="0" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="4" cy="0" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="0" cy="4" r="0.45" fill="var(--hatch-color)"/>
+      <circle cx="4" cy="4" r="0.45" fill="var(--hatch-color)"/>
+    </pattern>
+  </defs>
+
+  
+        <rect x="0" y="0" width="420.0" height="297.0" class="sheet-bg"/>
+        <rect x="0" y="0" width="420.0" height="297.0" class="blueprint-grid" fill="url(#techGrid)"/>
+        <rect x="2" y="2" width="416.0" height="293.0" class="border-sub" stroke-width="0.25" fill="none"/>
+        <rect x="15.00" y="8.00" width="397.00" height="281.00" class="border-main" stroke-width="0.7" fill="none"/>
+        
+        <line x1="213.50" y1="0" x2="213.50" y2="5.0" class="border-main" stroke-width="0.7"/>
+        <line x1="213.50" y1="292.00" x2="213.50" y2="297.00" class="border-main" stroke-width="0.7"/>
+        <line x1="0" y1="148.50" x2="5.0" y2="148.50" class="border-main" stroke-width="0.7"/>
+        <line x1="415.00" y1="148.50" x2="420.00" y2="148.50" class="border-main" stroke-width="0.7"/>
+        
+        <g class="grid-ticks"><line x1="15.00" y1="5.00" x2="15.00" y2="8.00" class="border-sub"/><line x1="15.00" y1="289.00" x2="15.00" y2="292.00" class="border-sub"/><line x1="64.62" y1="5.00" x2="64.62" y2="8.00" class="border-sub"/><line x1="64.62" y1="289.00" x2="64.62" y2="292.00" class="border-sub"/><line x1="114.25" y1="5.00" x2="114.25" y2="8.00" class="border-sub"/><line x1="114.25" y1="289.00" x2="114.25" y2="292.00" class="border-sub"/><line x1="163.88" y1="5.00" x2="163.88" y2="8.00" class="border-sub"/><line x1="163.88" y1="289.00" x2="163.88" y2="292.00" class="border-sub"/><line x1="213.50" y1="5.00" x2="213.50" y2="8.00" class="border-sub"/><line x1="213.50" y1="289.00" x2="213.50" y2="292.00" class="border-sub"/><line x1="263.12" y1="5.00" x2="263.12" y2="8.00" class="border-sub"/><line x1="263.12" y1="289.00" x2="263.12" y2="292.00" class="border-sub"/><line x1="312.75" y1="5.00" x2="312.75" y2="8.00" class="border-sub"/><line x1="312.75" y1="289.00" x2="312.75" y2="292.00" class="border-sub"/><line x1="362.38" y1="5.00" x2="362.38" y2="8.00" class="border-sub"/><line x1="362.38" y1="289.00" x2="362.38" y2="292.00" class="border-sub"/><line x1="412.00" y1="5.00" x2="412.00" y2="8.00" class="border-sub"/><line x1="412.00" y1="289.00" x2="412.00" y2="292.00" class="border-sub"/><line x1="12.00" y1="8.00" x2="15.00" y2="8.00" class="border-sub"/><line x1="412.00" y1="8.00" x2="415.00" y2="8.00" class="border-sub"/><line x1="12.00" y1="54.83" x2="15.00" y2="54.83" class="border-sub"/><line x1="412.00" y1="54.83" x2="415.00" y2="54.83" class="border-sub"/><line x1="12.00" y1="101.67" x2="15.00" y2="101.67" class="border-sub"/><line x1="412.00" y1="101.67" x2="415.00" y2="101.67" class="border-sub"/><line x1="12.00" y1="148.50" x2="15.00" y2="148.50" class="border-sub"/><line x1="412.00" y1="148.50" x2="415.00" y2="148.50" class="border-sub"/><line x1="12.00" y1="195.33" x2="15.00" y2="195.33" class="border-sub"/><line x1="412.00" y1="195.33" x2="415.00" y2="195.33" class="border-sub"/><line x1="12.00" y1="242.17" x2="15.00" y2="242.17" class="border-sub"/><line x1="412.00" y1="242.17" x2="415.00" y2="242.17" class="border-sub"/><line x1="12.00" y1="289.00" x2="15.00" y2="289.00" class="border-sub"/><line x1="412.00" y1="289.00" x2="415.00" y2="289.00" class="border-sub"/></g>
+        <g class="zone-labels"><text x="39.81" y="7.00" class="zone-text">8</text><text x="39.81" y="293.50" class="zone-text">8</text><text x="89.44" y="7.00" class="zone-text">7</text><text x="89.44" y="293.50" class="zone-text">7</text><text x="139.06" y="7.00" class="zone-text">6</text><text x="139.06" y="293.50" class="zone-text">6</text><text x="188.69" y="7.00" class="zone-text">5</text><text x="188.69" y="293.50" class="zone-text">5</text><text x="238.31" y="7.00" class="zone-text">4</text><text x="238.31" y="293.50" class="zone-text">4</text><text x="287.94" y="7.00" class="zone-text">3</text><text x="287.94" y="293.50" class="zone-text">3</text><text x="337.56" y="7.00" class="zone-text">2</text><text x="337.56" y="293.50" class="zone-text">2</text><text x="387.19" y="7.00" class="zone-text">1</text><text x="387.19" y="293.50" class="zone-text">1</text><text x="13.20" y="32.62" class="zone-text">A</text><text x="413.80" y="32.62" class="zone-text">A</text><text x="13.20" y="79.45" class="zone-text">B</text><text x="413.80" y="79.45" class="zone-text">B</text><text x="13.20" y="126.28" class="zone-text">C</text><text x="413.80" y="126.28" class="zone-text">C</text><text x="13.20" y="173.12" class="zone-text">D</text><text x="413.80" y="173.12" class="zone-text">D</text><text x="13.20" y="219.95" class="zone-text">E</text><text x="413.80" y="219.95" class="zone-text">E</text><text x="13.20" y="266.78" class="zone-text">F</text><text x="413.80" y="266.78" class="zone-text">F</text></g>
+        
+  
+    <g class="title-block" transform="translate(267.00, 253.00)">
+        
+        <rect x="0" y="0" width="145.00" height="36.00" class="title-bg" stroke-width="0.6"/>
+        <line x1="0" y1="8" x2="145.0" y2="8" class="border-sub" stroke-width="0.3"/>
+        <line x1="0" y1="22" x2="145.0" y2="22" class="border-sub" stroke-width="0.3"/>
+        <line x1="0" y1="29" x2="145.0" y2="29" class="border-sub" stroke-width="0.25"/>
+
+        <line x1="88" y1="0" x2="88" y2="22" class="border-sub" stroke-width="0.3"/>
+        <line x1="116" y1="0" x2="116" y2="8" class="border-sub" stroke-width="0.3"/>
+        <line x1="38" y1="22" x2="38" y2="36" class="border-sub" stroke-width="0.3"/>
+        <line x1="76" y1="22" x2="76" y2="36" class="border-sub" stroke-width="0.3"/>
+        <line x1="110" y1="22" x2="110" y2="36" class="border-sub" stroke-width="0.3"/>
+
+        <text x="3" y="3.2" class="tb-field-label">PROJECT</text>
+        <text x="3" y="6.8" class="tb-field-val-sm">MECHANICAL PROJECT</text>
+
+        <text x="91" y="3.2" class="tb-field-label">DRAWING NO.</text>
+        <text x="91" y="7.0" class="tb-field-val-bold">MNF-204-SDF</text>
+
+        <text x="119" y="3.2" class="tb-field-label">REV</text>
+        <text x="127" y="7.0" class="tb-field-val-bold" text-anchor="middle">REV A</text>
+
+        <text x="3" y="11.5" class="tb-field-label">TITLE</text>
+        <text x="3" y="16.0" class="tb-title" font-size="2.9">CNC HYDRAULIC MANIFOLD</text><text x="3" y="19.8" class="tb-subtitle tb-field-val-sm" font-size="2.2">SDF / JFA SMART ANNOTATION LAYOUT</text>
+
+        <text x="91" y="11.5" class="tb-field-label">PROJECTION</text>
+        <g transform="translate(102, 17) scale(0.65)">
+            <polygon points="0,-7 8,-4 8,4 0,7" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="-8" cy="0" r="4" fill="none" class="line-visible" stroke-width="0.35"/><circle cx="-8" cy="0" r="7" fill="none" class="line-visible" stroke-width="0.35"/><line x1="-18" y1="0" x2="12" y2="0" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/><line x1="-8" y1="-9" x2="-8" y2="9" class="line-center" stroke-dasharray="8,1.5,1.5,1.5" stroke-width="0.25"/>
+        </g>
+
+        <text x="3" y="25.2" class="tb-field-label">MATERIAL</text>
+        <text x="3" y="28.2" class="tb-field-val-sm" font-size="2.5">AL 7075-T6</text>
+        <text x="3" y="32.0" class="tb-field-label">FINISH</text>
+        <text x="3" y="35.0" class="tb-field-val-sm" font-size="1.9">HARD ANODIZE TYPE III</text>
+
+        <text x="41" y="25.2" class="tb-field-label">SCALE</text>
+        <text x="41" y="28.2" class="tb-field-val-sm">1:1</text>
+        <text x="41" y="32.0" class="tb-field-label">SHEET</text>
+        <text x="41" y="35.0" class="tb-field-val-sm">1 OF 1</text>
+
+        <text x="79" y="25.2" class="tb-field-label">DATE</text>
+        <text x="79" y="28.2" class="tb-field-val-sm">2026-11-21</text>
+        <text x="79" y="32.0" class="tb-field-label">DRAWN BY</text>
+        <text x="79" y="35.0" class="tb-field-val-sm">TECHDRAW SDF</text>
+
+        <text x="113" y="25.2" class="tb-field-label">STATUS</text>
+        <text x="113" y="28.2" class="tb-field-val-sm" fill="#10B981" font-weight="bold">APPROVED</text>
+        <text x="113" y="32.0" class="tb-field-label">UNITS</text>
+        <text x="113" y="35.0" class="tb-field-val-sm">METRIC (mm)</text>
+    </g>
+    
+  
+    <g class="rev-table" transform="translate(302.00, 8.00)">
+        <rect x="0" y="0" width="110.00" height="10.00" class="title-bg" stroke-width="0.5"/>
+        <line x1="0" y1="5.0" x2="110.0" y2="5.0" class="border-sub" stroke-width="0.3"/>
+        <line x1="8" y1="0" x2="8" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="72" y1="0" x2="72" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <line x1="92" y1="0" x2="92" y2="10.0" class="border-sub" stroke-width="0.25"/>
+
+        <text x="4" y="3.6" class="tb-field-label" text-anchor="middle">REV</text>
+        <text x="12" y="3.6" class="tb-field-label">DESCRIPTION</text>
+        <text x="82" y="3.6" class="tb-field-label" text-anchor="middle">DATE</text>
+        <text x="100" y="3.6" class="tb-field-label" text-anchor="middle">APPR</text>
+        
+        <line x1="0" y1="10.0" x2="110.0" y2="10.0" class="border-sub" stroke-width="0.25"/>
+        <text x="4" y="8.80" class="tb-field-val-sm" text-anchor="middle">A</text>
+        <text x="12" y="8.80" class="tb-field-val-sm">INITIAL ENGINEERING RELEASE</text>
+        <text x="82" y="8.80" class="tb-field-val-sm" text-anchor="middle">2026-11-06</text>
+        <text x="100" y="8.80" class="tb-field-val-sm" text-anchor="middle">APPROVED</text>
+        
+    </g>
+    
+  
+    <g class="bom-table" transform="translate(237.00, 215.30)">
+        <rect x="0" y="0" width="175.00" height="36.70" class="title-bg" stroke-width="0.5"/>
+        <rect x="0" y="0" width="175.00" height="5.5" class="table-header-bg"/>
+        <line x1="0" y1="5.5" x2="175.0" y2="5.5" class="border-sub" stroke-width="0.4"/>
+
+        <line x1="10.0" y1="0" x2="10.0" y2="36.7" class="border-sub" stroke-width="0.25"/><line x1="20.0" y1="0" x2="20.0" y2="36.7" class="border-sub" stroke-width="0.25"/><line x1="65.0" y1="0" x2="65.0" y2="36.7" class="border-sub" stroke-width="0.25"/><line x1="135.0" y1="0" x2="135.0" y2="36.7" class="border-sub" stroke-width="0.25"/>
+
+        <text x="5" y="4.0" class="tb-field-label" text-anchor="middle">ITEM</text>
+        <text x="15" y="4.0" class="tb-field-label" text-anchor="middle">QTY</text>
+        <text x="22" y="4.0" class="tb-field-label">PART NO.</text>
+        <text x="67" y="4.0" class="tb-field-label">DESCRIPTION</text>
+        <text x="137" y="4.0" class="tb-field-label">MATERIAL</text>
+
+        
+        
+        <line x1="0" y1="10.70" x2="175.0" y2="10.70" class="border-sub" stroke-width="0.2"/>
+        <text x="5" y="9.30" class="tb-field-val-sm" text-anchor="middle">1</text>
+        <text x="15" y="9.30" class="tb-field-val-sm" text-anchor="middle">1</text>
+        <text x="22" y="9.30" class="tb-field-val-sm" font-weight="bold">MNF-204-01</text>
+        <text x="67" y="9.30" class="tb-field-val-sm">L-STEPPED MANIFOLD BODY</text>
+        <text x="137" y="9.30" class="tb-field-val-sm">AL 7075-T6</text>
+        
+        <rect x="0" y="10.70" width="175.0" height="5.2" class="table-row-alt"/>
+        <line x1="0" y1="15.90" x2="175.0" y2="15.90" class="border-sub" stroke-width="0.2"/>
+        <text x="5" y="14.50" class="tb-field-val-sm" text-anchor="middle">2</text>
+        <text x="15" y="14.50" class="tb-field-val-sm" text-anchor="middle">1</text>
+        <text x="22" y="14.50" class="tb-field-val-sm" font-weight="bold">PRT-G10-02</text>
+        <text x="67" y="14.50" class="tb-field-val-sm">PRIMARY SUPPLY PORT (CBORE)</text>
+        <text x="137" y="14.50" class="tb-field-val-sm">ISO 228-1</text>
+        
+        
+        <line x1="0" y1="21.10" x2="175.0" y2="21.10" class="border-sub" stroke-width="0.2"/>
+        <text x="5" y="19.70" class="tb-field-val-sm" text-anchor="middle">3</text>
+        <text x="15" y="19.70" class="tb-field-val-sm" text-anchor="middle">1</text>
+        <text x="22" y="19.70" class="tb-field-val-sm" font-weight="bold">PRT-GAL-03</text>
+        <text x="67" y="19.70" class="tb-field-val-sm">INNER GALLERY TRANSFER BORE</text>
+        <text x="137" y="19.70" class="tb-field-val-sm">REAM H7</text>
+        
+        <rect x="0" y="21.10" width="175.0" height="5.2" class="table-row-alt"/>
+        <line x1="0" y1="26.30" x2="175.0" y2="26.30" class="border-sub" stroke-width="0.2"/>
+        <text x="5" y="24.90" class="tb-field-val-sm" text-anchor="middle">4</text>
+        <text x="15" y="24.90" class="tb-field-val-sm" text-anchor="middle">2</text>
+        <text x="22" y="24.90" class="tb-field-val-sm" font-weight="bold">MNT-M06-04</text>
+        <text x="67" y="24.90" class="tb-field-val-sm">MOUNTING FLANGE CLEARANCE</text>
+        <text x="137" y="24.90" class="tb-field-val-sm">ISO 273</text>
+        
+        
+        <line x1="0" y1="31.50" x2="175.0" y2="31.50" class="border-sub" stroke-width="0.2"/>
+        <text x="5" y="30.10" class="tb-field-val-sm" text-anchor="middle">5</text>
+        <text x="15" y="30.10" class="tb-field-val-sm" text-anchor="middle">1</text>
+        <text x="22" y="30.10" class="tb-field-val-sm" font-weight="bold">SPL-D09-05</text>
+        <text x="67" y="30.10" class="tb-field-val-sm">CROSS-DRILLED SPOOL BORE</text>
+        <text x="137" y="30.10" class="tb-field-val-sm">HONED Ra 0.8</text>
+        
+        <rect x="0" y="31.50" width="175.0" height="5.2" class="table-row-alt"/>
+        <line x1="0" y1="36.70" x2="175.0" y2="36.70" class="border-sub" stroke-width="0.2"/>
+        <text x="5" y="35.30" class="tb-field-val-sm" text-anchor="middle">6</text>
+        <text x="15" y="35.30" class="tb-field-val-sm" text-anchor="middle">1</text>
+        <text x="22" y="35.30" class="tb-field-val-sm" font-weight="bold">RIB-GUS-06</text>
+        <text x="67" y="35.30" class="tb-field-val-sm">TOWER STIFFENING GUSSET RIB</text>
+        <text x="137" y="35.30" class="tb-field-val-sm">AS MACHINED</text>
+        
+    </g>
+    
+  
+        <g class="sheet-notes" transform="translate(20.00, 259.00)">
+            <text x="0" y="0" class="tb-field-label" font-weight="bold">GENERAL NOTES:</text><text x="0" y="4.50" class="notes-text">1. ALL DIMENSIONS IN MILLIMETERS (mm) UNLESS NOTED.</text><text x="0" y="8.70" class="notes-text">2. GENERAL TOLERANCES ACCORDING TO ISO 2768-mK.</text><text x="0" y="12.90" class="notes-text">3. DEBURR AND BREAK ALL SHARP EDGES 0.2mm x 45°.</text><text x="0" y="17.10" class="notes-text">4. 100% CAD MODEL CONFORMANCE; DO NOT SCALE DRAWING.</text>
+        </g>
+        
+
+  <g class="drawing-views">
+    
+    <!-- View: FRONT at (258.8218184451715, 55.6821253744054) scale=1.0 -->
+    <g id="view_front_258_55" class="sheet-view" transform="translate(258.82, 55.68) scale(1.0000, 1.0000) translate(-15.13, 6.87)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <line x1="-26.867848" y1="-16.132099" x2="-26.867848" y2="-0.132099" />
+      <line x1="-26.867848" y1="7.867901" x2="-26.867848" y2="29.867901" />
+      <line x1="-26.867848" y1="-0.132099" x2="-26.867848" y2="7.867901" />
+      <path d="M -26.867848,15.367901 L -26.867848,15.480725 L -26.867848,15.813541 L -26.867848,16.349659 L -26.867848,17.062197 L -26.867848,17.915424 L -26.867848,18.866557 L -26.867848,19.867901 L -26.867848,20.869245 L -26.867848,21.820378 L -26.867848,22.673605 L -26.867848,23.386143 L -26.867848,23.922261 L -26.867848,24.255077 L -26.867848,24.367901" />
+      <path d="M -26.867848,24.367901 L -26.867848,24.255077 L -26.867848,23.922261 L -26.867848,23.386143 L -26.867848,22.673605 L -26.867848,21.820378 L -26.867848,20.869245 L -26.867848,19.867901 L -26.867848,18.866557 L -26.867848,17.915424 L -26.867848,17.062197 L -26.867848,16.349659 L -26.867848,15.813541 L -26.867848,15.480725 L -26.867848,15.367901" />
+      <line x1="-26.867848" y1="-16.132099" x2="9.132152" y2="-16.132099" />
+      <line x1="57.132152" y1="-16.132099" x2="9.132152" y2="-16.132099" />
+      <path d="M 21.132152,-16.132099 L 21.031864,-16.132099 L 20.736028,-16.132099 L 20.259478,-16.132099 L 19.626111,-16.132099 L 18.867687,-16.132099 L 18.022236,-16.132099 L 17.132152,-16.132099 L 16.242068,-16.132099 L 15.396617,-16.132099 L 14.638193,-16.132099 L 14.004826,-16.132099 L 13.528277,-16.132099 L 13.23244,-16.132099 L 13.132152,-16.132099" />
+      <path d="M 13.132152,-16.132099 L 13.23244,-16.132099 L 13.528277,-16.132099 L 14.004826,-16.132099 L 14.638193,-16.132099 L 15.396617,-16.132099 L 16.242068,-16.132099 L 17.132152,-16.132099 L 18.022236,-16.132099 L 18.867687,-16.132099 L 19.626111,-16.132099 L 20.259478,-16.132099 L 20.736028,-16.132099 L 21.031864,-16.132099 L 21.132152,-16.132099" />
+      <path d="M 46.132152,-16.132099 L 46.006792,-16.132099 L 45.636996,-16.132099 L 45.041309,-16.132099 L 44.249601,-16.132099 L 43.301571,-16.132099 L 42.244757,-16.132099 L 41.132152,-16.132099 L 40.019547,-16.132099 L 38.962733,-16.132099 L 38.014703,-16.132099 L 37.222995,-16.132099 L 36.627308,-16.132099 L 36.257512,-16.132099 L 36.132152,-16.132099" />
+      <path d="M 36.132152,-16.132099 L 36.257512,-16.132099 L 36.627308,-16.132099 L 37.222995,-16.132099 L 38.014703,-16.132099 L 38.962733,-16.132099 L 40.019547,-16.132099 L 41.132152,-16.132099 L 42.244757,-16.132099 L 43.301571,-16.132099 L 44.249601,-16.132099 L 45.041309,-16.132099 L 45.636996,-16.132099 L 46.006792,-16.132099 L 46.132152,-16.132099" />
+      <path d="M -13.867848,-16.132099 L -13.943064,-16.132099 L -14.164941,-16.132099 L -14.522354,-16.132099 L -14.997379,-16.132099 L -15.566197,-16.132099 L -16.200285,-16.132099 L -16.867848,-16.132099 L -17.535411,-16.132099 L -18.169499,-16.132099 L -18.738317,-16.132099 L -19.213342,-16.132099 L -19.570755,-16.132099 L -19.792632,-16.132099 L -19.867848,-16.132099" />
+      <path d="M -19.867848,-16.132099 L -19.792632,-16.132099 L -19.570755,-16.132099 L -19.213342,-16.132099 L -18.738317,-16.132099 L -18.169499,-16.132099 L -17.535411,-16.132099 L -16.867848,-16.132099 L -16.200285,-16.132099 L -15.566197,-16.132099 L -14.997379,-16.132099 L -14.522354,-16.132099 L -14.164941,-16.132099 L -13.943064,-16.132099 L -13.867848,-16.132099" />
+      <path d="M -0.867848,-16.132099 L -0.943064,-16.132099 L -1.164941,-16.132099 L -1.522354,-16.132099 L -1.997379,-16.132099 L -2.566197,-16.132099 L -3.200285,-16.132099 L -3.867848,-16.132099 L -4.535411,-16.132099 L -5.169499,-16.132099 L -5.738317,-16.132099 L -6.213342,-16.132099 L -6.570755,-16.132099 L -6.792632,-16.132099 L -6.867848,-16.132099" />
+      <path d="M -6.867848,-16.132099 L -6.792632,-16.132099 L -6.570755,-16.132099 L -6.213342,-16.132099 L -5.738317,-16.132099 L -5.169499,-16.132099 L -4.535411,-16.132099 L -3.867848,-16.132099 L -3.200285,-16.132099 L -2.566197,-16.132099 L -1.997379,-16.132099 L -1.522354,-16.132099 L -1.164941,-16.132099 L -0.943064,-16.132099 L -0.867848,-16.132099" />
+      <line x1="9.132152" y1="-16.132099" x2="9.132152" y2="-0.132099" />
+      <line x1="-26.867848" y1="-0.132099" x2="9.132152" y2="-0.132099" />
+      <line x1="-26.867848" y1="7.867901" x2="5.132152" y2="7.867901" />
+      <line x1="5.132152" y1="7.867901" x2="5.132152" y2="29.867901" />
+      <line x1="57.132152" y1="-0.132099" x2="9.132152" y2="-0.132099" />
+      <line x1="5.132152" y1="-0.132099" x2="14.009653" y2="-0.132099" />
+      <path d="M 14.009653,-0.132099 L 14.354187,-0.132099 L 14.744139,-0.132099 L 15.173133,-0.132099 L 15.634156,-0.132099 L 16.119671,-0.132099 L 16.621739,-0.132099 L 17.132152,-0.132099 L 17.642565,-0.132099 L 18.144633,-0.132099 L 18.630148,-0.132099 L 19.091171,-0.132099 L 19.520166,-0.132099 L 19.910117,-0.132099 L 20.254651,-0.132099" />
+      <line x1="20.254651" y1="-0.132099" x2="29.132152" y2="-0.132099" />
+      <line x1="5.132152" y1="-0.132099" x2="29.132152" y2="-0.132099" />
+      <line x1="-26.867848" y1="-0.132099" x2="5.132152" y2="-0.132099" />
+      <path d="M 49.632152,-0.132099 L 49.419039,-0.132099 L 48.790387,-0.132099 L 47.77772,-0.132099 L 46.431815,-0.132099 L 44.820164,-0.132099 L 43.02358,-0.132099 L 41.132152,-0.132099 L 39.240724,-0.132099 L 37.44414,-0.132099 L 35.832489,-0.132099 L 34.486584,-0.132099 L 33.473917,-0.132099 L 32.845265,-0.132099 L 32.632152,-0.132099" />
+      <path d="M 32.632152,-0.132099 L 32.845265,-0.132099 L 33.473917,-0.132099 L 34.486584,-0.132099 L 35.832489,-0.132099 L 37.44414,-0.132099 L 39.240724,-0.132099 L 41.132152,-0.132099 L 43.02358,-0.132099 L 44.820164,-0.132099 L 46.431815,-0.132099 L 47.77772,-0.132099 L 48.790387,-0.132099 L 49.419039,-0.132099 L 49.632152,-0.132099" />
+      <line x1="-26.867848" y1="7.867901" x2="5.132152" y2="7.867901" />
+      <path d="M -13.867848,7.867901 L -13.943064,7.867901 L -14.164941,7.867901 L -14.522354,7.867901 L -14.997379,7.867901 L -15.566197,7.867901 L -16.200285,7.867901 L -16.867848,7.867901 L -17.535411,7.867901 L -18.169499,7.867901 L -18.738317,7.867901 L -19.213342,7.867901 L -19.570755,7.867901 L -19.792632,7.867901 L -19.867848,7.867901" />
+      <path d="M -19.867848,7.867901 L -19.792632,7.867901 L -19.570755,7.867901 L -19.213342,7.867901 L -18.738317,7.867901 L -18.169499,7.867901 L -17.535411,7.867901 L -16.867848,7.867901 L -16.200285,7.867901 L -15.566197,7.867901 L -14.997379,7.867901 L -14.522354,7.867901 L -14.164941,7.867901 L -13.943064,7.867901 L -13.867848,7.867901" />
+      <path d="M -0.867848,7.867901 L -0.943064,7.867901 L -1.164941,7.867901 L -1.522354,7.867901 L -1.997379,7.867901 L -2.566197,7.867901 L -3.200285,7.867901 L -3.867848,7.867901 L -4.535411,7.867901 L -5.169499,7.867901 L -5.738317,7.867901 L -6.213342,7.867901 L -6.570755,7.867901 L -6.792632,7.867901 L -6.867848,7.867901" />
+      <path d="M -6.867848,7.867901 L -6.792632,7.867901 L -6.570755,7.867901 L -6.213342,7.867901 L -5.738317,7.867901 L -5.169499,7.867901 L -4.535411,7.867901 L -3.867848,7.867901 L -3.200285,7.867901 L -2.566197,7.867901 L -1.997379,7.867901 L -1.522354,7.867901 L -1.164941,7.867901 L -0.943064,7.867901 L -0.867848,7.867901" />
+      <line x1="5.132152" y1="-0.132099" x2="5.132152" y2="7.867901" />
+      <line x1="-26.867848" y1="15.367901" x2="11.132152" y2="15.367901" />
+      <path d="M 11.132152,15.367901 L 11.132152,15.373203 L 11.132152,15.389097 L 11.132152,15.415544 L 11.132152,15.452484 L 11.132152,15.499828 L 11.132152,15.557466 L 11.132152,15.62526 L 11.132152,15.703053 L 11.132152,15.790659 L 11.132152,15.887874 L 11.132152,15.994467 L 11.132152,16.110188 L 11.132152,16.234764 L 11.132152,16.367901" />
+      <path d="M 11.132152,16.367901 Q 10.804428,16.668315 10.399527,17.039474" />
+      <path d="M 5.132152,17.039474 Q 5.132152,17.337805 5.132152,17.636136 Q 5.132152,17.963239 5.132152,18.290343 Q 5.132152,18.637784 5.132152,18.985226 Q 5.132152,19.701674 5.132152,20.424765 Q 5.132152,20.778534 5.132152,21.132304 Q 5.132152,21.469772 5.132152,21.807241 Q 5.132152,22.119707 5.132152,22.432174 Q 5.132152,22.711581 5.132152,22.990988 Q 5.132152,23.230133 5.132152,23.469277 Q 5.132152,23.661991 5.132152,23.854706 Q 5.132152,23.996022 5.132152,24.137338 Q 5.132152,24.223612 5.132152,24.309886 Q 5.132152,24.338894 5.132152,24.367901" />
+      <path d="M 5.132152,24.367901 L 5.132152,24.309886 L 5.132152,24.137338 L 5.132152,23.854706 L 5.132152,23.469277 L 5.132152,22.990988 L 5.132152,22.432174 L 5.132152,21.807241 L 5.132152,21.132304 L 5.132152,20.424765 L 5.132152,19.702868 L 5.132152,18.985226 L 5.132152,18.290343 L 5.132152,17.636136 L 5.132152,17.039474" />
+      <path d="M 10.399527,17.039474 Q 10.804428,16.668315 11.132152,16.367901" />
+      <path d="M 11.132152,16.367901 L 11.132152,16.234764 L 11.132152,16.110188 L 11.132152,15.994467 L 11.132152,15.887874 L 11.132152,15.790659 L 11.132152,15.703053 L 11.132152,15.62526 L 11.132152,15.557466 L 11.132152,15.499828 L 11.132152,15.452484 L 11.132152,15.415544 L 11.132152,15.389097 L 11.132152,15.373203 L 11.132152,15.367901" />
+      <line x1="5.132152" y1="17.039474" x2="5.132152" y2="-0.132099" />
+      <line x1="5.132152" y1="17.039474" x2="5.132152" y2="-0.132099" />
+      <line x1="9.132152" y1="-16.132099" x2="9.132152" y2="-0.132099" />
+      <line x1="21.132152" y1="-16.132099" x2="21.132152" y2="5.867901" />
+      <path d="M 21.132152,5.867901 Q 21.129827,5.867901 21.127502,5.867901 Q 21.120532,5.867901 21.113562,5.867901 Q 21.101964,5.867901 21.090366,5.867901 Q 21.074166,5.867901 21.057966,5.867901 Q 21.037202,5.867901 21.016438,5.867901 Q 20.991159,5.867901 20.965879,5.867901 Q 20.936143,5.867901 20.906407,5.867901 Q 20.872283,5.867901 20.838159,5.867901 Q 20.799726,5.867901 20.761294,5.867901 Q 20.718643,5.867901 20.675991,5.867901 Q 20.62922,5.867901 20.582449,5.867901 Q 20.531666,5.867901 20.480884,5.867901 Q 20.373646,5.867901 20.254651,5.867901" />
+      <path d="M 14.009653,5.867901 Q 13.951212,5.867901 13.892771,5.867901 Q 13.781237,5.867901 13.681855,5.867901 Q 13.635084,5.867901 13.588313,5.867901 Q 13.545662,5.867901 13.50301,5.867901 Q 13.464578,5.867901 13.426145,5.867901 Q 13.392021,5.867901 13.357897,5.867901 Q 13.328161,5.867901 13.298425,5.867901 Q 13.273145,5.867901 13.247866,5.867901 Q 13.227102,5.867901 13.206338,5.867901 Q 13.190138,5.867901 13.173939,5.867901 Q 13.16234,5.867901 13.150742,5.867901 Q 13.143772,5.867901 13.136802,5.867901 Q 13.134477,5.867901 13.132152,5.867901" />
+      <path d="M 13.132152,5.867901 Q 13.134477,5.867901 13.136802,5.867901 Q 13.143772,5.867901 13.150742,5.867901 Q 13.16234,5.867901 13.173939,5.867901 Q 13.190138,5.867901 13.206338,5.867901 Q 13.227102,5.867901 13.247866,5.867901 Q 13.273145,5.867901 13.298425,5.867901 Q 13.328161,5.867901 13.357897,5.867901 Q 13.392021,5.867901 13.426145,5.867901 Q 13.464578,5.867901 13.50301,5.867901 Q 13.545662,5.867901 13.588313,5.867901 Q 13.635084,5.867901 13.681855,5.867901 Q 13.732638,5.867901 13.78342,5.867901 Q 13.890659,5.867901 14.009653,5.867901" />
+      <path d="M 20.254651,5.867901 Q 20.313092,5.867901 20.371534,5.867901 Q 20.483068,5.867901 20.582449,5.867901 Q 20.62922,5.867901 20.675991,5.867901 Q 20.718643,5.867901 20.761294,5.867901 Q 20.799726,5.867901 20.838159,5.867901 Q 20.872283,5.867901 20.906407,5.867901 Q 20.936143,5.867901 20.965879,5.867901 Q 20.991159,5.867901 21.016438,5.867901 Q 21.037202,5.867901 21.057966,5.867901 Q 21.074166,5.867901 21.090366,5.867901 Q 21.101964,5.867901 21.113562,5.867901 Q 21.120532,5.867901 21.127502,5.867901 Q 21.129827,5.867901 21.132152,5.867901" />
+      <path d="M 46.132152,-4.132099 L 46.006792,-4.132099 L 45.636996,-4.132099 L 45.041309,-4.132099 L 44.249601,-4.132099 L 43.301571,-4.132099 L 42.244757,-4.132099 L 41.132152,-4.132099 L 40.019547,-4.132099 L 38.962733,-4.132099 L 38.014703,-4.132099 L 37.222995,-4.132099 L 36.627308,-4.132099 L 36.257512,-4.132099 L 36.132152,-4.132099" />
+      <path d="M 36.132152,-4.132099 L 36.257512,-4.132099 L 36.627308,-4.132099 L 37.222995,-4.132099 L 38.014703,-4.132099 L 38.962733,-4.132099 L 40.019547,-4.132099 L 41.132152,-4.132099 L 42.244757,-4.132099 L 43.301571,-4.132099 L 44.249601,-4.132099 L 45.041309,-4.132099 L 45.636996,-4.132099 L 46.006792,-4.132099 L 46.132152,-4.132099" />
+      <line x1="46.132152" y1="-16.132099" x2="46.132152" y2="-4.132099" />
+      <line x1="-13.867848" y1="-16.132099" x2="-13.867848" y2="7.867901" />
+      <line x1="-0.867848" y1="-16.132099" x2="-0.867848" y2="7.867901" />
+      <line x1="49.632152" y1="-4.132099" x2="49.632152" y2="-0.132099" />
+      <path d="M 49.632152,-4.132099 L 49.419039,-4.132099 L 48.790387,-4.132099 L 47.77772,-4.132099 L 46.431815,-4.132099 L 44.820164,-4.132099 L 43.02358,-4.132099 L 41.132152,-4.132099 L 39.240724,-4.132099 L 37.44414,-4.132099 L 35.832489,-4.132099 L 34.486584,-4.132099 L 33.473917,-4.132099 L 32.845265,-4.132099 L 32.632152,-4.132099" />
+      <path d="M 32.632152,-4.132099 L 32.845265,-4.132099 L 33.473917,-4.132099 L 34.486584,-4.132099 L 35.832489,-4.132099 L 37.44414,-4.132099 L 39.240724,-4.132099 L 41.132152,-4.132099 L 43.02358,-4.132099 L 44.820164,-4.132099 L 46.431815,-4.132099 L 47.77772,-4.132099 L 48.790387,-4.132099 L 49.419039,-4.132099 L 49.632152,-4.132099" />
+      <line x1="-26.867848" y1="24.367901" x2="5.132152" y2="24.367901" />
+      <line x1="13.132152" y1="-16.132099" x2="13.132152" y2="5.867901" />
+      <line x1="36.132152" y1="-16.132099" x2="36.132152" y2="-4.132099" />
+      <line x1="-19.867848" y1="-16.132099" x2="-19.867848" y2="7.867901" />
+      <line x1="-6.867848" y1="-16.132099" x2="-6.867848" y2="7.867901" />
+      <line x1="32.632152" y1="-4.132099" x2="32.632152" y2="-0.132099" />
+    </g>
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="-26.867848" y1="-16.132099" x2="-26.867848" y2="29.867901" />
+      <line x1="-26.867848" y1="-16.132099" x2="57.132152" y2="-16.132099" />
+      <line x1="-26.867848" y1="29.867901" x2="5.132152" y2="29.867901" />
+      <line x1="5.132152" y1="-0.132099" x2="5.132152" y2="29.867901" />
+      <line x1="5.132152" y1="-0.132099" x2="57.132152" y2="-0.132099" />
+      <line x1="57.132152" y1="-16.132099" x2="57.132152" y2="-0.132099" />
+      <line x1="5.132152" y1="17.039474" x2="10.399527" y2="17.039474" />
+      <path d="M 20.254651,5.867901 L 19.910117,5.867901 L 19.520166,5.867901 L 19.091171,5.867901 L 18.630148,5.867901 L 18.144633,5.867901 L 17.642565,5.867901 L 17.132152,5.867901 L 16.621739,5.867901 L 16.119671,5.867901 L 15.634156,5.867901 L 15.173133,5.867901 L 14.744139,5.867901 L 14.354187,5.867901 L 14.009653,5.867901" />
+      <line x1="14.009653" y1="-0.132099" x2="14.009653" y2="5.867901" />
+      <line x1="20.254651" y1="-0.132099" x2="20.254651" y2="5.867901" />
+      <line x1="29.132152" y1="-0.132099" x2="10.399527" y2="17.039474" />
+      <line x1="20.254651" y1="5.867901" x2="14.009653" y2="5.867901" />
+    </g>
+  </g>
+    </g>
+    
+    <!-- View: TOP at (258.8218184451715, 150.15) scale=1.0 -->
+    <g id="view_top_258_150" class="sheet-view" transform="translate(258.82, 150.15) scale(1.0000, 1.0000) translate(-15.13, 7.56)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <line x1="-26.867848" y1="-23.435015" x2="-26.867848" y2="38.564985" />
+      <path d="M -26.867848,-7.435015 L -26.867848,-6.931175 L -26.867848,-6.433671 L -26.867848,-5.94876 L -26.867848,-5.482538 L -26.867848,-5.040871 L -26.867848,-4.629311 L -26.867848,-4.253035 L -26.867848,-3.916774 L -26.867848,-3.624756 L -26.867848,-3.380655 L -26.867848,-3.18754 L -26.867848,-3.04784 L -26.867848,-2.96331 L -26.867848,-2.935015" />
+      <path d="M -26.867848,-2.935015 L -26.867848,-3.04784 L -26.867848,-3.380655 L -26.867848,-3.916774 L -26.867848,-4.629311 L -26.867848,-5.482538 L -26.867848,-6.433671 L -26.867848,-7.435015 L -26.867848,-8.43636 L -26.867848,-9.387492 L -26.867848,-10.240719 L -26.867848,-10.953257 L -26.867848,-11.489375 L -26.867848,-11.822191 L -26.867848,-11.935015" />
+      <path d="M -26.867848,-11.935015 Q -26.867848,-11.920868 -26.867848,-11.90672 Q -26.867848,-11.864456 -26.867848,-11.822191 Q -26.867848,-11.752341 -26.867848,-11.68249 Q -26.867848,-11.585933 -26.867848,-11.489375 Q -26.867848,-11.367325 -26.867848,-11.245274 Q -26.867848,-11.099266 -26.867848,-10.953257 Q -26.867848,-10.785126 -26.867848,-10.616996 Q -26.867848,-10.428858 -26.867848,-10.240719 Q -26.867848,-10.03494 -26.867848,-9.82916 Q -26.867848,-9.608326 -26.867848,-9.387492 Q -26.867848,-9.154382 -26.867848,-8.921271 Q -26.867848,-8.678815 -26.867848,-8.43636 Q -26.867848,-7.940632 -26.867848,-7.435015" />
+      <line x1="-26.867848" y1="-23.435015" x2="57.132152" y2="-23.435015" />
+      <circle cx="17.132152" cy="-8.435015" r="4.0" />
+      <line x1="5.132152" y1="-10.935015" x2="5.132152" y2="-23.435015" />
+      <line x1="5.132152" y1="-10.935015" x2="14.009653" y2="-10.935015" />
+      <line x1="20.254651" y1="-10.935015" x2="29.132152" y2="-10.935015" />
+      <line x1="5.132152" y1="-3.935015" x2="29.132152" y2="-3.935015" />
+      <line x1="5.132152" y1="36.564985" x2="5.132152" y2="-3.935015" />
+      <path d="M 11.132152,-7.435015 C 11.132152,-6.414509 11.132152,-5.39965 11.132152,-4.606588" />
+      <path d="M 5.132152,-3.935015 L 5.132152,-3.801878 L 5.132152,-3.677302 L 5.132152,-3.561582 L 5.132152,-3.454988 L 5.132152,-3.357774 L 5.132152,-3.270167 L 5.132152,-3.192375 L 5.132152,-3.12458 L 5.132152,-3.066942 L 5.132152,-3.019598 L 5.132152,-2.982659 L 5.132152,-2.956211 L 5.132152,-2.940317 L 5.132152,-2.935015" />
+      <path d="M 5.132152,-2.935015 L 5.132152,-3.04784 L 5.132152,-3.380655 L 5.132152,-3.916774 L 5.132152,-4.629311 L 5.132152,-5.482538 L 5.132152,-6.433671 L 5.132152,-7.435015 L 5.132152,-8.43636 L 5.132152,-9.387492 L 5.132152,-10.240719 L 5.132152,-10.953257 L 5.132152,-11.489375 L 5.132152,-11.822191 L 5.132152,-11.935015" />
+      <path d="M 5.132152,-11.935015 L 5.132152,-11.929713 L 5.132152,-11.91382 L 5.132152,-11.887372 L 5.132152,-11.850432 L 5.132152,-11.803088 L 5.132152,-11.745451 L 5.132152,-11.677656 L 5.132152,-11.599864 L 5.132152,-11.512257 L 5.132152,-11.415042 L 5.132152,-11.308449 L 5.132152,-11.192728 L 5.132152,-11.068152 L 5.132152,-10.935015" />
+      <path d="M 11.132152,-10.263442 C 11.132152,-9.470381 11.132152,-8.455521 11.132152,-7.435015" />
+      <path d="M 21.132152,-8.435015 A 4.0,4.0 0.0 1,1 14.009653,-10.935015" />
+      <path d="M 20.254651,-10.935015 A 4.0,4.0 0.0 0,1 21.132152,-8.435015" />
+      <line x1="20.254651" y1="-10.935015" x2="14.009653" y2="-10.935015" />
+      <line x1="-26.867848" y1="-11.935015" x2="5.132152" y2="-11.935015" />
+      <line x1="-26.867848" y1="-2.935015" x2="5.132152" y2="-2.935015" />
+    </g>
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="-26.867848" y1="-23.435015" x2="-26.867848" y2="8.564985" />
+      <line x1="-26.867848" y1="36.564985" x2="-26.867848" y2="38.564985" />
+      <line x1="-26.867848" y1="8.564985" x2="-26.867848" y2="36.564985" />
+      <line x1="-26.867848" y1="-23.435015" x2="5.132152" y2="-23.435015" />
+      <line x1="5.132152" y1="-23.435015" x2="57.132152" y2="-23.435015" />
+      <line x1="-26.867848" y1="8.564985" x2="5.132152" y2="8.564985" />
+      <line x1="5.132152" y1="-23.435015" x2="5.132152" y2="8.564985" />
+      <line x1="-26.867848" y1="38.564985" x2="9.132152" y2="38.564985" />
+      <line x1="9.132152" y1="6.564985" x2="9.132152" y2="38.564985" />
+      <line x1="57.132152" y1="6.564985" x2="9.132152" y2="6.564985" />
+      <line x1="57.132152" y1="-23.435015" x2="57.132152" y2="6.564985" />
+      <path d="M 14.009653,-10.935015 A 4.0,4.0 0.0 0,1 20.254651,-10.935015" />
+      <line x1="29.132152" y1="-3.935015" x2="29.132152" y2="-10.935015" />
+      <circle cx="41.132152" cy="-8.435015" r="8.5" />
+      <line x1="-26.867848" y1="36.564985" x2="5.132152" y2="36.564985" />
+      <line x1="5.132152" y1="8.564985" x2="5.132152" y2="36.564985" />
+      <circle cx="-16.867848" cy="26.564985" r="3.0" />
+      <circle cx="-3.867848" cy="26.564985" r="3.0" />
+      <path d="M 11.132152,-4.606588 Q 10.804428,-4.235429 10.399527,-3.935015" />
+      <line x1="5.132152" y1="-3.935015" x2="10.399527" y2="-3.935015" />
+      <line x1="5.132152" y1="-10.935015" x2="10.399527" y2="-10.935015" />
+      <path d="M 10.399527,-10.935015 Q 10.804428,-10.634602 11.132152,-10.263442" />
+      <circle cx="41.132152" cy="-8.435015" r="5.0" />
+      <line x1="29.132152" y1="-10.935015" x2="10.399527" y2="-10.935015" />
+      <line x1="11.132152" y1="-10.263442" x2="11.132152" y2="-4.606588" />
+      <line x1="29.132152" y1="-3.935015" x2="10.399527" y2="-3.935015" />
+    </g>
+  </g>
+    </g>
+    
+    <!-- View: RIGHT at (130.68, 55.6821253744054) scale=1.0 -->
+    <g id="view_right_130_55" class="sheet-view" transform="translate(130.68, 55.68) scale(1.0000, 1.0000) translate(-7.56, 6.87)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-hidden)" stroke-width="0.18" id="layer_hidden" class="line-hidden" stroke-dasharray="2.286 1.143">
+      <line x1="-23.435015" y1="-16.132099" x2="-23.435015" y2="29.867901" />
+      <line x1="-23.435015" y1="-16.132099" x2="38.564985" y2="-16.132099" />
+      <line x1="36.564985" y1="-0.132099" x2="38.564985" y2="-0.132099" />
+      <circle cx="-7.435015" cy="19.867901" r="4.5" />
+      <path d="M -8.435015,-16.132099 L -7.987157,-16.132099 L -7.544932,-16.132099 L -7.113899,-16.132099 L -6.69948,-16.132099 L -6.306887,-16.132099 L -5.941056,-16.132099 L -5.606588,-16.132099 L -5.307689,-16.132099 L -5.048119,-16.132099 L -4.83114,-16.132099 L -4.659482,-16.132099 L -4.535304,-16.132099 L -4.460166,-16.132099 L -4.435015,-16.132099" />
+      <path d="M -4.435015,-16.132099 L -4.535304,-16.132099 L -4.83114,-16.132099 L -5.307689,-16.132099 L -5.941056,-16.132099 L -6.69948,-16.132099 L -7.544932,-16.132099 L -8.435015,-16.132099 L -9.325099,-16.132099 L -10.17055,-16.132099 L -10.928975,-16.132099 L -11.562341,-16.132099 L -12.038891,-16.132099 L -12.334727,-16.132099 L -12.435015,-16.132099" />
+      <path d="M -12.435015,-16.132099 Q -12.42244,-16.132099 -12.409864,-16.132099 Q -12.372296,-16.132099 -12.334727,-16.132099 Q -12.272638,-16.132099 -12.210549,-16.132099 Q -12.12472,-16.132099 -12.038891,-16.132099 Q -11.930401,-16.132099 -11.821912,-16.132099 Q -11.692127,-16.132099 -11.562341,-16.132099 Q -11.412892,-16.132099 -11.263442,-16.132099 Q -11.096208,-16.132099 -10.928975,-16.132099 Q -10.746059,-16.132099 -10.563144,-16.132099 Q -10.366847,-16.132099 -10.17055,-16.132099 Q -9.963341,-16.132099 -9.756132,-16.132099 Q -9.540615,-16.132099 -9.325099,-16.132099 Q -8.884453,-16.132099 -8.435015,-16.132099" />
+      <path d="M -8.435015,-16.132099 L -7.875193,-16.132099 L -7.322411,-16.132099 L -6.78362,-16.132099 L -6.265597,-16.132099 L -5.774855,-16.132099 L -5.317566,-16.132099 L -4.899481,-16.132099 L -4.525858,-16.132099 L -4.201394,-16.132099 L -3.930171,-16.132099 L -3.715599,-16.132099 L -3.560376,-16.132099 L -3.466454,-16.132099 L -3.435015,-16.132099" />
+      <path d="M -3.435015,-16.132099 L -3.560376,-16.132099 L -3.930171,-16.132099 L -4.525858,-16.132099 L -5.317566,-16.132099 L -6.265597,-16.132099 L -7.322411,-16.132099 L -8.435015,-16.132099 L -9.54762,-16.132099 L -10.604434,-16.132099 L -11.552464,-16.132099 L -12.344173,-16.132099 L -12.93986,-16.132099 L -13.309655,-16.132099 L -13.435015,-16.132099" />
+      <path d="M -13.435015,-16.132099 Q -13.419296,-16.132099 -13.403576,-16.132099 Q -13.356616,-16.132099 -13.309655,-16.132099 Q -13.232043,-16.132099 -13.154432,-16.132099 Q -13.047146,-16.132099 -12.93986,-16.132099 Q -12.804248,-16.132099 -12.668636,-16.132099 Q -12.506405,-16.132099 -12.344173,-16.132099 Q -12.157361,-16.132099 -11.970549,-16.132099 Q -11.761507,-16.132099 -11.552464,-16.132099 Q -11.32382,-16.132099 -11.095176,-16.132099 Q -10.849805,-16.132099 -10.604434,-16.132099 Q -10.345422,-16.132099 -10.086411,-16.132099 Q -9.817015,-16.132099 -9.54762,-16.132099 Q -8.996812,-16.132099 -8.435015,-16.132099" />
+      <path d="M 26.564985,-16.132099 L 26.900878,-16.132099 L 27.232547,-16.132099 L 27.555822,-16.132099 L 27.866636,-16.132099 L 28.161081,-16.132099 L 28.435454,-16.132099 L 28.686305,-16.132099 L 28.910479,-16.132099 L 29.105157,-16.132099 L 29.267891,-16.132099 L 29.396635,-16.132099 L 29.489768,-16.132099 L 29.546121,-16.132099 L 29.564985,-16.132099" />
+      <path d="M 29.564985,-16.132099 L 29.489768,-16.132099 L 29.267891,-16.132099 L 28.910479,-16.132099 L 28.435454,-16.132099 L 27.866636,-16.132099 L 27.232547,-16.132099 L 26.564985,-16.132099 L 25.897422,-16.132099 L 25.263333,-16.132099 L 24.694515,-16.132099 L 24.21949,-16.132099 L 23.862078,-16.132099 L 23.640201,-16.132099 L 23.564985,-16.132099" />
+      <path d="M 23.564985,-16.132099 Q 23.574416,-16.132099 23.583848,-16.132099 Q 23.612024,-16.132099 23.640201,-16.132099 Q 23.686768,-16.132099 23.733335,-16.132099 Q 23.797706,-16.132099 23.862078,-16.132099 Q 23.943445,-16.132099 24.024812,-16.132099 Q 24.122151,-16.132099 24.21949,-16.132099 Q 24.331577,-16.132099 24.443664,-16.132099 Q 24.56909,-16.132099 24.694515,-16.132099 Q 24.831702,-16.132099 24.968888,-16.132099 Q 25.116111,-16.132099 25.263333,-16.132099 Q 25.41874,-16.132099 25.574147,-16.132099 Q 25.735785,-16.132099 25.897422,-16.132099 Q 26.227907,-16.132099 26.564985,-16.132099" />
+      <path d="M 26.564985,-16.132099 L 26.900878,-16.132099 L 27.232547,-16.132099 L 27.555822,-16.132099 L 27.866636,-16.132099 L 28.161081,-16.132099 L 28.435454,-16.132099 L 28.686305,-16.132099 L 28.910479,-16.132099 L 29.105157,-16.132099 L 29.267891,-16.132099 L 29.396635,-16.132099 L 29.489768,-16.132099 L 29.546121,-16.132099 L 29.564985,-16.132099" />
+      <path d="M 29.564985,-16.132099 L 29.489768,-16.132099 L 29.267891,-16.132099 L 28.910479,-16.132099 L 28.435454,-16.132099 L 27.866636,-16.132099 L 27.232547,-16.132099 L 26.564985,-16.132099 L 25.897422,-16.132099 L 25.263333,-16.132099 L 24.694515,-16.132099 L 24.21949,-16.132099 L 23.862078,-16.132099 L 23.640201,-16.132099 L 23.564985,-16.132099" />
+      <path d="M 23.564985,-16.132099 Q 23.574416,-16.132099 23.583848,-16.132099 Q 23.612024,-16.132099 23.640201,-16.132099 Q 23.686768,-16.132099 23.733335,-16.132099 Q 23.797706,-16.132099 23.862078,-16.132099 Q 23.943445,-16.132099 24.024812,-16.132099 Q 24.122151,-16.132099 24.21949,-16.132099 Q 24.331577,-16.132099 24.443664,-16.132099 Q 24.56909,-16.132099 24.694515,-16.132099 Q 24.831702,-16.132099 24.968888,-16.132099 Q 25.116111,-16.132099 25.263333,-16.132099 Q 25.41874,-16.132099 25.574147,-16.132099 Q 25.735785,-16.132099 25.897422,-16.132099 Q 26.227907,-16.132099 26.564985,-16.132099" />
+      <line x1="-10.935015" y1="-0.132099" x2="-23.435015" y2="-0.132099" />
+      <path d="M -10.935015,-0.132099 L -11.12953,-0.132099 L -11.31302,-0.132099 L -11.484734,-0.132099 L -11.64397,-0.132099 L -11.790077,-0.132099 L -11.922456,-0.132099 L -12.040567,-0.132099 L -12.143925,-0.132099 L -12.232108,-0.132099 L -12.304755,-0.132099 L -12.361568,-0.132099 L -12.402316,-0.132099 L -12.426832,-0.132099 L -12.435015,-0.132099" />
+      <path d="M -12.435015,-0.132099 L -12.426832,-0.132099 L -12.402316,-0.132099 L -12.361568,-0.132099 L -12.304755,-0.132099 L -12.232108,-0.132099 L -12.143925,-0.132099 L -12.040567,-0.132099 L -11.922456,-0.132099 L -11.790077,-0.132099 L -11.64397,-0.132099 L -11.484734,-0.132099 L -11.31302,-0.132099 L -11.12953,-0.132099 L -10.935015,-0.132099" />
+      <line x1="-3.935015" y1="-0.132099" x2="-10.935015" y2="-0.132099" />
+      <line x1="36.564985" y1="-0.132099" x2="-3.935015" y2="-0.132099" />
+      <path d="M -8.435015,-0.132099 L -7.483317,-0.132099 L -6.543587,-0.132099 L -5.627643,-0.132099 L -4.747004,-0.132099 L -3.912743,-0.132099 L -3.135352,-0.132099 L -2.424608,-0.132099 L -1.789448,-0.132099 L -1.23786,-0.132099 L -0.77678,-0.132099 L -0.412007,-0.132099 L -0.148128,-0.132099 L 0.011538,-0.132099 L 0.064985,-0.132099" />
+      <path d="M 0.064985,-0.132099 L -0.148128,-0.132099 L -0.77678,-0.132099 L -1.789448,-0.132099 L -3.135352,-0.132099 L -4.747004,-0.132099 L -6.543587,-0.132099 L -8.435015,-0.132099 L -10.326443,-0.132099 L -12.123027,-0.132099 L -13.734679,-0.132099 L -15.080583,-0.132099 L -16.093251,-0.132099 L -16.721903,-0.132099 L -16.935015,-0.132099" />
+      <path d="M -16.935015,-0.132099 L -16.881569,-0.132099 L -16.721903,-0.132099 L -16.458024,-0.132099 L -16.093251,-0.132099 L -15.632171,-0.132099 L -15.080583,-0.132099 L -14.445423,-0.132099 L -13.734679,-0.132099 L -12.957288,-0.132099 L -12.123027,-0.132099 L -11.242387,-0.132099 L -10.326443,-0.132099 L -9.386713,-0.132099 L -8.435015,-0.132099" />
+      <path d="M 26.564985,7.867901 L 26.900878,7.867901 L 27.232547,7.867901 L 27.555822,7.867901 L 27.866636,7.867901 L 28.161081,7.867901 L 28.435454,7.867901 L 28.686305,7.867901 L 28.910479,7.867901 L 29.105157,7.867901 L 29.267891,7.867901 L 29.396635,7.867901 L 29.489768,7.867901 L 29.546121,7.867901 L 29.564985,7.867901" />
+      <path d="M 29.564985,7.867901 L 29.489768,7.867901 L 29.267891,7.867901 L 28.910479,7.867901 L 28.435454,7.867901 L 27.866636,7.867901 L 27.232547,7.867901 L 26.564985,7.867901 L 25.897422,7.867901 L 25.263333,7.867901 L 24.694515,7.867901 L 24.21949,7.867901 L 23.862078,7.867901 L 23.640201,7.867901 L 23.564985,7.867901" />
+      <path d="M 23.564985,7.867901 Q 23.574416,7.867901 23.583848,7.867901 Q 23.612024,7.867901 23.640201,7.867901 Q 23.686768,7.867901 23.733335,7.867901 Q 23.797706,7.867901 23.862078,7.867901 Q 23.943445,7.867901 24.024812,7.867901 Q 24.122151,7.867901 24.21949,7.867901 Q 24.331577,7.867901 24.443664,7.867901 Q 24.56909,7.867901 24.694515,7.867901 Q 24.831702,7.867901 24.968888,7.867901 Q 25.116111,7.867901 25.263333,7.867901 Q 25.41874,7.867901 25.574147,7.867901 Q 25.735785,7.867901 25.897422,7.867901 Q 26.227907,7.867901 26.564985,7.867901" />
+      <path d="M 26.564985,7.867901 L 26.900878,7.867901 L 27.232547,7.867901 L 27.555822,7.867901 L 27.866636,7.867901 L 28.161081,7.867901 L 28.435454,7.867901 L 28.686305,7.867901 L 28.910479,7.867901 L 29.105157,7.867901 L 29.267891,7.867901 L 29.396635,7.867901 L 29.489768,7.867901 L 29.546121,7.867901 L 29.564985,7.867901" />
+      <path d="M 29.564985,7.867901 L 29.489768,7.867901 L 29.267891,7.867901 L 28.910479,7.867901 L 28.435454,7.867901 L 27.866636,7.867901 L 27.232547,7.867901 L 26.564985,7.867901 L 25.897422,7.867901 L 25.263333,7.867901 L 24.694515,7.867901 L 24.21949,7.867901 L 23.862078,7.867901 L 23.640201,7.867901 L 23.564985,7.867901" />
+      <path d="M 23.564985,7.867901 Q 23.574416,7.867901 23.583848,7.867901 Q 23.612024,7.867901 23.640201,7.867901 Q 23.686768,7.867901 23.733335,7.867901 Q 23.797706,7.867901 23.862078,7.867901 Q 23.943445,7.867901 24.024812,7.867901 Q 24.122151,7.867901 24.21949,7.867901 Q 24.331577,7.867901 24.443664,7.867901 Q 24.56909,7.867901 24.694515,7.867901 Q 24.831702,7.867901 24.968888,7.867901 Q 25.116111,7.867901 25.263333,7.867901 Q 25.41874,7.867901 25.574147,7.867901 Q 25.735785,7.867901 25.897422,7.867901 Q 26.227907,7.867901 26.564985,7.867901" />
+      <path d="M -7.435015,15.367901 A 4.5,4.5 -90.0 0,1 -4.606588,16.367901" />
+      <path d="M -10.263442,16.367901 A 4.5,4.5 -90.0 0,1 -7.435015,15.367901" />
+      <path d="M -8.435015,5.867901 L -7.987157,5.867901 L -7.544932,5.867901 L -7.113899,5.867901 L -6.69948,5.867901 L -6.306887,5.867901 L -5.941056,5.867901 L -5.606588,5.867901 L -5.307689,5.867901 L -5.048119,5.867901 L -4.83114,5.867901 L -4.659482,5.867901 L -4.535304,5.867901 L -4.460166,5.867901 L -4.435015,5.867901" />
+      <path d="M -4.435015,5.867901 L -4.486376,5.867901 L -4.639141,5.867901 L -4.889385,5.867901 L -5.230683,5.867901 L -5.65427,5.867901 L -6.149267,5.867901 L -6.702965,5.867901 L -7.301142,5.867901 L -7.928437,5.867901 L -8.568742,5.867901 L -9.205612,5.867901 L -9.822694,5.867901 L -10.404139,5.867901 L -10.935015,5.867901" />
+      <line x1="-10.935015" y1="-0.132099" x2="-10.935015" y2="5.867901" />
+      <line x1="-10.935015" y1="-0.132099" x2="-10.935015" y2="5.867901" />
+      <path d="M -10.935015,5.867901 C -10.232208,5.867901 -9.336049,5.867901 -8.435015,5.867901" />
+      <path d="M -8.435015,-4.132099 L -7.875193,-4.132099 L -7.322411,-4.132099 L -6.78362,-4.132099 L -6.265597,-4.132099 L -5.774855,-4.132099 L -5.317566,-4.132099 L -4.899481,-4.132099 L -4.525858,-4.132099 L -4.201394,-4.132099 L -3.930171,-4.132099 L -3.715599,-4.132099 L -3.560376,-4.132099 L -3.466454,-4.132099 L -3.435015,-4.132099" />
+      <path d="M -3.435015,-4.132099 L -3.560376,-4.132099 L -3.930171,-4.132099 L -4.525858,-4.132099 L -5.317566,-4.132099 L -6.265597,-4.132099 L -7.322411,-4.132099 L -8.435015,-4.132099 L -9.54762,-4.132099 L -10.604434,-4.132099 L -11.552464,-4.132099 L -12.344173,-4.132099 L -12.93986,-4.132099 L -13.309655,-4.132099 L -13.435015,-4.132099" />
+      <path d="M -13.435015,-4.132099 Q -13.419296,-4.132099 -13.403576,-4.132099 Q -13.356616,-4.132099 -13.309655,-4.132099 Q -13.232043,-4.132099 -13.154432,-4.132099 Q -13.047146,-4.132099 -12.93986,-4.132099 Q -12.804248,-4.132099 -12.668636,-4.132099 Q -12.506405,-4.132099 -12.344173,-4.132099 Q -12.157361,-4.132099 -11.970549,-4.132099 Q -11.761507,-4.132099 -11.552464,-4.132099 Q -11.32382,-4.132099 -11.095176,-4.132099 Q -10.849805,-4.132099 -10.604434,-4.132099 Q -10.345422,-4.132099 -10.086411,-4.132099 Q -9.817015,-4.132099 -9.54762,-4.132099 Q -8.996812,-4.132099 -8.435015,-4.132099" />
+      <path d="M -8.435015,-4.132099 L -7.483317,-4.132099 L -6.543587,-4.132099 L -5.627643,-4.132099 L -4.747004,-4.132099 L -3.912743,-4.132099 L -3.135352,-4.132099 L -2.424608,-4.132099 L -1.789448,-4.132099 L -1.23786,-4.132099 L -0.77678,-4.132099 L -0.412007,-4.132099 L -0.148128,-4.132099 L 0.011538,-4.132099 L 0.064985,-4.132099" />
+      <path d="M 0.064985,-4.132099 L -0.148128,-4.132099 L -0.77678,-4.132099 L -1.789448,-4.132099 L -3.135352,-4.132099 L -4.747004,-4.132099 L -6.543587,-4.132099 L -8.435015,-4.132099 L -10.326443,-4.132099 L -12.123027,-4.132099 L -13.734679,-4.132099 L -15.080583,-4.132099 L -16.093251,-4.132099 L -16.721903,-4.132099 L -16.935015,-4.132099" />
+      <path d="M -16.935015,-4.132099 L -16.881569,-4.132099 L -16.721903,-4.132099 L -16.458024,-4.132099 L -16.093251,-4.132099 L -15.632171,-4.132099 L -15.080583,-4.132099 L -14.445423,-4.132099 L -13.734679,-4.132099 L -12.957288,-4.132099 L -12.123027,-4.132099 L -11.242387,-4.132099 L -10.326443,-4.132099 L -9.386713,-4.132099 L -8.435015,-4.132099" />
+      <line x1="-4.435015" y1="-16.132099" x2="-4.435015" y2="5.867901" />
+      <line x1="-12.435015" y1="-16.132099" x2="-12.435015" y2="-0.132099" />
+      <line x1="-3.435015" y1="-16.132099" x2="-3.435015" y2="-4.132099" />
+      <line x1="-13.435015" y1="-16.132099" x2="-13.435015" y2="-4.132099" />
+      <line x1="29.564985" y1="-16.132099" x2="29.564985" y2="7.867901" />
+      <line x1="23.564985" y1="-16.132099" x2="23.564985" y2="7.867901" />
+      <line x1="29.564985" y1="-16.132099" x2="29.564985" y2="7.867901" />
+      <line x1="23.564985" y1="-16.132099" x2="23.564985" y2="7.867901" />
+      <line x1="0.064985" y1="-4.132099" x2="0.064985" y2="-0.132099" />
+      <line x1="-16.935015" y1="-4.132099" x2="-16.935015" y2="-0.132099" />
+    </g>
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="-23.435015" y1="-0.132099" x2="-23.435015" y2="29.867901" />
+      <line x1="-23.435015" y1="-16.132099" x2="-23.435015" y2="-0.132099" />
+      <line x1="6.564985" y1="-16.132099" x2="38.564985" y2="-16.132099" />
+      <line x1="-23.435015" y1="-16.132099" x2="6.564985" y2="-16.132099" />
+      <line x1="-23.435015" y1="29.867901" x2="8.564985" y2="29.867901" />
+      <line x1="38.564985" y1="-16.132099" x2="38.564985" y2="-0.132099" />
+      <line x1="8.564985" y1="7.867901" x2="8.564985" y2="29.867901" />
+      <line x1="6.564985" y1="-0.132099" x2="38.564985" y2="-0.132099" />
+      <line x1="-23.435015" y1="-0.132099" x2="6.564985" y2="-0.132099" />
+      <line x1="8.564985" y1="7.867901" x2="36.564985" y2="7.867901" />
+      <line x1="36.564985" y1="-0.132099" x2="36.564985" y2="7.867901" />
+      <path d="M -4.606588,16.367901 Q -4.235429,16.668315 -3.935015,17.039474" />
+      <path d="M -3.935015,17.039474 A 4.5,4.5 -90.0 1,1 -10.935015,17.039474" />
+      <path d="M -10.935015,17.039474 Q -10.634602,16.668315 -10.263442,16.367901" />
+      <line x1="6.564985" y1="-16.132099" x2="6.564985" y2="-0.132099" />
+      <line x1="-10.935015" y1="-0.132099" x2="-10.935015" y2="17.039474" />
+      <line x1="-10.263442" y1="16.367901" x2="-4.606588" y2="16.367901" />
+      <line x1="-3.935015" y1="-0.132099" x2="-3.935015" y2="17.039474" />
+    </g>
+  </g>
+    </g>
+    
+    <!-- View: ISOMETRIC at (130.68, 150.15) scale=1.0 -->
+    <g id="view_isometric_130_150" class="sheet-view" transform="translate(130.68, 150.15) scale(1.0000, 1.0000) translate(8.39, 5.34)">
+        <g transform="scale(1,-1)" stroke-linecap="round">
+    <g fill="none" stroke="var(--line-visible)" stroke-width="0.35" id="layer_visible" class="line-visible">
+      <line x1="9.355993" y1="42.806488" x2="27.106399" y2="29.891171" />
+      <line x1="43.747405" y1="-22.442773" x2="43.747405" y2="-8.451179" />
+      <line x1="27.106399" y1="10.652729" x2="27.106399" y2="29.891171" />
+      <line x1="42.638005" y1="-7.643971" x2="43.747405" y2="-8.451179" />
+      <line x1="27.106399" y1="10.652729" x2="42.638005" y2="-0.648174" />
+      <line x1="42.638005" y1="-7.643971" x2="42.638005" y2="-0.648174" />
+      <line x1="9.355993" y1="42.806488" x2="-17.269616" y2="34.196277" />
+      <line x1="-17.269616" y1="13.233176" x2="-17.269616" y2="34.196277" />
+      <line x1="-22.740977" y1="6.192704" x2="-60.536232" y2="-6.029557" />
+      <line x1="-60.536232" y1="-20.021151" x2="-60.536232" y2="-6.029557" />
+      <line x1="43.747405" y1="-22.442773" x2="13.793595" y2="-32.129261" />
+      <line x1="-3.956812" y1="-19.213943" x2="13.793595" y2="-32.129261" />
+      <line x1="-43.895226" y1="-32.129261" x2="-3.956812" y2="-19.213943" />
+      <line x1="-60.536232" y1="-20.021151" x2="-43.895226" y2="-32.129261" />
+      <line x1="27.106399" y1="29.891171" x2="0.48079" y2="21.280959" />
+      <line x1="-17.269616" y1="34.196277" x2="0.48079" y2="21.280959" />
+      <line x1="13.793595" y1="-32.129261" x2="13.793595" y2="-18.137667" />
+      <line x1="43.747405" y1="-8.451179" x2="13.793595" y2="-18.137667" />
+      <line x1="27.106399" y1="10.652729" x2="0.48079" y2="2.042517" />
+      <line x1="0.48079" y1="2.042517" x2="0.48079" y2="21.280959" />
+      <line x1="-3.956812" y1="-5.222349" x2="13.793595" y2="-18.137667" />
+      <line x1="-43.895226" y1="-18.137667" x2="-3.956812" y2="-5.222349" />
+      <line x1="-60.536232" y1="-6.029557" x2="-43.895226" y2="-18.137667" />
+      <line x1="-26.422169" y1="-6.365893" x2="-30.305071" y2="-3.540667" />
+      <line x1="-6.452962" y1="0.091766" x2="-26.422169" y2="-6.365893" />
+      <line x1="16.012396" y1="-16.254183" x2="-6.452962" y2="0.091766" />
+      <line x1="42.638005" y1="-7.643971" x2="16.012396" y2="-16.254183" />
+      <path d="M -45.975351,-10.065593 A 8.5,4.12310562561766 -1.8185517134323977e-15 0,1 -30.402924,-7.778506" />
+      <path d="M -30.402924,-7.778506 A 8.5,4.12310562561766 -1.8185517134323977e-15 1,1 -47.402924,-7.778506" />
+      <path d="M -47.402924,-7.778506 A 8.5,4.12310562561766 -1.8185517134323977e-15 0,1 -45.975351,-10.065593" />
+      <line x1="42.638005" y1="-0.648174" x2="16.012396" y2="-9.258386" />
+      <line x1="0.48079" y1="2.042517" x2="16.012396" y2="-9.258386" />
+      <path d="M 26.274349,-0.110036 A 3.0,1.4552137502179976 -1.8185517134323977e-15 0,1 31.7705,0.697171" />
+      <path d="M 31.7705,0.697171 A 3.0,1.4552137502179976 -1.8185517134323977e-15 1,1 25.7705,0.697171" />
+      <path d="M 25.7705,0.697171 A 3.0,1.4552137502179976 -1.8185517134323977e-15 0,1 26.274349,-0.110036" />
+      <path d="M 15.457695,-3.607935 A 3.0,1.4552137502179976 -1.8185517134323977e-15 0,1 20.953846,-2.800727" />
+      <path d="M 20.953846,-2.800727 A 3.0,1.4552137502179976 -1.8185517134323977e-15 1,1 14.953846,-2.800727" />
+      <path d="M 14.953846,-2.800727 A 3.0,1.4552137502179976 -1.8185517134323977e-15 0,1 15.457695,-3.607935" />
+      <line x1="16.012396" y1="-16.254183" x2="16.012396" y2="-9.258386" />
+      <path d="M -11.817786,13.177232 Q -11.339221,13.378315 -10.835683,13.690583" />
+      <line x1="-6.452962" y1="15.107871" x2="-10.835683" y2="13.690583" />
+      <path d="M -6.452962,15.107871 A 4.5,2.182820625326997 107.92021313939229 0,1 -9.779028,23.275558" />
+      <path d="M -9.779028,23.275558 A 4.5,2.182820625326997 107.92021313939229 0,1 -10.335864,17.933096" />
+      <line x1="-10.335864" y1="17.933096" x2="-14.718585" y2="16.515809" />
+      <path d="M -14.718585,16.515809 Q -14.888843,15.961045 -14.955644,15.460359" />
+      <line x1="-6.452962" y1="15.107871" x2="-6.452962" y2="0.091766" />
+      <line x1="-43.895226" y1="-32.129261" x2="-43.895226" y2="-18.137667" />
+      <line x1="-3.956812" y1="-19.213943" x2="-3.956812" y2="-5.222349" />
+      <path d="M -33.913783,-11.116645 A 5.0,2.4253562503633295 -1.8185517134323977e-15 0,1 -43.892065,-11.116645" />
+      <line x1="-30.305071" y1="-3.540667" x2="-14.718585" y2="16.515809" />
+      <line x1="-14.955644" y1="15.460359" x2="-11.817786" y2="13.177232" />
+      <line x1="-26.422169" y1="-6.365893" x2="-10.835683" y2="13.690583" />
+      <path d="M -31.205522,-9.527455 A 8.5,4.12310562561766 -1.8185517134323977e-15 0,1 -46.600326,-9.527455" />
+    </g>
+  </g>
+    </g>
+    
+  </g>
+
+  <g class="view-labels">
+                <text x="258.82" y="86.68" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">FRONT</text>
+                <text x="258.82" y="90.48" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="248.82" y1="87.68" x2="268.82" y2="87.68" class="border-sub" stroke-width="0.3"/>
+                
+                <text x="258.82" y="189.15" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">TOP</text>
+                <text x="258.82" y="192.95" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="248.82" y1="190.15" x2="268.82" y2="190.15" class="border-sub" stroke-width="0.3"/>
+                
+                <text x="130.68" y="86.68" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">RIGHT</text>
+                <text x="130.68" y="90.48" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="120.68" y1="87.68" x2="140.68" y2="87.68" class="border-sub" stroke-width="0.3"/>
+                
+                <text x="130.68" y="195.62" class="view-title" text-anchor="middle" font-size="4.2" font-weight="bold">ISOMETRIC</text>
+                <text x="130.68" y="199.42" class="view-scale" text-anchor="middle" font-size="2.8">SCALE 1:1</text>
+                <line x1="118.08" y1="196.62" x2="143.28" y2="196.62" class="border-sub" stroke-width="0.3"/>
+                </g>
+
+  <g class="annotations">
+    
+        <g class="centermark">
+            <line x1="269.95" y1="158.59" x2="281.95" y2="158.59" class="line-center" stroke-width="0.25"/>
+            <line x1="275.95" y1="152.59" x2="275.95" y2="164.59" class="line-center" stroke-width="0.25"/>
+        </g>
+        
+        <g class="centermark">
+            <line x1="289.45" y1="158.59" x2="310.45" y2="158.59" class="line-center" stroke-width="0.25"/>
+            <line x1="299.95" y1="148.09" x2="299.95" y2="169.09" class="line-center" stroke-width="0.25"/>
+        </g>
+        
+        <g class="centermark">
+            <line x1="236.95" y1="123.59" x2="246.95" y2="123.59" class="line-center" stroke-width="0.25"/>
+            <line x1="241.95" y1="118.59" x2="241.95" y2="128.59" class="line-center" stroke-width="0.25"/>
+        </g>
+        
+        <g class="centermark">
+            <line x1="249.95" y1="123.59" x2="259.95" y2="123.59" class="line-center" stroke-width="0.25"/>
+            <line x1="254.95" y1="118.59" x2="254.95" y2="128.59" class="line-center" stroke-width="0.25"/>
+        </g>
+        
+        <g class="centermark">
+            <line x1="292.95" y1="158.59" x2="306.95" y2="158.59" class="line-center" stroke-width="0.25"/>
+            <line x1="299.95" y1="151.59" x2="299.95" y2="165.59" class="line-center" stroke-width="0.25"/>
+        </g>
+        
+        <g class="centermark">
+            <line x1="116.74" y1="58.81" x2="129.74" y2="58.81" class="line-center" stroke-width="0.25"/>
+            <line x1="123.24" y1="52.31" x2="123.24" y2="65.31" class="line-center" stroke-width="0.25"/>
+        </g>
+        <line x1="260.82" y1="52.68" x2="260.82" y2="82.68" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="114.68" y1="52.68" x2="114.68" y2="82.68" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="284.82" y1="62.68" x2="284.82" y2="82.68" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="114.68" y1="62.68" x2="114.68" y2="82.68" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="226.82" y1="50.68" x2="226.82" y2="82.68" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="149.68" y1="50.68" x2="149.68" y2="82.68" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="239.82" y1="50.68" x2="239.82" y2="82.68" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="149.68" y1="50.68" x2="149.68" y2="82.68" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="284.82" y1="58.68" x2="284.82" y2="70.68" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="114.68" y1="58.68" x2="114.68" y2="70.68" class="line-center" stroke-dasharray="10,2,2,2" stroke-width="0.25"/><line x1="216.82" y1="80.18" x2="216.82" y2="97.68" class="dim-line" stroke-width="0.25"/><line x1="248.82" y1="80.18" x2="248.82" y2="97.68" class="dim-line" stroke-width="0.25"/><line x1="216.82" y1="95.68" x2="248.82" y2="95.68" class="dim-line" stroke-width="0.3"/><polygon points="216.82,95.68 219.32,94.98 219.32,96.38" class="dim-arrow"/><polygon points="248.82,95.68 246.32,96.38 246.32,94.98" class="dim-arrow"/><text x="232.82" y="94.48" class="dim-text" text-anchor="middle" font-size="3.20">32</text><line x1="216.82" y1="80.18" x2="216.82" y2="104.68" class="dim-line" stroke-width="0.25"/><line x1="252.82" y1="80.18" x2="252.82" y2="104.68" class="dim-line" stroke-width="0.25"/><line x1="216.82" y1="102.68" x2="252.82" y2="102.68" class="dim-line" stroke-width="0.3"/><polygon points="216.82,102.68 219.32,101.98 219.32,103.38" class="dim-arrow"/><polygon points="252.82,102.68 250.32,103.38 250.32,101.98" class="dim-arrow"/><text x="234.82" y="101.48" class="dim-text" text-anchor="middle" font-size="3.20">36</text><line x1="216.82" y1="80.18" x2="216.82" y2="111.68" class="dim-line" stroke-width="0.25"/><line x1="254.82" y1="80.18" x2="254.82" y2="111.68" class="dim-line" stroke-width="0.25"/><line x1="216.82" y1="109.68" x2="254.82" y2="109.68" class="dim-line" stroke-width="0.3"/><polygon points="216.82,109.68 219.32,108.98 219.32,110.38" class="dim-arrow"/><polygon points="254.82,109.68 252.32,110.38 252.32,108.98" class="dim-arrow"/><text x="235.82" y="108.48" class="dim-text" text-anchor="middle" font-size="3.20">38</text><line x1="216.82" y1="31.18" x2="216.82" y2="20.68" class="dim-line" stroke-width="0.25"/><line x1="300.82" y1="31.18" x2="300.82" y2="20.68" class="dim-line" stroke-width="0.25"/><line x1="216.82" y1="22.68" x2="300.82" y2="22.68" class="dim-line" stroke-width="0.3"/><polygon points="216.82,22.68 219.32,21.98 219.32,23.38" class="dim-arrow"/><polygon points="300.82,22.68 298.32,23.38 298.32,21.98" class="dim-arrow"/><text x="258.82" y="21.48" class="dim-text" text-anchor="middle" font-size="3.20">84</text><line x1="215.32" y1="66.68" x2="204.82" y2="66.68" class="dim-line" stroke-width="0.25"/><line x1="215.32" y1="78.68" x2="204.82" y2="78.68" class="dim-line" stroke-width="0.25"/><line x1="206.82" y1="66.68" x2="206.82" y2="78.68" class="dim-line" stroke-width="0.3"/><polygon points="206.82,66.68 207.52,69.18 206.12,69.18" class="dim-arrow"/><polygon points="206.82,78.68 206.12,76.18 207.52,76.18" class="dim-arrow"/><text x="205.42" y="72.68" transform="rotate(-90 205.42 72.68)" class="dim-text" text-anchor="middle" font-size="3.20">12</text><line x1="215.32" y1="62.68" x2="197.82" y2="62.68" class="dim-line" stroke-width="0.25"/><line x1="215.32" y1="78.68" x2="197.82" y2="78.68" class="dim-line" stroke-width="0.25"/><line x1="199.82" y1="62.68" x2="199.82" y2="78.68" class="dim-line" stroke-width="0.3"/><polygon points="199.82,62.68 200.52,65.18 199.12,65.18" class="dim-arrow"/><polygon points="199.82,78.68 199.12,76.18 200.52,76.18" class="dim-arrow"/><text x="198.42" y="70.68" transform="rotate(-90 198.42 70.68)" class="dim-text" text-anchor="middle" font-size="3.20">16</text><line x1="215.32" y1="56.68" x2="190.82" y2="56.68" class="dim-line" stroke-width="0.25"/><line x1="215.32" y1="78.68" x2="190.82" y2="78.68" class="dim-line" stroke-width="0.25"/><line x1="192.82" y1="56.68" x2="192.82" y2="78.68" class="dim-line" stroke-width="0.3"/><polygon points="192.82,56.68 193.52,59.18 192.12,59.18" class="dim-arrow"/><polygon points="192.82,78.68 192.12,76.18 193.52,76.18" class="dim-arrow"/><text x="191.42" y="67.68" transform="rotate(-90 191.42 67.68)" class="dim-text" text-anchor="middle" font-size="3.20">22</text><line x1="215.32" y1="54.68" x2="183.82" y2="54.68" class="dim-line" stroke-width="0.25"/><line x1="215.32" y1="78.68" x2="183.82" y2="78.68" class="dim-line" stroke-width="0.25"/><line x1="185.82" y1="54.68" x2="185.82" y2="78.68" class="dim-line" stroke-width="0.3"/><polygon points="185.82,54.68 186.52,57.18 185.12,57.18" class="dim-arrow"/><polygon points="185.82,78.68 185.12,76.18 186.52,76.18" class="dim-arrow"/><text x="184.42" y="66.68" transform="rotate(-90 184.42 66.68)" class="dim-text" text-anchor="middle" font-size="3.20">24</text><line x1="215.32" y1="32.68" x2="176.82" y2="32.68" class="dim-line" stroke-width="0.25"/><line x1="215.32" y1="78.68" x2="176.82" y2="78.68" class="dim-line" stroke-width="0.25"/><line x1="178.82" y1="32.68" x2="178.82" y2="78.68" class="dim-line" stroke-width="0.3"/><polygon points="178.82,32.68 179.52,35.18 178.12,35.18" class="dim-arrow"/><polygon points="178.82,78.68 178.12,76.18 179.52,76.18" class="dim-arrow"/><text x="177.42" y="55.68" transform="rotate(-90 177.42 55.68)" class="dim-text" text-anchor="middle" font-size="3.20">46</text><line x1="302.32" y1="168.65" x2="312.82" y2="168.65" class="dim-line" stroke-width="0.25"/><line x1="302.32" y1="181.15" x2="312.82" y2="181.15" class="dim-line" stroke-width="0.25"/><line x1="310.82" y1="168.65" x2="310.82" y2="181.15" class="dim-line" stroke-width="0.3"/><polygon points="310.82,168.65 311.52,171.15 310.12,171.15" class="dim-arrow"/><polygon points="310.82,181.15 310.12,178.65 311.52,178.65" class="dim-arrow"/><text x="309.42" y="174.90" transform="rotate(-90 309.42 174.90)" class="dim-text" text-anchor="middle" font-size="3.20">12.5</text><line x1="302.32" y1="166.15" x2="319.82" y2="166.15" class="dim-line" stroke-width="0.25"/><line x1="302.32" y1="181.15" x2="319.82" y2="181.15" class="dim-line" stroke-width="0.25"/><line x1="317.82" y1="166.15" x2="317.82" y2="181.15" class="dim-line" stroke-width="0.3"/><polygon points="317.82,166.15 318.52,168.65 317.12,168.65" class="dim-arrow"/><polygon points="317.82,181.15 317.12,178.65 318.52,178.65" class="dim-arrow"/><text x="316.42" y="173.65" transform="rotate(-90 316.42 173.65)" class="dim-text" text-anchor="middle" font-size="3.20">15</text><line x1="302.32" y1="161.65" x2="326.82" y2="161.65" class="dim-line" stroke-width="0.25"/><line x1="302.32" y1="181.15" x2="326.82" y2="181.15" class="dim-line" stroke-width="0.25"/><line x1="324.82" y1="161.65" x2="324.82" y2="181.15" class="dim-line" stroke-width="0.3"/><polygon points="324.82,161.65 325.52,164.15 324.12,164.15" class="dim-arrow"/><polygon points="324.82,181.15 324.12,178.65 325.52,178.65" class="dim-arrow"/><text x="323.42" y="171.40" transform="rotate(-90 323.42 171.40)" class="dim-text" text-anchor="middle" font-size="3.20">19.5</text><line x1="302.32" y1="151.15" x2="333.82" y2="151.15" class="dim-line" stroke-width="0.25"/><line x1="302.32" y1="181.15" x2="333.82" y2="181.15" class="dim-line" stroke-width="0.25"/><line x1="331.82" y1="151.15" x2="331.82" y2="181.15" class="dim-line" stroke-width="0.3"/><polygon points="331.82,151.15 332.52,153.65 331.12,153.65" class="dim-arrow"/><polygon points="331.82,181.15 331.12,178.65 332.52,178.65" class="dim-arrow"/><text x="330.42" y="166.15" transform="rotate(-90 330.42 166.15)" class="dim-text" text-anchor="middle" font-size="3.20">30</text><line x1="302.32" y1="149.15" x2="340.82" y2="149.15" class="dim-line" stroke-width="0.25"/><line x1="302.32" y1="181.15" x2="340.82" y2="181.15" class="dim-line" stroke-width="0.25"/><line x1="338.82" y1="149.15" x2="338.82" y2="181.15" class="dim-line" stroke-width="0.3"/><polygon points="338.82,149.15 339.52,151.65 338.12,151.65" class="dim-arrow"/><polygon points="338.82,181.15 338.12,178.65 339.52,178.65" class="dim-arrow"/><text x="337.42" y="165.15" transform="rotate(-90 337.42 165.15)" class="dim-text" text-anchor="middle" font-size="3.20">32</text><line x1="302.32" y1="131.15" x2="347.82" y2="131.15" class="dim-line" stroke-width="0.25"/><line x1="302.32" y1="181.15" x2="347.82" y2="181.15" class="dim-line" stroke-width="0.25"/><line x1="345.82" y1="131.15" x2="345.82" y2="181.15" class="dim-line" stroke-width="0.3"/><polygon points="345.82,131.15 346.52,133.65 345.12,133.65" class="dim-arrow"/><polygon points="345.82,181.15 345.12,178.65 346.52,178.65" class="dim-arrow"/><text x="344.42" y="156.15" transform="rotate(-90 344.42 156.15)" class="dim-text" text-anchor="middle" font-size="3.20">50</text><line x1="302.32" y1="121.15" x2="354.82" y2="121.15" class="dim-line" stroke-width="0.25"/><line x1="302.32" y1="181.15" x2="354.82" y2="181.15" class="dim-line" stroke-width="0.25"/><line x1="352.82" y1="121.15" x2="352.82" y2="181.15" class="dim-line" stroke-width="0.3"/><polygon points="352.82,121.15 353.52,123.65 352.12,123.65" class="dim-arrow"/><polygon points="352.82,181.15 352.12,178.65 353.52,178.65" class="dim-arrow"/><text x="351.42" y="151.15" transform="rotate(-90 351.42 151.15)" class="dim-text" text-anchor="middle" font-size="3.20">60</text><line x1="302.32" y1="119.15" x2="361.82" y2="119.15" class="dim-line" stroke-width="0.25"/><line x1="302.32" y1="181.15" x2="361.82" y2="181.15" class="dim-line" stroke-width="0.25"/><line x1="359.82" y1="119.15" x2="359.82" y2="181.15" class="dim-line" stroke-width="0.3"/><polygon points="359.82,119.15 360.52,121.65 359.12,121.65" class="dim-arrow"/><polygon points="359.82,181.15 359.12,178.65 360.52,178.65" class="dim-arrow"/><text x="358.42" y="150.15" transform="rotate(-90 358.42 150.15)" class="dim-text" text-anchor="middle" font-size="3.20">62</text><line x1="216.82" y1="182.65" x2="216.82" y2="193.15" class="dim-line" stroke-width="0.25"/><line x1="226.82" y1="182.65" x2="226.82" y2="193.15" class="dim-line" stroke-width="0.25"/><line x1="216.82" y1="191.15" x2="226.82" y2="191.15" class="dim-line" stroke-width="0.3"/><polygon points="216.82,191.15 219.32,190.45 219.32,191.85" class="dim-arrow"/><polygon points="226.82,191.15 224.32,191.85 224.32,190.45" class="dim-arrow"/><text x="221.82" y="189.95" class="dim-text" text-anchor="middle" font-size="3.20">10</text><line x1="216.82" y1="182.65" x2="216.82" y2="200.15" class="dim-line" stroke-width="0.25"/><line x1="239.82" y1="182.65" x2="239.82" y2="200.15" class="dim-line" stroke-width="0.25"/><line x1="216.82" y1="198.15" x2="239.82" y2="198.15" class="dim-line" stroke-width="0.3"/><polygon points="216.82,198.15 219.32,197.45 219.32,198.85" class="dim-arrow"/><polygon points="239.82,198.15 237.32,198.85 237.32,197.45" class="dim-arrow"/><text x="228.32" y="196.95" class="dim-text" text-anchor="middle" font-size="3.20">23</text><line x1="216.82" y1="182.65" x2="216.82" y2="207.15" class="dim-line" stroke-width="0.25"/><line x1="260.82" y1="182.65" x2="260.82" y2="207.15" class="dim-line" stroke-width="0.25"/><line x1="216.82" y1="205.15" x2="260.82" y2="205.15" class="dim-line" stroke-width="0.3"/><polygon points="216.82,205.15 219.32,204.45 219.32,205.85" class="dim-arrow"/><polygon points="260.82,205.15 258.32,205.85 258.32,204.45" class="dim-arrow"/><text x="238.82" y="203.95" class="dim-text" text-anchor="middle" font-size="3.20">44</text><line x1="216.82" y1="182.65" x2="216.82" y2="214.15" class="dim-line" stroke-width="0.25"/><line x1="284.82" y1="182.65" x2="284.82" y2="214.15" class="dim-line" stroke-width="0.25"/><line x1="216.82" y1="212.15" x2="284.82" y2="212.15" class="dim-line" stroke-width="0.3"/><polygon points="216.82,212.15 219.32,211.45 219.32,212.85" class="dim-arrow"/><polygon points="284.82,212.15 282.32,212.85 282.32,211.45" class="dim-arrow"/><text x="250.82" y="210.95" class="dim-text" text-anchor="middle" font-size="3.20">68</text><g class="leader-note"><polygon points="284.82,166.15 284.42,163.91 285.61,164.01" class="dim-arrow"/><polyline points="284.82,166.15 287.02,141.00 313.70,141.00" class="dim-line" stroke-width="0.3" fill="none"/><text x="289.02" y="139.80" class="leader-text" text-anchor="start" font-size="2.80">⌀10 ↧12 ⌴ ⌀17 ↧4</text></g><g class="leader-note"><polygon points="260.82,166.15 260.61,163.88 261.79,164.09" class="dim-arrow"/><polyline points="260.82,166.15 268.08,124.97 286.08,124.97" class="dim-line" stroke-width="0.3" fill="none"/><text x="270.08" y="123.77" class="leader-text" text-anchor="start" font-size="2.80">⌀8 ↧22</text></g><g class="leader-note"><polygon points="115.68,42.68 114.89,40.54 116.09,40.44" class="dim-arrow"/><polyline points="115.68,42.68 114.06,24.13 96.06,24.13" class="dim-line" stroke-width="0.3" fill="none"/><text x="112.06" y="22.93" class="leader-text" text-anchor="end" font-size="2.80">⌀9 ↧38</text></g><g class="leader-note"><polygon points="226.82,131.15 224.76,132.12 224.55,130.94" class="dim-arrow"/><polyline points="226.82,131.15 208.48,134.38 190.48,134.38" class="dim-line" stroke-width="0.3" fill="none"/><text x="206.48" y="133.18" class="leader-text" text-anchor="end" font-size="2.80">2x ⌀6 ↧24</text></g>
+        <g class="bom-balloon">
+            <circle cx="232.82" cy="37.68" r="0.8" class="balloon-dot"/>
+            <line x1="232.82" y1="37.68" x2="209.44" y2="24.18" class="balloon-leader" stroke-width="0.3"/>
+            <circle cx="205.98" cy="22.18" r="4.00" class="balloon-circle" stroke-width="0.4"/>
+            <text x="205.98" y="23.38" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">1</text>
+        </g>
+        
+        <g class="bom-balloon">
+            <circle cx="232.82" cy="42.68" r="0.8" class="balloon-dot"/>
+            <line x1="232.82" y1="42.68" x2="209.03" y2="45.81" class="balloon-leader" stroke-width="0.3"/>
+            <circle cx="205.06" cy="46.34" r="4.00" class="balloon-circle" stroke-width="0.4"/>
+            <text x="205.06" y="47.54" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">5</text>
+        </g>
+        
+        <g class="bom-balloon">
+            <circle cx="259.82" cy="55.68" r="0.8" class="balloon-dot"/>
+            <line x1="259.82" y1="55.68" x2="268.31" y2="47.20" class="balloon-leader" stroke-width="0.3"/>
+            <circle cx="271.14" cy="44.37" r="4.00" class="balloon-circle" stroke-width="0.4"/>
+            <text x="271.14" y="45.57" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">6</text>
+        </g>
+        
+        <g class="bom-balloon">
+            <circle cx="284.82" cy="166.15" r="0.8" class="balloon-dot"/>
+            <line x1="284.82" y1="166.15" x2="291.03" y2="189.33" class="balloon-leader" stroke-width="0.3"/>
+            <circle cx="292.07" cy="193.20" r="4.00" class="balloon-circle" stroke-width="0.4"/>
+            <text x="292.07" y="194.40" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">2</text>
+        </g>
+        
+        <g class="bom-balloon">
+            <circle cx="260.82" cy="166.15" r="0.8" class="balloon-dot"/>
+            <line x1="260.82" y1="166.15" x2="258.47" y2="148.30" class="balloon-leader" stroke-width="0.3"/>
+            <circle cx="257.95" cy="144.34" r="4.00" class="balloon-circle" stroke-width="0.4"/>
+            <text x="257.95" y="145.54" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">3</text>
+        </g>
+        
+        <g class="bom-balloon">
+            <circle cx="226.82" cy="131.15" r="0.8" class="balloon-dot"/>
+            <line x1="226.82" y1="131.15" x2="203.44" y2="117.65" class="balloon-leader" stroke-width="0.3"/>
+            <circle cx="199.98" cy="115.65" r="4.00" class="balloon-circle" stroke-width="0.4"/>
+            <text x="199.98" y="116.85" class="balloon-text" text-anchor="middle" font-size="3.6" font-weight="bold">4</text>
+        </g>
+        <g class="leader-note"><polygon points="143.38,127.47 142.23,125.50 143.39,125.19" class="dim-arrow"/><polyline points="143.38,127.47 137.70,106.28 103.69,106.28" class="dim-line" stroke-width="0.3" fill="none"/><text x="135.70" y="105.08" class="leader-text" text-anchor="end" font-size="2.80">VALVE TOWER DATUM</text></g><g class="leader-note"><polygon points="105.05,162.29 103.44,160.69 104.47,160.09" class="dim-arrow"/><polyline points="105.05,162.29 95.74,146.16 58.26,146.16" class="dim-line" stroke-width="0.3" fill="none"/><text x="93.74" y="144.96" class="leader-text" text-anchor="end" font-size="2.80">PRIMARY SUPPLY PORT</text></g><g class="leader-note"><polygon points="123.00,150.88 124.88,152.18 123.96,152.95" class="dim-arrow"/><polyline points="123.00,150.88 162.65,198.13 193.19,198.13" class="dim-line" stroke-width="0.3" fill="none"/><text x="164.65" y="196.93" class="leader-text" text-anchor="start" font-size="2.80">7 mm GUSSET RIB</text></g>
+  </g>
+</svg>

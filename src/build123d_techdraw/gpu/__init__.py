@@ -21,15 +21,23 @@ from build123d_techdraw.gpu.runtime import (
     is_gpu_installed,
     reset_gpu_cache,
 )
+from build123d_techdraw.gpu.sdf import (
+    SheetDistanceField,
+    compute_distance_field_from_mask,
+    compute_sheet_sdf,
+)
 
 __all__ = [
     "GPU_ENV_VAR",
     "OrthoCamera",
     "SampledEdge",
     "SampledEdgeSet",
+    "SheetDistanceField",
     "TessellatedMesh",
+    "compute_distance_field_from_mask",
     "compute_ortho_camera",
     "compute_ortho_camera_for_points",
+    "compute_sheet_sdf",
     "get_gpu_device",
     "gpu_info",
     "is_gpu_available",
