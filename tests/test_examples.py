@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import io
 import subprocess
 import sys
 from pathlib import Path
 
+import matplotlib
 import pytest
+from PIL import Image
 
-from build123d_techdraw import is_gpu_enabled
-from tests.raster_diff import assert_images_match, extract_embedded_pngs_from_svg
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+
+from build123d_techdraw import Theme, is_gpu_enabled  # noqa: E402
+from build123d_techdraw.renderers.pdf import PDFRenderer  # noqa: E402
+from build123d_techdraw.renderers.theme import THEME_COLORS  # noqa: E402
+from tests.raster_diff import assert_images_match, extract_embedded_pngs_from_svg  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"
@@ -36,12 +44,28 @@ EXPECTED_STANDALONE_PNGS = [
 ]
 
 
+def _rasterize_svg_to_image(svg_path: Path, theme: Theme = Theme.ISO_WHITE) -> Image.Image:
+    """Rasterize a sheet SVG to an RGBA PIL Image via matplotlib for perceptual comparison."""
+    svg_code = svg_path.read_text(encoding="utf-8")
+    fig = plt.figure(figsize=(8.4, 5.94), dpi=120)
+    try:
+        ax = fig.add_axes((0.0, 0.0, 1.0, 1.0))
+        PDFRenderer._render_svg_to_ax(ax, svg_code, 420.0, 297.0, THEME_COLORS[theme])
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=120)
+        buf.seek(0)
+        with Image.open(buf) as img:
+            return img.convert("RGBA")
+    finally:
+        plt.close(fig)
+
+
 def test_all_examples_registered_in_generate_all() -> None:
     """Ensure every drawing example script in examples/ is wired into generate_all.py."""
     generate_all_src = (EXAMPLES_DIR / "generate_all.py").read_text(encoding="utf-8")
     non_drawing_scripts = {"generate_all.py", "benchmark_performance.py"}
     scripts = sorted(p.stem for p in EXAMPLES_DIR.glob("*.py") if p.name not in non_drawing_scripts)
-    assert len(scripts) == 11
+    assert len(scripts) == 12
     for script in scripts:
         assert f"from {script} import" in generate_all_src, (
             f"Example script '{script}.py' is not imported in examples/generate_all.py"
@@ -76,6 +100,10 @@ def test_generate_all_examples_runs_cleanly(tmp_path: Path) -> None:
             "shaded_blueprint.png",
             "shaded_bom_colors.png",
             "shaded_xray.png",
+            "gpu_hlr_assembly.svg",
+            "gpu_hlr_assembly_white.svg",
+            "gpu_hlr_assembly.pdf",
+            "gpu_hlr_assembly.dxf",
         ):
             out_file = tmp_path / name
             assert out_file.exists(), f"Missing GPU example output: {out_file.name}"
@@ -91,6 +119,7 @@ def test_gpu_example_raster_outputs_match_committed(tmp_path: Path) -> None:
     committed_dir = EXAMPLES_DIR / "output"
     for script_name in (
         "shaded_technical_views.py",
+        "gpu_hlr_assembly.py",
         "sdf_smart_layout.py",
     ):
         result = subprocess.run(
@@ -141,6 +170,19 @@ def test_gpu_example_raster_outputs_match_committed(tmp_path: Path) -> None:
                 save_diff_to=tmp_path / f"diff_{svg_name}_{idx}.png",
                 label=f"{svg_name}[image#{idx}]",
             )
+
+    # 3. Compare rasterized GPU HLR assembly sheet against committed reference
+    act_hlr = _rasterize_svg_to_image(tmp_path / "gpu_hlr_assembly_white.svg", Theme.ISO_WHITE)
+    exp_hlr = _rasterize_svg_to_image(committed_dir / "gpu_hlr_assembly_white.svg", Theme.ISO_WHITE)
+    assert_images_match(
+        act_hlr,
+        exp_hlr,
+        min_ssim=0.98,
+        max_diff_pixel_ratio=0.02,
+        pixel_tolerance=8,
+        save_diff_to=tmp_path / "diff_gpu_hlr_assembly.png",
+        label="gpu_hlr_assembly_white.svg",
+    )
 
 
 def test_docs_example_assets_in_sync() -> None:

@@ -5,6 +5,15 @@ from build123d_techdraw.gpu.camera import (
     compute_ortho_camera,
     compute_ortho_camera_for_points,
 )
+from build123d_techdraw.gpu.hlr import (
+    GPUHLRResult,
+    GPUHLRStats,
+    HLRMode,
+    HLROptions,
+    count_shape_faces,
+    project_shape_gpu_hlr,
+    resolve_hlr_backend,
+)
 from build123d_techdraw.gpu.mesh import (
     SampledEdge,
     SampledEdgeSet,
@@ -35,7 +44,11 @@ from build123d_techdraw.gpu.shading import (
 
 __all__ = [
     "ENGINEERING_BOM_PALETTE",
+    "GPUHLRResult",
+    "GPUHLRStats",
     "GPU_ENV_VAR",
+    "HLRMode",
+    "HLROptions",
     "OrthoCamera",
     "SampledEdge",
     "SampledEdgeSet",
@@ -47,13 +60,16 @@ __all__ = [
     "compute_ortho_camera",
     "compute_ortho_camera_for_points",
     "compute_sheet_sdf",
+    "count_shape_faces",
     "get_gpu_device",
     "gpu_info",
     "is_gpu_available",
     "is_gpu_enabled",
     "is_gpu_installed",
+    "project_shape_gpu_hlr",
     "render_shaded_view",
     "reset_gpu_cache",
+    "resolve_hlr_backend",
     "sample_shape_edges",
     "tessellate_shape",
 ]

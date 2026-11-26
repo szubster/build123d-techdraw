@@ -9,6 +9,7 @@ from advanced_views import generate_advanced_views
 from algebraic_mode_bracket import generate_algebraic_mode_drawing
 from assembly_bom import generate_assembly_bom
 from builder_mode_bracket import generate_builder_mode_drawing
+from gpu_hlr_assembly import generate_gpu_hlr_assembly
 from interactive_3d_blueprint import generate_interactive_3d_blueprint
 from precision_flange import generate_precision_flange
 from quickstart_enclosure import generate_quickstart
@@ -35,7 +36,10 @@ DETERMINISTIC_SVG_PREFIXES: tuple[str, ...] = (
 
 # Examples whose outputs depend on GPU/Vulkan shader rasterization and are verified perceptually
 # via SSIM + pixel tolerance in CI (tests/raster_diff.py).
-GPU_EXAMPLE_PREFIXES: tuple[str, ...] = ("shaded_technical_views",)
+GPU_EXAMPLE_PREFIXES: tuple[str, ...] = (
+    "shaded_technical_views",
+    "gpu_hlr_assembly",
+)
 
 
 def generate_all(output_dir: Path, sync_docs: bool = True, include_gpu: bool | None = None) -> None:
@@ -60,6 +64,7 @@ def generate_all(output_dir: Path, sync_docs: bool = True, include_gpu: bool | N
 
     gpu_generators: list[tuple[str, Callable[[Path], None]]] = [
         ("Shaded Technical Views (GPU)", generate_shaded_technical_views),
+        ("GPU HLR Assembly", generate_gpu_hlr_assembly),
     ]
 
     for name, fn in cpu_generators:
