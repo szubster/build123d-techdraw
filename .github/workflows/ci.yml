@@ -64,21 +64,50 @@ jobs:
         run: uv sync --all-groups
       - name: Record pre-generation timestamp
         run: python3 -c "import time; open('/tmp/examples_ts', 'w').write(str(time.time_ns()))"
-      - name: Regenerate all example outputs
+      - name: Regenerate deterministic CPU examples and verify byte-for-byte SVG golden match
+        env:
+          BUILD123D_TECHDRAW_GPU: "0"
+        run: |
+          uv run python examples/generate_all.py --no-gpu
+          git diff --exit-code \
+            examples/output/quickstart_enclosure*.svg \
+            examples/output/assembly_drawing*.svg \
+            examples/output/stepped_bracket*.svg \
+            examples/output/algebraic_mode_bracket*.svg \
+            examples/output/builder_mode_bracket*.svg \
+            examples/output/advanced_views*.svg \
+            examples/output/precision_flange*.svg \
+            examples/output/welded_frame_booklet*.svg \
+            examples/output/interactive_3d_blueprint*.svg \
+            examples/output/sdf_smart_layout*.svg \
+            docs/assets/examples/quickstart_enclosure*.svg \
+            docs/assets/examples/assembly_drawing*.svg \
+            docs/assets/examples/stepped_bracket*.svg \
+            docs/assets/examples/algebraic_mode_bracket*.svg \
+            docs/assets/examples/builder_mode_bracket*.svg \
+            docs/assets/examples/advanced_views*.svg \
+            docs/assets/examples/precision_flange*.svg \
+            docs/assets/examples/welded_frame_booklet*.svg \
+            docs/assets/examples/interactive_3d_blueprint*.svg \
+            docs/assets/examples/sdf_smart_layout*.svg
+      - name: Verify GPU example raster outputs with perceptual SSIM tolerance (Lavapipe)
         env:
           WGPU_BACKEND_TYPE: Vulkan
-        run: uv run python examples/generate_all.py
-      - name: Verify SVG outputs match committed files and PDF/DXF were regenerated
         run: |
-          git diff --exit-code examples/output/*.svg docs/assets/examples/*.svg
-          test -z "$(git status --porcelain examples/output/*.svg docs/assets/examples/*.svg)"
+          uv run pytest tests/test_examples.py -k "gpu_example_raster or docs_example_assets" --no-cov
+          uv run python examples/generate_all.py
           python3 -c "
           from pathlib import Path
           ts = int(Path('/tmp/examples_ts').read_text())
-          files = list(Path('examples/output').glob('*.pdf')) + list(Path('examples/output').glob('*.dxf'))
-          assert files, 'No PDF or DXF outputs found'
+          files = (
+              list(Path('examples/output').glob('*.pdf'))
+              + list(Path('examples/output').glob('*.dxf'))
+              + list(Path('examples/output').glob('*.png'))
+              + list(Path('examples/output').glob('*.html'))
+          )
+          assert files, 'No PDF, DXF, PNG, or HTML outputs found'
           stale = [str(f) for f in files if f.stat().st_mtime_ns <= ts]
-          assert not stale, f'Stale PDF/DXF outputs not regenerated: {stale}'
+          assert not stale, f'Stale outputs not regenerated: {stale}'
           "
 
   test:

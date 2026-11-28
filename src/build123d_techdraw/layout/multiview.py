@@ -35,6 +35,7 @@ from build123d_techdraw.core.view import (
     _compute_view_projection,
     _ProjectedViewPayload,
 )
+from build123d_techdraw.gpu.shading import PartColors, ViewStyle
 
 FIRST_ANGLE = "first_angle"
 """ISO 128-3 / ISO 5456-2 default projection method (ISO "method E")."""
@@ -296,6 +297,12 @@ def add_standard_multiview(
     infer_threads: bool = False,
     parallel: bool | Literal["auto"] = "auto",
     max_workers: int | None = None,
+    iso_style: ViewStyle | str = ViewStyle.WIREFRAME,
+    shading_dpi: int = 300,
+    color_by_part: bool = False,
+    part_colors: PartColors | None = None,
+    ssao: bool = True,
+    gpu: bool | None = None,
 ) -> MultiviewLayout:
     """Generate a standard orthographic multi-view layout on a drawing sheet.
 
@@ -504,6 +511,12 @@ def add_standard_multiview(
             scale=calculated_scale,
             show_hidden=v_hidden,
             view_label=v_label,
+            style=iso_style if v_type == ViewType.ISOMETRIC else ViewStyle.WIREFRAME,
+            shading_dpi=shading_dpi,
+            color_by_part=color_by_part,
+            part_colors=part_colors,
+            ssao=ssao,
+            gpu=gpu,
         )
         v_obj = sheet.add_view(built_view)
         if show_scale_label:

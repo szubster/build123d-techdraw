@@ -26,14 +26,23 @@ from build123d_techdraw.gpu.sdf import (
     compute_distance_field_from_mask,
     compute_sheet_sdf,
 )
+from build123d_techdraw.gpu.shading import (
+    ENGINEERING_BOM_PALETTE,
+    ShadedRender,
+    ViewStyle,
+    render_shaded_view,
+)
 
 __all__ = [
+    "ENGINEERING_BOM_PALETTE",
     "GPU_ENV_VAR",
     "OrthoCamera",
     "SampledEdge",
     "SampledEdgeSet",
+    "ShadedRender",
     "SheetDistanceField",
     "TessellatedMesh",
+    "ViewStyle",
     "compute_distance_field_from_mask",
     "compute_ortho_camera",
     "compute_ortho_camera_for_points",
@@ -43,6 +52,7 @@ __all__ = [
     "is_gpu_available",
     "is_gpu_enabled",
     "is_gpu_installed",
+    "render_shaded_view",
     "reset_gpu_cache",
     "sample_shape_edges",
     "tessellate_shape",

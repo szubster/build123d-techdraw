@@ -960,6 +960,12 @@ def _parse_svg_scene(
         # Background and grid pattern rects already handled by page background fill
         if "sheet-bg" in cls_list or "blueprint-grid" in cls_list:
             return
+        # Honor dual-theme shaded layer visibility so PDF embeds only the active theme raster
+        is_iso_white = colors == THEME_COLORS[Theme.ISO_WHITE]
+        if (is_iso_white and "shaded-layer-dark" in cls_list) or (
+            not is_iso_white and "shaded-layer-white" in cls_list
+        ):
+            return
 
         # Compute element affine matrix
         mat = parent_mat
@@ -2331,23 +2337,35 @@ class PDFRenderer:
                 br_x, br_y = br_sx, height_mm - br_sy
                 tl_x, tl_y = tl_sx, height_mm - tl_sy
 
-                affine = mtransforms.Affine2D.from_values(
-                    br_x - bl_x,
-                    br_y - bl_y,
-                    tl_x - bl_x,
-                    tl_y - bl_y,
-                    bl_x,
-                    bl_y,
-                )
-                im_artist = ax.imshow(
-                    np.asarray(rgba),
-                    extent=(0.0, 1.0, 0.0, 1.0),
-                    origin="upper",
-                    interpolation="antialiased",
-                    transform=affine + ax.transData,
-                    alpha=item.opacity,
-                    clip_on=True,
-                )
+                if abs(br_y - bl_y) < 1e-6 and abs(tl_x - bl_x) < 1e-6:
+                    im_artist = ax.imshow(
+                        np.asarray(rgba),
+                        extent=(bl_x, br_x, bl_y, tl_y),
+                        origin="upper",
+                        interpolation="antialiased",
+                        alpha=item.opacity,
+                        clip_on=True,
+                        zorder=1,
+                    )
+                else:
+                    affine = mtransforms.Affine2D.from_values(
+                        br_x - bl_x,
+                        br_y - bl_y,
+                        tl_x - bl_x,
+                        tl_y - bl_y,
+                        bl_x,
+                        bl_y,
+                    )
+                    im_artist = ax.imshow(
+                        np.asarray(rgba),
+                        extent=(0.0, 1.0, 0.0, 1.0),
+                        origin="upper",
+                        interpolation="antialiased",
+                        transform=affine + ax.transData,
+                        alpha=item.opacity,
+                        clip_on=True,
+                        zorder=1,
+                    )
                 if item.clip_paths:
                     cp_path = _path_cmds_to_mpl_path(item.clip_paths[-1])
                     if cp_path is not None:

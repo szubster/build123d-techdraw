@@ -45,9 +45,11 @@ from build123d_techdraw.annotations.surface import MaterialRemoval, SurfaceFinis
 from build123d_techdraw.annotations.threads import CosmeticThread, auto_cosmetic_threads
 from build123d_techdraw.context import CURRENT_VIEW
 from build123d_techdraw.core.scale import format_iso_scale
+from build123d_techdraw.gpu.shading import PartColors, ViewStyle, shade_view_svg
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
+    from build123d_techdraw.renderers.theme import Theme
 
 
 @dataclass
@@ -150,11 +152,13 @@ class SheetView:
         shape: Any | None = None,
         enforce_iso_scale: bool = True,
         show_hidden: bool = True,
+        style: ViewStyle = ViewStyle.WIREFRAME,
     ):
         self.sheet = sheet
         self.shape = shape
         self.enforce_iso_scale = enforce_iso_scale
         self.show_hidden = show_hidden
+        self.style = style
         self.view_type = view_type
         self.center_x = center_x
         self.center_y = center_y
@@ -645,6 +649,7 @@ class SheetView:
         self.inner_svg_content = reproj.inner_svg_content
         self.view_label_pos = reproj.view_label_pos
         self._visible_circles = reproj._visible_circles
+        self.style = reproj.style
 
     def can_regenerate(self) -> bool:
         """Return True if ``update_shape`` is able to re-project this view's geometry."""
@@ -1953,9 +1958,32 @@ def _build_sheet_view_from_payload(
     view_label_y: float | None = None,
     view_label_offset_y: float = 7.0,
     model_origin: tuple[float, float] | None = None,
+    style: ViewStyle | str = ViewStyle.WIREFRAME,
+    shading_dpi: int = 300,
+    color_by_part: bool = False,
+    part_colors: PartColors | None = None,
+    ssao: bool = True,
+    gpu: bool | None = None,
+    shading_theme: Theme | str | None = None,
 ) -> SheetView:
     """Assemble a positioned SheetView from a precomputed ``_ProjectedViewPayload``."""
     look_from, look_up = VIEW_VECTORS.get(view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
+
+    inner_content, applied_style = shade_view_svg(
+        payload.inner_content,
+        shape,
+        look_from,
+        look_up,
+        scale=scale,
+        style=style,
+        shading_dpi=shading_dpi,
+        color_by_part=color_by_part,
+        part_colors=part_colors,
+        ssao=ssao,
+        gpu=gpu,
+        shading_theme=shading_theme,
+    )
+    resolved_style = applied_style if applied_style is not None else ViewStyle.WIREFRAME
 
     orig_cx = payload.vb_min_x + payload.vb_w / 2.0
     orig_cy = payload.vb_min_y + payload.vb_h / 2.0
@@ -1972,7 +2000,7 @@ def _build_sheet_view_from_payload(
     svg_view_group = f"""
     <!-- View: {view_type.value.upper()} at ({center_x}, {center_y}) scale={scale} -->
     <g id="{view_id}" class="sheet-view" transform="{transform}">
-        {payload.inner_content}
+        {inner_content}
     </g>
     """
 
@@ -2041,8 +2069,9 @@ def _build_sheet_view_from_payload(
         scale_label=scale_str,
         shape=shape,
         show_hidden=show_hidden,
+        style=resolved_style,
     )
-    view_res.inner_svg_content = payload.inner_content
+    view_res.inner_svg_content = inner_content
     view_res.rotation_angle_deg = rotation_angle_deg
     view_res._visible_circles = list(payload.visible_circles)
     view_res._regen_factory = project_shape_to_view
@@ -2053,6 +2082,13 @@ def _build_sheet_view_from_payload(
         "view_label_y": view_label_y,
         "view_label_offset_y": view_label_offset_y,
         "model_origin": model_origin,
+        "style": resolved_style,
+        "shading_dpi": shading_dpi,
+        "color_by_part": color_by_part,
+        "part_colors": part_colors,
+        "ssao": ssao,
+        "gpu": gpu,
+        "shading_theme": shading_theme,
     }
     return view_res
 
@@ -2069,6 +2105,13 @@ def project_shape_to_view(
     view_label_y: float | None = None,
     view_label_offset_y: float = 7.0,
     model_origin: tuple[float, float] | None = None,
+    style: ViewStyle | str = ViewStyle.WIREFRAME,
+    shading_dpi: int = 300,
+    color_by_part: bool = False,
+    part_colors: PartColors | None = None,
+    ssao: bool = True,
+    gpu: bool | None = None,
+    shading_theme: Theme | str | None = None,
 ) -> SheetView:
     """Project a 3D build123d shape into a 2D orthographic or isometric SheetView."""
     payload = _compute_view_projection(shape=shape, view_type=view_type, show_hidden=show_hidden)
@@ -2085,6 +2128,13 @@ def project_shape_to_view(
         view_label_y=view_label_y,
         view_label_offset_y=view_label_offset_y,
         model_origin=model_origin,
+        style=style,
+        shading_dpi=shading_dpi,
+        color_by_part=color_by_part,
+        part_colors=part_colors,
+        ssao=ssao,
+        gpu=gpu,
+        shading_theme=shading_theme,
     )
 
 

@@ -65,6 +65,7 @@ from build123d_techdraw.core.view import (
     project_section_to_view,
     project_shape_to_view,
 )
+from build123d_techdraw.gpu.shading import PartColors, ViewStyle
 from build123d_techdraw.layout.linter import LintIssue, run_sheet_lint
 from build123d_techdraw.renderers.theme import Theme, generate_theme_css
 
@@ -376,6 +377,13 @@ class DrawingSheet:
         view_label_y: float | None = None,
         model_origin: tuple[float, float] | None = None,
         align_to: AlignSpec | None = None,
+        style: ViewStyle | str = ViewStyle.WIREFRAME,
+        shading_dpi: int = 300,
+        color_by_part: bool = False,
+        part_colors: PartColors | None = None,
+        ssao: bool = True,
+        gpu: bool | None = None,
+        shading_theme: Theme | str | None = None,
     ) -> SheetView:
         """Add a projected orthographic/isometric view to the sheet."""
         if isinstance(shape_or_view, SheetView):
@@ -392,6 +400,13 @@ class DrawingSheet:
                 rotation_angle_deg=rotation_angle_deg,
                 view_label_y=view_label_y,
                 model_origin=model_origin,
+                style=style,
+                shading_dpi=shading_dpi,
+                color_by_part=color_by_part,
+                part_colors=part_colors,
+                ssao=ssao,
+                gpu=gpu,
+                shading_theme=shading_theme,
             )
         if align_to is not None:
             _apply_align_to(view, align_to)
@@ -1382,6 +1397,7 @@ class DrawingSheet:
         )
         notes_svg = self.render_notes() if self.show_notes else ""
 
+        has_shaded = any(v.style is not ViewStyle.WIREFRAME for v in self.views)
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg"
      viewBox="0 0 {w} {h}"
@@ -1391,7 +1407,7 @@ class DrawingSheet:
      id="sheet_{self.title_info.drawing_no}">
   <defs>
     <style type="text/css">
-      {generate_theme_css(theme)}
+      {generate_theme_css(theme, include_shaded=has_shaded)}
     </style>
     <pattern id="techGrid" width="10" height="10" patternUnits="userSpaceOnUse">
       <path d="M 10 0 L 0 0 0 10" fill="none" stroke="var(--grid-color)" stroke-width="0.15"/>

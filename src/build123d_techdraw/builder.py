@@ -6,7 +6,7 @@ import math
 import types
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, Unpack
 
 import build123d as bd
 
@@ -28,6 +28,7 @@ from build123d_techdraw.core.view import (
     project_section_to_view,
     project_shape_to_view,
 )
+from build123d_techdraw.gpu.shading import PartColors, ShadingKwargs, ViewStyle
 from build123d_techdraw.layout.multiview import (
     MultiviewLayout,
     add_assembly_bom_and_balloons,
@@ -172,6 +173,7 @@ class View(SheetView):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
+        **shading: Unpack[ShadingKwargs],
     ) -> View:
         calc_scale = _resolve_view_scale(
             shape=shape,
@@ -191,6 +193,7 @@ class View(SheetView):
             rotation_angle_deg=rotation_angle_deg,
             view_label_y=view_label_y,
             model_origin=model_origin,
+            **shading,
         )
         view.__class__ = cls
         view.shape = shape
@@ -228,6 +231,7 @@ class BuildView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
+        **shading: Unpack[ShadingKwargs],
     ) -> BuildView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -243,6 +247,7 @@ class BuildView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
+            **shading,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -265,6 +270,7 @@ class FrontView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
+        **shading: Unpack[ShadingKwargs],
     ) -> FrontView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -280,6 +286,7 @@ class FrontView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
+            **shading,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -302,6 +309,7 @@ class TopView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
+        **shading: Unpack[ShadingKwargs],
     ) -> TopView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -317,6 +325,7 @@ class TopView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
+            **shading,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -339,6 +348,7 @@ class RightView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
+        **shading: Unpack[ShadingKwargs],
     ) -> RightView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -354,6 +364,7 @@ class RightView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
+            **shading,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -376,6 +387,7 @@ class LeftView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
+        **shading: Unpack[ShadingKwargs],
     ) -> LeftView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -391,6 +403,7 @@ class LeftView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
+            **shading,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -413,6 +426,7 @@ class BottomView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
+        **shading: Unpack[ShadingKwargs],
     ) -> BottomView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -428,6 +442,7 @@ class BottomView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
+            **shading,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -450,6 +465,7 @@ class RearView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
+        **shading: Unpack[ShadingKwargs],
     ) -> RearView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -465,6 +481,7 @@ class RearView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
+            **shading,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -487,6 +504,7 @@ class IsometricView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
+        **shading: Unpack[ShadingKwargs],
     ) -> IsometricView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -502,6 +520,7 @@ class IsometricView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
+            **shading,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -848,6 +867,12 @@ class StandardMultiview(MultiviewLayout):
         enforce_iso_scale: bool = True,
         parallel: bool | Literal["auto"] = "auto",
         max_workers: int | None = None,
+        iso_style: ViewStyle | str = ViewStyle.WIREFRAME,
+        shading_dpi: int = 300,
+        color_by_part: bool = False,
+        part_colors: PartColors | None = None,
+        ssao: bool = True,
+        gpu: bool | None = None,
     ) -> StandardMultiview:
         target_sheet = sheet or CURRENT_SHEET.get()
         created_detached = False
@@ -871,6 +896,12 @@ class StandardMultiview(MultiviewLayout):
             enforce_iso_scale=enforce_iso_scale,
             parallel=parallel,
             max_workers=max_workers,
+            iso_style=iso_style,
+            shading_dpi=shading_dpi,
+            color_by_part=color_by_part,
+            part_colors=part_colors,
+            ssao=ssao,
+            gpu=gpu,
         )
         mv.__class__ = cls
         if created_detached:

@@ -10,6 +10,12 @@ class Theme(Enum):
     PRINT = "iso_white"
 
 
+SHADED_LAYER_CLASSES: dict[Theme, str] = {
+    Theme.DARK_BLUEPRINT: "shaded-layer-dark",
+    Theme.ISO_WHITE: "shaded-layer-white",
+}
+
+
 @dataclass(frozen=True)
 class ThemeColors:
     bg: str
@@ -85,7 +91,11 @@ THEME_COLORS: dict[Theme, ThemeColors] = {
 }
 
 
-def generate_theme_css(default_theme: Theme = Theme.DARK_BLUEPRINT) -> str:
+def generate_theme_css(
+    default_theme: Theme = Theme.DARK_BLUEPRINT,
+    *,
+    include_shaded: bool = False,
+) -> str:
     """Generate dynamic CSS stylesheets supporting both Dark Blueprint and Clean White ISO themes."""
     c_dark = THEME_COLORS[Theme.DARK_BLUEPRINT]
     c_white = THEME_COLORS[Theme.ISO_WHITE]
@@ -196,4 +206,11 @@ def generate_theme_css(default_theme: Theme = Theme.DARK_BLUEPRINT) -> str:
     .theme-iso-white .dim-line {{ stroke: #000000; stroke-width: 0.25px; }}
     .theme-iso-white .dim-arrow {{ fill: #000000; }}
     .theme-iso-white .dim-text {{ fill: #000000; }}
+    """ + (
+        """
+    .theme-dark-blueprint .shaded-layer-white { display: none; }
+    .theme-iso-white .shaded-layer-dark { display: none; }
     """
+        if include_shaded
+        else ""
+    )
