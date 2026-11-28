@@ -22,7 +22,8 @@ EXPECTED_PREFIXES = [
 def test_all_examples_registered_in_generate_all() -> None:
     """Ensure every example script in examples/ is wired into generate_all.py."""
     generate_all_src = (EXAMPLES_DIR / "generate_all.py").read_text(encoding="utf-8")
-    scripts = sorted(p.stem for p in EXAMPLES_DIR.glob("*.py") if p.name != "generate_all.py")
+    non_drawing_scripts = {"generate_all.py", "benchmark_performance.py"}
+    scripts = sorted(p.stem for p in EXAMPLES_DIR.glob("*.py") if p.name not in non_drawing_scripts)
     assert len(scripts) == 8
     for script in scripts:
         assert f"from {script} import" in generate_all_src, (

@@ -6,7 +6,7 @@ import math
 import types
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import build123d as bd
 
@@ -846,6 +846,8 @@ class StandardMultiview(MultiviewLayout):
         auto_dimensions: bool | str = False,
         auto_centerlines: bool = False,
         enforce_iso_scale: bool = True,
+        parallel: bool | Literal["auto"] = "auto",
+        max_workers: int | None = None,
     ) -> StandardMultiview:
         target_sheet = sheet or CURRENT_SHEET.get()
         created_detached = False
@@ -867,6 +869,8 @@ class StandardMultiview(MultiviewLayout):
             auto_dimensions=auto_dimensions,
             auto_centerlines=auto_centerlines,
             enforce_iso_scale=enforce_iso_scale,
+            parallel=parallel,
+            max_workers=max_workers,
         )
         mv.__class__ = cls
         if created_detached:

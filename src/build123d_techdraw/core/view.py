@@ -201,6 +201,9 @@ class SheetView:
         self._regen_kwargs: dict[str, Any] = {}
         # Callout SVG a detail view appended to its parent (removed before re-projection).
         self._parent_callout_svg: str | None = None
+        # Projected 2D visible circular edges (cx, cy, radius) cached from HLR projection
+        # so auto_centerlines does not need to re-run OCCT Drawing a second time.
+        self._visible_circles: list[tuple[float, float, float]] | None = None
 
     def __enter__(self) -> Self:
         self._ctx_token = CURRENT_VIEW.set(self)
@@ -641,6 +644,7 @@ class SheetView:
         self.svg_content = reproj.svg_content
         self.inner_svg_content = reproj.inner_svg_content
         self.view_label_pos = reproj.view_label_pos
+        self._visible_circles = reproj._visible_circles
 
     def can_regenerate(self) -> bool:
         """Return True if ``update_shape`` is able to re-project this view's geometry."""
@@ -1727,20 +1731,140 @@ def _export_svg_to_inner(exporter: bd.ExportSVG) -> tuple[float, float, float, f
     return vb_min_x, vb_min_y, vb_w, vb_h, inner_content
 
 
-def project_shape_to_view(
+@dataclass(frozen=True)
+class _ProjectedViewPayload:
+    """Pickleable output of OCCT HLR projection and SVG export for a single view."""
+
+    inner_content: str
+    vb_min_x: float
+    vb_min_y: float
+    vb_w: float
+    vb_h: float
+    exact_w: float
+    exact_h: float
+    visible_circles: tuple[tuple[float, float, float], ...]
+
+
+def _filter_coincident_hidden_edges(
+    hidden_edges: Sequence[Any],
+    visible_edges: Sequence[Any],
+    tol: float = 1e-2,
+) -> list[Any]:
+    """Return hidden edges whose 2D bounding box does not coincide with any visible edge.
+
+    Uses a 4D spatial-hash grid over precomputed visible-edge bounding boxes
+    ``(min_x, max_x, min_y, max_y)`` with bucket-boundary neighbor checks so the result is
+    mathematically identical to the brute-force ``O(H * V)`` loop while running in
+    ``O(H + V)`` expected time and computing each edge's bounding box only once.
+    """
+    if not hidden_edges:
+        return []
+    if not visible_edges or tol <= 0.0:
+        return list(hidden_edges)
+
+    # Cell size >= 4 * tol guarantees [x - pad, x + pad] spans at most 2 cells per axis,
+    # and choosing 0.25 for default tol=1e-2 gives exact binary-power scaling (inv_cell=4.0).
+    cell_size = max(0.25, tol * 4.0)
+    inv_cell = 1.0 / cell_size
+    pad = tol * (1.0 + 1e-6) + 1e-12
+    floor = math.floor
+
+    buckets: dict[tuple[int, int, int, int], list[tuple[float, float, float, float]]] = {}
+    for v_edge in visible_edges:
+        v_bb = v_edge.bounding_box()
+        vx0 = float(v_bb.min.X)
+        vx1 = float(v_bb.max.X)
+        vy0 = float(v_bb.min.Y)
+        vy1 = float(v_bb.max.Y)
+        if not (
+            math.isfinite(vx0) and math.isfinite(vx1) and math.isfinite(vy0) and math.isfinite(vy1)
+        ):
+            continue
+        key = (
+            floor(vx0 * inv_cell),
+            floor(vx1 * inv_cell),
+            floor(vy0 * inv_cell),
+            floor(vy1 * inv_cell),
+        )
+        bucket = buckets.get(key)
+        if bucket is None:
+            buckets[key] = [(vx0, vx1, vy0, vy1)]
+        else:
+            bucket.append((vx0, vx1, vy0, vy1))
+
+    clean_hidden_edges: list[Any] = []
+    for h_edge in hidden_edges:
+        h_bb = h_edge.bounding_box()
+        hx0 = float(h_bb.min.X)
+        hx1 = float(h_bb.max.X)
+        hy0 = float(h_bb.min.Y)
+        hy1 = float(h_bb.max.Y)
+        if not (
+            math.isfinite(hx0) and math.isfinite(hx1) and math.isfinite(hy0) and math.isfinite(hy1)
+        ):
+            clean_hidden_edges.append(h_edge)
+            continue
+
+        ix0_lo = floor((hx0 - pad) * inv_cell)
+        ix0_hi = floor((hx0 + pad) * inv_cell)
+        ix1_lo = floor((hx1 - pad) * inv_cell)
+        ix1_hi = floor((hx1 + pad) * inv_cell)
+        iy0_lo = floor((hy0 - pad) * inv_cell)
+        iy0_hi = floor((hy0 + pad) * inv_cell)
+        iy1_lo = floor((hy1 - pad) * inv_cell)
+        iy1_hi = floor((hy1 + pad) * inv_cell)
+
+        coincides = False
+        if ix0_lo == ix0_hi and ix1_lo == ix1_hi and iy0_lo == iy0_hi and iy1_lo == iy1_hi:
+            candidates = buckets.get((ix0_lo, ix1_lo, iy0_lo, iy1_lo))
+            if candidates is not None:
+                for vx0, vx1, vy0, vy1 in candidates:
+                    if (
+                        abs(hx0 - vx0) < tol
+                        and abs(hx1 - vx1) < tol
+                        and abs(hy0 - vy0) < tol
+                        and abs(hy1 - vy1) < tol
+                    ):
+                        coincides = True
+                        break
+        else:
+            for bx0 in range(ix0_lo, ix0_hi + 1):
+                for bx1 in range(ix1_lo, ix1_hi + 1):
+                    for by0 in range(iy0_lo, iy0_hi + 1):
+                        for by1 in range(iy1_lo, iy1_hi + 1):
+                            candidates = buckets.get((bx0, bx1, by0, by1))
+                            if candidates is None:
+                                continue
+                            for vx0, vx1, vy0, vy1 in candidates:
+                                if (
+                                    abs(hx0 - vx0) < tol
+                                    and abs(hx1 - vx1) < tol
+                                    and abs(hy0 - vy0) < tol
+                                    and abs(hy1 - vy1) < tol
+                                ):
+                                    coincides = True
+                                    break
+                            if coincides:
+                                break
+                        if coincides:
+                            break
+                    if coincides:
+                        break
+                if coincides:
+                    break
+
+        if not coincides:
+            clean_hidden_edges.append(h_edge)
+
+    return clean_hidden_edges
+
+
+def _compute_view_projection(
     shape: bd.Solid | bd.Compound | Any,
     view_type: ViewType,
-    center_x: float,
-    center_y: float,
-    scale: float = 1.0,
     show_hidden: bool = True,
-    view_label: str | None = None,
-    rotation_angle_deg: float = 0.0,
-    view_label_y: float | None = None,
-    view_label_offset_y: float = 7.0,
-    model_origin: tuple[float, float] | None = None,
-) -> SheetView:
-    """Project a 3D build123d shape into a 2D orthographic or isometric SheetView."""
+) -> _ProjectedViewPayload:
+    """Run OCCT HLR projection, hidden-edge deduplication, and SVG export for one view."""
     look_from, look_up = VIEW_VECTORS.get(view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
 
     # Use build123d.Drawing to project B-Rep edges
@@ -1748,25 +1872,20 @@ def project_shape_to_view(
 
     exporter = bd.ExportSVG(unit=bd.Unit.MM)
 
+    v_edges = dwg.visible_lines.edges()
+    hidden_edges = dwg.hidden_lines.edges() if show_hidden else []
+
+    # Cache projected visible circles for auto_centerlines (avoids a second Drawing() pass)
+    visible_circles: list[tuple[float, float, float]] = []
+    for v_edge in v_edges:
+        if v_edge.geom_type == bd.GeomType.CIRCLE:
+            with contextlib.suppress(Exception):
+                c = v_edge.arc_center
+                visible_circles.append((float(c.X), float(c.Y), float(v_edge.radius)))
+
     # Filter out hidden lines that coincide with visible edges and render hidden layer first
-    if show_hidden and len(dwg.hidden_lines.edges()) > 0:
-        v_edges = dwg.visible_lines.edges()
-        clean_hidden_edges: list[Any] = []
-        for h_edge in dwg.hidden_lines.edges():
-            h_bb = h_edge.bounding_box()
-            coincides = False
-            for v_edge in v_edges:
-                v_bb = v_edge.bounding_box()
-                if (
-                    abs(h_bb.min.X - v_bb.min.X) < 1e-2
-                    and abs(h_bb.max.X - v_bb.max.X) < 1e-2
-                    and abs(h_bb.min.Y - v_bb.min.Y) < 1e-2
-                    and abs(h_bb.max.Y - v_bb.max.Y) < 1e-2
-                ):
-                    coincides = True
-                    break
-            if not coincides:
-                clean_hidden_edges.append(h_edge)
+    if show_hidden and len(hidden_edges) > 0:
+        clean_hidden_edges = _filter_coincident_hidden_edges(hidden_edges, v_edges)
 
         if clean_hidden_edges:
             clean_hidden_compound = (
@@ -1785,11 +1904,6 @@ def project_shape_to_view(
 
     vb_min_x, vb_min_y, vb_w, vb_h, inner_content = _export_svg_to_inner(exporter)
 
-    orig_cx = vb_min_x + vb_w / 2.0
-    orig_cy = vb_min_y + vb_h / 2.0
-
-    view_id = f"view_{view_type.value}_{int(center_x)}_{int(center_y)}"
-
     # Substitute styling with CSS custom properties
     inner_content = inner_content.replace('stroke="rgb(0,0,0)"', 'stroke="var(--line-visible)"')
     inner_content = inner_content.replace(
@@ -1800,7 +1914,7 @@ def project_shape_to_view(
 
     # Compute exact geometric bounds from projected 2D geometry (pure CAD coordinates, no stroke inflation)
     geom_shapes: list[Any] = [dwg.visible_lines]
-    if show_hidden and len(dwg.hidden_lines.edges()) > 0:
+    if show_hidden and len(hidden_edges) > 0:
         geom_shapes.append(dwg.hidden_lines)
 
     try:
@@ -1814,6 +1928,39 @@ def project_shape_to_view(
         exact_w = max(0.0, vb_w - 0.35)
         exact_h = max(0.0, vb_h - 0.35)
 
+    return _ProjectedViewPayload(
+        inner_content=inner_content,
+        vb_min_x=vb_min_x,
+        vb_min_y=vb_min_y,
+        vb_w=vb_w,
+        vb_h=vb_h,
+        exact_w=exact_w,
+        exact_h=exact_h,
+        visible_circles=tuple(visible_circles),
+    )
+
+
+def _build_sheet_view_from_payload(
+    shape: bd.Solid | bd.Compound | Any,
+    view_type: ViewType,
+    payload: _ProjectedViewPayload,
+    center_x: float,
+    center_y: float,
+    scale: float = 1.0,
+    show_hidden: bool = True,
+    view_label: str | None = None,
+    rotation_angle_deg: float = 0.0,
+    view_label_y: float | None = None,
+    view_label_offset_y: float = 7.0,
+    model_origin: tuple[float, float] | None = None,
+) -> SheetView:
+    """Assemble a positioned SheetView from a precomputed ``_ProjectedViewPayload``."""
+    look_from, look_up = VIEW_VECTORS.get(view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
+
+    orig_cx = payload.vb_min_x + payload.vb_w / 2.0
+    orig_cy = payload.vb_min_y + payload.vb_h / 2.0
+
+    view_id = f"view_{view_type.value}_{int(center_x)}_{int(center_y)}"
     rot_str = f" rotate({rotation_angle_deg})" if rotation_angle_deg != 0 else ""
 
     transform = (
@@ -1825,7 +1972,7 @@ def project_shape_to_view(
     svg_view_group = f"""
     <!-- View: {view_type.value.upper()} at ({center_x}, {center_y}) scale={scale} -->
     <g id="{view_id}" class="sheet-view" transform="{transform}">
-        {inner_content}
+        {payload.inner_content}
     </g>
     """
 
@@ -1835,7 +1982,7 @@ def project_shape_to_view(
         lbl_y = (
             view_label_y
             if view_label_y is not None
-            else (center_y + (vb_h * scale / 2.0) + view_label_offset_y)
+            else (center_y + (payload.vb_h * scale / 2.0) + view_label_offset_y)
         )
         scale_str = format_iso_scale(scale)
         lbl_pos = (center_x, lbl_y)
@@ -1880,8 +2027,8 @@ def project_shape_to_view(
         center_x=center_x,
         center_y=center_y,
         scale=scale,
-        width=exact_w * scale,
-        height=exact_h * scale,
+        width=payload.exact_w * scale,
+        height=payload.exact_h * scale,
         model_origin=(orig_u, orig_v),
         projection_origin=proj_origin,
         proj_x=p_x,
@@ -1895,8 +2042,9 @@ def project_shape_to_view(
         shape=shape,
         show_hidden=show_hidden,
     )
-    view_res.inner_svg_content = inner_content
+    view_res.inner_svg_content = payload.inner_content
     view_res.rotation_angle_deg = rotation_angle_deg
+    view_res._visible_circles = list(payload.visible_circles)
     view_res._regen_factory = project_shape_to_view
     view_res._regen_kwargs = {
         "view_type": view_type,
@@ -1907,6 +2055,37 @@ def project_shape_to_view(
         "model_origin": model_origin,
     }
     return view_res
+
+
+def project_shape_to_view(
+    shape: bd.Solid | bd.Compound | Any,
+    view_type: ViewType,
+    center_x: float,
+    center_y: float,
+    scale: float = 1.0,
+    show_hidden: bool = True,
+    view_label: str | None = None,
+    rotation_angle_deg: float = 0.0,
+    view_label_y: float | None = None,
+    view_label_offset_y: float = 7.0,
+    model_origin: tuple[float, float] | None = None,
+) -> SheetView:
+    """Project a 3D build123d shape into a 2D orthographic or isometric SheetView."""
+    payload = _compute_view_projection(shape=shape, view_type=view_type, show_hidden=show_hidden)
+    return _build_sheet_view_from_payload(
+        shape=shape,
+        view_type=view_type,
+        payload=payload,
+        center_x=center_x,
+        center_y=center_y,
+        scale=scale,
+        show_hidden=show_hidden,
+        view_label=view_label,
+        rotation_angle_deg=rotation_angle_deg,
+        view_label_y=view_label_y,
+        view_label_offset_y=view_label_offset_y,
+        model_origin=model_origin,
+    )
 
 
 def project_shape_to_svg_fragment(

@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import atexit
+import io
 import math
+import multiprocessing as mp
+import os
+import threading
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import build123d as bd
 from build123d.exporters import Drawing
 from build123d.topology import Shape
+from OCP.BinTools import BinTools, BinTools_FormatVersion
+from OCP.TopoDS import TopoDS_Shape
 
 from build123d_techdraw.annotations.callouts import BOMBalloon
 from build123d_techdraw.core.directive import SheetDirective
@@ -19,12 +27,153 @@ from build123d_techdraw.core.scale import (
     format_iso_scale,
 )
 from build123d_techdraw.core.title_block import BOMItem
-from build123d_techdraw.core.view import VIEW_VECTORS, SheetView, ViewType
+from build123d_techdraw.core.view import (
+    VIEW_VECTORS,
+    SheetView,
+    ViewType,
+    _build_sheet_view_from_payload,
+    _compute_view_projection,
+    _ProjectedViewPayload,
+)
 
 FIRST_ANGLE = "first_angle"
 """ISO 128-3 / ISO 5456-2 default projection method (ISO "method E")."""
 THIRD_ANGLE = "third_angle"
 """ASME Y14.3 / US default projection method (ISO "method A")."""
+
+# OCCT HLRBRep_Algo (via cadquery-ocp) holds the Python GIL during projection (so
+# ThreadPoolExecutor yields ~1.0x speedup and risks OCCT shared-state contention), and
+# importing build123d initializes native TBB/OpenBLAS thread pools (making POSIX fork()
+# unsafe). We therefore use a process-isolated forkserver/spawn worker pool with lossless
+# OCP.BinTools binary B-Rep serialization (~0.2-0.6 ms round-trip).
+_PARALLEL_WARM_FACE_THRESHOLD = 16
+_PARALLEL_COLD_FACE_THRESHOLD = 120
+
+_POOL_LOCK = threading.Lock()
+_PROJECTION_POOL: ProcessPoolExecutor | None = None
+_PROJECTION_POOL_WORKERS: int = 0
+_ATEXIT_REGISTERED: bool = False
+
+
+def shutdown_projection_pool() -> None:
+    """Shut down the cached parallel multi-view projection worker pool, if running."""
+    global _PROJECTION_POOL, _PROJECTION_POOL_WORKERS
+    with _POOL_LOCK:
+        pool = _PROJECTION_POOL
+        _PROJECTION_POOL = None
+        _PROJECTION_POOL_WORKERS = 0
+    if pool is not None:
+        pool.shutdown(wait=True, cancel_futures=True)
+
+
+def _get_projection_pool(requested_workers: int) -> ProcessPoolExecutor:
+    """Return a lazily initialized, process-isolated worker pool for HLR projection."""
+    global _PROJECTION_POOL, _PROJECTION_POOL_WORKERS, _ATEXIT_REGISTERED
+    cpu_cap = max(1, os.cpu_count() or 4)
+    target = max(1, min(requested_workers, cpu_cap))
+    with _POOL_LOCK:
+        if _PROJECTION_POOL is not None and target <= _PROJECTION_POOL_WORKERS:
+            return _PROJECTION_POOL
+        old_pool = _PROJECTION_POOL
+        methods = mp.get_all_start_methods()
+        # Never use "fork": build123d/OCCT/OpenBLAS spawns native threads on import.
+        start_method = "forkserver" if "forkserver" in methods else "spawn"
+        ctx = mp.get_context(start_method)
+        pool_size = max(target, min(4, cpu_cap))
+        pool = ProcessPoolExecutor(max_workers=pool_size, mp_context=ctx)
+        _PROJECTION_POOL = pool
+        _PROJECTION_POOL_WORKERS = pool_size
+        if not _ATEXIT_REGISTERED:
+            atexit.register(shutdown_projection_pool)
+            _ATEXIT_REGISTERED = True
+    if old_pool is not None:
+        old_pool.shutdown(wait=False)
+    return pool
+
+
+def _serialize_shape_brep(shape: Any) -> bytes | None:
+    """Serialize a build123d Shape to lossless IEEE-754 binary B-Rep bytes via OCP.BinTools."""
+    if not isinstance(shape, Shape) or shape.wrapped is None:
+        return None
+    buf = io.BytesIO()
+    BinTools.Write_s(
+        shape.wrapped,
+        buf,
+        False,
+        False,
+        BinTools_FormatVersion.BinTools_FormatVersion_CURRENT,
+    )
+    return buf.getvalue()
+
+
+def _project_view_worker(args: tuple[bytes, ViewType, bool]) -> _ProjectedViewPayload:
+    """Top-level worker entry point for process-isolated OCCT view projection."""
+    brep_bytes, view_type, show_hidden = args
+    topo = TopoDS_Shape()
+    BinTools.Read_s(topo, io.BytesIO(brep_bytes))
+    shape = Shape.cast(topo)
+    return _compute_view_projection(shape=shape, view_type=view_type, show_hidden=show_hidden)
+
+
+def _should_project_in_parallel(
+    shape: Any,
+    num_views: int,
+    parallel: bool | Literal["auto"],
+) -> bool:
+    """Decide whether to fan out multi-view HLR projection across worker processes."""
+    if num_views <= 1 or parallel is False:
+        return False
+    if parallel is True:
+        return True
+    if parallel != "auto":
+        raise ValueError(f"Expected parallel to be True, False, or 'auto'; got {parallel!r}.")
+
+    env_val = os.environ.get("BUILD123D_TECHDRAW_PARALLEL", "").strip().lower()
+    if env_val in ("0", "false", "off", "no"):
+        return False
+    if env_val in ("1", "true", "on", "yes"):
+        return True
+
+    if not isinstance(shape, Shape):
+        return False
+    face_count = len(shape.faces())
+    threshold = (
+        _PARALLEL_WARM_FACE_THRESHOLD
+        if _PROJECTION_POOL is not None
+        else _PARALLEL_COLD_FACE_THRESHOLD
+    )
+    return face_count >= threshold
+
+
+def _project_views_payloads(
+    shape: Any,
+    view_specs: list[tuple[ViewType, bool]],
+    *,
+    parallel: bool | Literal["auto"],
+    max_workers: int | None,
+) -> list[_ProjectedViewPayload]:
+    """Compute view projection payloads in deterministic ``view_specs`` order."""
+    if _should_project_in_parallel(shape, len(view_specs), parallel):
+        brep_bytes = _serialize_shape_brep(shape)
+        if brep_bytes is not None:
+            workers = (
+                min(len(view_specs), max_workers)
+                if max_workers is not None
+                else min(len(view_specs), os.cpu_count() or 4)
+            )
+            try:
+                pool = _get_projection_pool(workers)
+                tasks = [(brep_bytes, v_type, v_hidden) for v_type, v_hidden in view_specs]
+                return list(pool.map(_project_view_worker, tasks))
+            except (OSError, PermissionError, RuntimeError):
+                # Clean sequential fallback in restricted/sandboxed subprocess environments.
+                pass
+
+    return [
+        _compute_view_projection(shape=shape, view_type=v_type, show_hidden=v_hidden)
+        for v_type, v_hidden in view_specs
+    ]
+
 
 if TYPE_CHECKING:
     from build123d_techdraw.core.sheet import DrawingSheet
@@ -145,6 +294,8 @@ def add_standard_multiview(
     auto_centerlines: bool = False,
     enforce_iso_scale: bool = True,
     infer_threads: bool = False,
+    parallel: bool | Literal["auto"] = "auto",
+    max_workers: int | None = None,
 ) -> MultiviewLayout:
     """Generate a standard orthographic multi-view layout on a drawing sheet.
 
@@ -181,6 +332,14 @@ def add_standard_multiview(
         Whether view title labels display individual scale.
     auto_dimensions:
         Whether to add overall bounding envelope dimensions automatically.
+    parallel:
+        Multi-view projection execution mode: ``'auto'`` (default, uses a
+        process-isolated worker pool when the shape is complex enough to offset
+        worker startup/IPC overhead, or when ``BUILD123D_TECHDRAW_PARALLEL=1``),
+        ``True`` (always project views in parallel across worker processes when
+        more than one view is requested), or ``False`` (always sequential).
+    max_workers:
+        Optional upper bound on worker processes when projecting in parallel.
     """
     layout_key = layout.lower()
     if layout_key not in (FIRST_ANGLE, THIRD_ANGLE):
@@ -323,18 +482,30 @@ def add_standard_multiview(
         v: (col_cx[col], row_cy[row]) for v, (col, row) in grid_cells.items() if v in views
     }
 
-    for v_type in views:
+    view_specs: list[tuple[ViewType, bool]] = [
+        (v_type, show_hidden if v_type != ViewType.ISOMETRIC else False) for v_type in views
+    ]
+    payloads = _project_views_payloads(
+        shape,
+        view_specs,
+        parallel=parallel,
+        max_workers=max_workers,
+    )
+
+    for (v_type, v_hidden), payload in zip(view_specs, payloads, strict=True):
         v_center = pos_map.get(v_type, (center_x, center_y))
-        v_hidden = show_hidden if v_type != ViewType.ISOMETRIC else False
         v_label = v_type.value.upper() if show_labels else None
-        v_obj = sheet.add_view(
-            shape,
+        built_view = _build_sheet_view_from_payload(
+            shape=shape,
             view_type=v_type,
-            center=v_center,
+            payload=payload,
+            center_x=v_center[0],
+            center_y=v_center[1],
             scale=calculated_scale,
             show_hidden=v_hidden,
             view_label=v_label,
         )
+        v_obj = sheet.add_view(built_view)
         if show_scale_label:
             v_obj.scale_label = scale_str
         layout_obj.views[v_type] = v_obj
@@ -368,18 +539,23 @@ def add_standard_multiview(
         for v_type, v_obj in layout_obj.views.items():
             if v_type == ViewType.ISOMETRIC:
                 continue
-            look_from, look_up = VIEW_VECTORS.get(v_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
-            try:
-                dwg_v = Drawing(shape, look_from=look_from, look_up=look_up)
-                for edge in dwg_v.visible_lines.edges():
-                    if edge.geom_type == bd.GeomType.CIRCLE:
-                        c = edge.arc_center
-                        paper_r = float(edge.radius) * v_obj.scale
-                        # Centermark arms extend 2.0 mm beyond circle perimeter per ISO 128 / ASME Y14.2
-                        cm_size = (paper_r + 2.0) * 2.0
-                        v_obj.centermark(float(c.X), float(c.Y), size=cm_size)
-            except Exception:
-                pass
+            circles = v_obj._visible_circles
+            if circles is None:
+                look_from, look_up = VIEW_VECTORS.get(v_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
+                circles = []
+                try:
+                    dwg_v = Drawing(shape, look_from=look_from, look_up=look_up)
+                    for edge in dwg_v.visible_lines.edges():
+                        if edge.geom_type == bd.GeomType.CIRCLE:
+                            c = edge.arc_center
+                            circles.append((float(c.X), float(c.Y), float(edge.radius)))
+                except Exception:
+                    circles = []
+            for cx, cy, radius in circles:
+                paper_r = radius * v_obj.scale
+                # Centermark arms extend 2.0 mm beyond circle perimeter per ISO 128 / ASME Y14.2
+                cm_size = (paper_r + 2.0) * 2.0
+                v_obj.centermark(cx, cy, size=cm_size)
 
         # 2. Add vertical centerlines to cylindrical features in Front and Right views
         try:
