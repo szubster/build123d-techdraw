@@ -45,6 +45,7 @@ from build123d_techdraw.annotations.surface import MaterialRemoval, SurfaceFinis
 from build123d_techdraw.annotations.threads import CosmeticThread, auto_cosmetic_threads
 from build123d_techdraw.context import CURRENT_VIEW
 from build123d_techdraw.core.scale import format_iso_scale
+from build123d_techdraw.gpu.hlr import HLRMode, project_shape_gpu_hlr, resolve_hlr_backend
 from build123d_techdraw.gpu.shading import PartColors, ViewStyle, shade_view_svg
 
 if TYPE_CHECKING:
@@ -1868,9 +1869,34 @@ def _compute_view_projection(
     shape: bd.Solid | bd.Compound | Any,
     view_type: ViewType,
     show_hidden: bool = True,
+    *,
+    hlr: HLRMode = "exact",
+    hlr_resolution: int = 2048,
+    hlr_gpu_face_threshold: int = 250,
+    gpu: bool | None = None,
 ) -> _ProjectedViewPayload:
-    """Run OCCT HLR projection, hidden-edge deduplication, and SVG export for one view."""
+    """Run HLR projection (exact OCCT or GPU visibility-buffer) and SVG export for one view."""
     look_from, look_up = VIEW_VECTORS.get(view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
+
+    if resolve_hlr_backend(shape, hlr, gpu=gpu, face_threshold=hlr_gpu_face_threshold):
+        gpu_res = project_shape_gpu_hlr(
+            shape,
+            look_from,
+            look_up,
+            show_hidden=show_hidden,
+            resolution=hlr_resolution,
+            gpu=gpu,
+        )
+        return _ProjectedViewPayload(
+            inner_content=gpu_res.inner_svg,
+            vb_min_x=gpu_res.vb_min_x,
+            vb_min_y=gpu_res.vb_min_y,
+            vb_w=gpu_res.vb_w,
+            vb_h=gpu_res.vb_h,
+            exact_w=gpu_res.exact_w,
+            exact_h=gpu_res.exact_h,
+            visible_circles=gpu_res.visible_circles,
+        )
 
     # Use build123d.Drawing to project B-Rep edges
     dwg = Drawing(shape, look_from=look_from, look_up=look_up, with_hidden=show_hidden)
@@ -1965,6 +1991,10 @@ def _build_sheet_view_from_payload(
     ssao: bool = True,
     gpu: bool | None = None,
     shading_theme: Theme | str | None = None,
+    *,
+    hlr: HLRMode = "exact",
+    hlr_resolution: int = 2048,
+    hlr_gpu_face_threshold: int = 250,
 ) -> SheetView:
     """Assemble a positioned SheetView from a precomputed ``_ProjectedViewPayload``."""
     look_from, look_up = VIEW_VECTORS.get(view_type, ((0.0, -1.0, 0.0), (0.0, 0.0, 1.0)))
@@ -2089,6 +2119,9 @@ def _build_sheet_view_from_payload(
         "ssao": ssao,
         "gpu": gpu,
         "shading_theme": shading_theme,
+        "hlr": hlr,
+        "hlr_resolution": hlr_resolution,
+        "hlr_gpu_face_threshold": hlr_gpu_face_threshold,
     }
     return view_res
 
@@ -2112,9 +2145,21 @@ def project_shape_to_view(
     ssao: bool = True,
     gpu: bool | None = None,
     shading_theme: Theme | str | None = None,
+    *,
+    hlr: HLRMode = "exact",
+    hlr_resolution: int = 2048,
+    hlr_gpu_face_threshold: int = 250,
 ) -> SheetView:
     """Project a 3D build123d shape into a 2D orthographic or isometric SheetView."""
-    payload = _compute_view_projection(shape=shape, view_type=view_type, show_hidden=show_hidden)
+    payload = _compute_view_projection(
+        shape=shape,
+        view_type=view_type,
+        show_hidden=show_hidden,
+        hlr=hlr,
+        hlr_resolution=hlr_resolution,
+        hlr_gpu_face_threshold=hlr_gpu_face_threshold,
+        gpu=gpu,
+    )
     return _build_sheet_view_from_payload(
         shape=shape,
         view_type=view_type,
@@ -2135,6 +2180,9 @@ def project_shape_to_view(
         ssao=ssao,
         gpu=gpu,
         shading_theme=shading_theme,
+        hlr=hlr,
+        hlr_resolution=hlr_resolution,
+        hlr_gpu_face_threshold=hlr_gpu_face_threshold,
     )
 
 
@@ -2145,6 +2193,11 @@ def project_shape_to_svg_fragment(
     scale: float = 1.0,
     show_hidden: bool = False,
     rotation_angle_deg: float = 0.0,
+    *,
+    hlr: HLRMode = "exact",
+    hlr_resolution: int = 2048,
+    hlr_gpu_face_threshold: int = 250,
+    gpu: bool | None = None,
 ) -> str:
     """Project a 3D shape into a standalone SVG ``<g>`` fragment without an outer ``<svg>`` wrapper."""
     view = project_shape_to_view(
@@ -2155,6 +2208,10 @@ def project_shape_to_svg_fragment(
         scale=scale,
         show_hidden=show_hidden,
         rotation_angle_deg=rotation_angle_deg,
+        hlr=hlr,
+        hlr_resolution=hlr_resolution,
+        hlr_gpu_face_threshold=hlr_gpu_face_threshold,
+        gpu=gpu,
     )
     return view.svg_content.strip()
 

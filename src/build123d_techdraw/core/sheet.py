@@ -65,6 +65,7 @@ from build123d_techdraw.core.view import (
     project_section_to_view,
     project_shape_to_view,
 )
+from build123d_techdraw.gpu.hlr import HLRMode
 from build123d_techdraw.gpu.shading import PartColors, ViewStyle
 from build123d_techdraw.layout.linter import LintIssue, run_sheet_lint
 from build123d_techdraw.renderers.theme import Theme, generate_theme_css
@@ -384,6 +385,10 @@ class DrawingSheet:
         ssao: bool = True,
         gpu: bool | None = None,
         shading_theme: Theme | str | None = None,
+        *,
+        hlr: HLRMode = "exact",
+        hlr_resolution: int = 2048,
+        hlr_gpu_face_threshold: int = 250,
     ) -> SheetView:
         """Add a projected orthographic/isometric view to the sheet."""
         if isinstance(shape_or_view, SheetView):
@@ -407,6 +412,9 @@ class DrawingSheet:
                 ssao=ssao,
                 gpu=gpu,
                 shading_theme=shading_theme,
+                hlr=hlr,
+                hlr_resolution=hlr_resolution,
+                hlr_gpu_face_threshold=hlr_gpu_face_threshold,
             )
         if align_to is not None:
             _apply_align_to(view, align_to)

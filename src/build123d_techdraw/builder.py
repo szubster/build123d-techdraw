@@ -28,12 +28,21 @@ from build123d_techdraw.core.view import (
     project_section_to_view,
     project_shape_to_view,
 )
+from build123d_techdraw.gpu.hlr import HLRMode
 from build123d_techdraw.gpu.shading import PartColors, ShadingKwargs, ViewStyle
 from build123d_techdraw.layout.multiview import (
     MultiviewLayout,
     add_assembly_bom_and_balloons,
     add_standard_multiview,
 )
+
+
+class ViewProjectionKwargs(ShadingKwargs, total=False):
+    """Optional GPU shading and HLR keywords accepted by Builder/Algebraic view factories."""
+
+    hlr: HLRMode
+    hlr_resolution: int
+    hlr_gpu_face_threshold: int
 
 
 class BuildDrawing(DrawingSheet):
@@ -173,7 +182,7 @@ class View(SheetView):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
-        **shading: Unpack[ShadingKwargs],
+        **options: Unpack[ViewProjectionKwargs],
     ) -> View:
         calc_scale = _resolve_view_scale(
             shape=shape,
@@ -193,7 +202,7 @@ class View(SheetView):
             rotation_angle_deg=rotation_angle_deg,
             view_label_y=view_label_y,
             model_origin=model_origin,
-            **shading,
+            **options,
         )
         view.__class__ = cls
         view.shape = shape
@@ -231,7 +240,7 @@ class BuildView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
-        **shading: Unpack[ShadingKwargs],
+        **options: Unpack[ViewProjectionKwargs],
     ) -> BuildView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -247,7 +256,7 @@ class BuildView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
-            **shading,
+            **options,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -270,7 +279,7 @@ class FrontView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
-        **shading: Unpack[ShadingKwargs],
+        **options: Unpack[ViewProjectionKwargs],
     ) -> FrontView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -286,7 +295,7 @@ class FrontView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
-            **shading,
+            **options,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -309,7 +318,7 @@ class TopView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
-        **shading: Unpack[ShadingKwargs],
+        **options: Unpack[ViewProjectionKwargs],
     ) -> TopView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -325,7 +334,7 @@ class TopView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
-            **shading,
+            **options,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -348,7 +357,7 @@ class RightView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
-        **shading: Unpack[ShadingKwargs],
+        **options: Unpack[ViewProjectionKwargs],
     ) -> RightView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -364,7 +373,7 @@ class RightView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
-            **shading,
+            **options,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -387,7 +396,7 @@ class LeftView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
-        **shading: Unpack[ShadingKwargs],
+        **options: Unpack[ViewProjectionKwargs],
     ) -> LeftView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -403,7 +412,7 @@ class LeftView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
-            **shading,
+            **options,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -426,7 +435,7 @@ class BottomView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
-        **shading: Unpack[ShadingKwargs],
+        **options: Unpack[ViewProjectionKwargs],
     ) -> BottomView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -442,7 +451,7 @@ class BottomView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
-            **shading,
+            **options,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -465,7 +474,7 @@ class RearView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
-        **shading: Unpack[ShadingKwargs],
+        **options: Unpack[ViewProjectionKwargs],
     ) -> RearView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -481,7 +490,7 @@ class RearView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
-            **shading,
+            **options,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -504,7 +513,7 @@ class IsometricView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
-        **shading: Unpack[ShadingKwargs],
+        **options: Unpack[ViewProjectionKwargs],
     ) -> IsometricView:
         return super().__new__(  # type: ignore[return-value]
             cls,
@@ -520,7 +529,7 @@ class IsometricView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
-            **shading,
+            **options,
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -776,6 +785,11 @@ class BreakView(View):
         sheet: DrawingSheet | None = None,
         align_to: AlignSpec | None = None,
         enforce_iso_scale: bool = True,
+        *,
+        hlr: HLRMode = "exact",
+        hlr_resolution: int = 2048,
+        hlr_gpu_face_threshold: int = 250,
+        gpu: bool | None = None,
     ) -> BreakView:
         view = super().__new__(
             cls,
@@ -791,6 +805,10 @@ class BreakView(View):
             sheet=sheet,
             align_to=align_to,
             enforce_iso_scale=enforce_iso_scale,
+            hlr=hlr,
+            hlr_resolution=hlr_resolution,
+            hlr_gpu_face_threshold=hlr_gpu_face_threshold,
+            gpu=gpu,
         )
         view.add_break(interval=interval, axis=axis, style=style, gap=gap)
         return view  # type: ignore[return-value]

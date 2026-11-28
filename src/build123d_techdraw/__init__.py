@@ -95,6 +95,12 @@ from build123d_techdraw.core.scale import (
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.title_block import BOMItem, RevisionEntry, TitleBlockInfo
 from build123d_techdraw.core.view import SheetView, ViewType, project_shape_to_svg_fragment
+from build123d_techdraw.gpu.hlr import (
+    GPUHLRResult,
+    GPUHLRStats,
+    HLRMode,
+    project_shape_gpu_hlr,
+)
 from build123d_techdraw.gpu.runtime import gpu_info, is_gpu_available, is_gpu_enabled
 from build123d_techdraw.gpu.shading import ViewStyle
 from build123d_techdraw.layout.linter import LintIssue, run_sheet_lint
@@ -159,7 +165,10 @@ __all__ = [
     "FeatureControlFrame",
     "FrontView",
     "GDTCharacteristic",
+    "GPUHLRResult",
+    "GPUHLRStats",
     "GeneralNotes",
+    "HLRMode",
     "HTMLRenderer",
     "HoleCallout",
     "IsometricView",
@@ -230,6 +239,7 @@ __all__ = [
     "is_gpu_available",
     "is_gpu_enabled",
     "list_standard_threads",
+    "project_shape_gpu_hlr",
     "project_shape_to_svg_fragment",
     "recognize_bolt_circles",
     "recognize_holes",
