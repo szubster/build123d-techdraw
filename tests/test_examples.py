@@ -17,6 +17,7 @@ EXPECTED_PREFIXES = [
     "precision_flange",
     "welded_frame_booklet",
     "interactive_3d_blueprint",
+    "sdf_smart_layout",
 ]
 
 
@@ -25,7 +26,7 @@ def test_all_examples_registered_in_generate_all() -> None:
     generate_all_src = (EXAMPLES_DIR / "generate_all.py").read_text(encoding="utf-8")
     non_drawing_scripts = {"generate_all.py", "benchmark_performance.py"}
     scripts = sorted(p.stem for p in EXAMPLES_DIR.glob("*.py") if p.name not in non_drawing_scripts)
-    assert len(scripts) == 9
+    assert len(scripts) == 10
     for script in scripts:
         assert f"from {script} import" in generate_all_src, (
             f"Example script '{script}.py' is not imported in examples/generate_all.py"
@@ -49,14 +50,15 @@ def test_generate_all_examples_runs_cleanly(tmp_path: Path) -> None:
             assert out_file.stat().st_size > 0, f"Empty generated output: {out_file.name}"
 
     assert (tmp_path / "interactive_3d_blueprint.html").stat().st_size > 0
+    assert (tmp_path / "sdf_smart_layout_heatmap.png").stat().st_size > 0
 
 
 def test_docs_example_svgs_in_sync() -> None:
-    """Verify docs/assets/examples/{svg,html} match examples/output/."""
+    """Verify docs/assets/examples/{svg,png,html} match examples/output/."""
     examples_out = EXAMPLES_DIR / "output"
     docs_assets = REPO_ROOT / "docs" / "assets" / "examples"
 
-    for pattern in ("*.svg", "*.html"):
+    for pattern in ("*.svg", "*.png", "*.html"):
         output_files = sorted(p.name for p in examples_out.glob(pattern))
         docs_files = sorted(p.name for p in docs_assets.glob(pattern))
         assert output_files == docs_files, (
