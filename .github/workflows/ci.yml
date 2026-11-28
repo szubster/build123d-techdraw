@@ -50,10 +50,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install system dependencies for OCP / OpenGL
+      - name: Install system dependencies for OCP / OpenGL / Vulkan Lavapipe
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1 libegl1 libxrender1 libxcursor1 libxft2 libxinerama1
+          sudo apt-get install -y libgl1 libegl1 libxrender1 libxcursor1 libxft2 libxinerama1 mesa-vulkan-drivers
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -65,6 +65,8 @@ jobs:
       - name: Record pre-generation timestamp
         run: python3 -c "import time; open('/tmp/examples_ts', 'w').write(str(time.time_ns()))"
       - name: Regenerate all example outputs
+        env:
+          WGPU_BACKEND_TYPE: Vulkan
         run: uv run python examples/generate_all.py
       - name: Verify SVG outputs match committed files and PDF/DXF were regenerated
         run: |
@@ -86,10 +88,10 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
-      - name: Install system dependencies for OCP / OpenGL
+      - name: Install system dependencies for OCP / OpenGL / Vulkan Lavapipe
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1 libegl1 libxrender1 libxcursor1 libxft2 libxinerama1
+          sudo apt-get install -y libgl1 libegl1 libxrender1 libxcursor1 libxft2 libxinerama1 mesa-vulkan-drivers
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -98,5 +100,11 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
         run: uv sync --all-groups --python ${{ matrix.python-version }}
-      - name: Run tests with pytest
+      - name: Run full test suite (including GPU raster tests via Lavapipe)
+        env:
+          WGPU_BACKEND_TYPE: Vulkan
         run: uv run --python ${{ matrix.python-version }} pytest
+      - name: Verify non-GPU code path
+        env:
+          BUILD123D_TECHDRAW_GPU: "0"
+        run: uv run --python ${{ matrix.python-version }} pytest -m "not gpu" --no-cov

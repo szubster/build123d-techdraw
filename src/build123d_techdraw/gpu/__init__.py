@@ -1,0 +1,41 @@
+"""Optional WebGPU (wgpu) foundation for hardware-accelerated technical drawing."""
+
+from build123d_techdraw.gpu.camera import (
+    OrthoCamera,
+    compute_ortho_camera,
+    compute_ortho_camera_for_points,
+)
+from build123d_techdraw.gpu.mesh import (
+    SampledEdge,
+    SampledEdgeSet,
+    TessellatedMesh,
+    sample_shape_edges,
+    tessellate_shape,
+)
+from build123d_techdraw.gpu.runtime import (
+    GPU_ENV_VAR,
+    get_gpu_device,
+    gpu_info,
+    is_gpu_available,
+    is_gpu_enabled,
+    is_gpu_installed,
+    reset_gpu_cache,
+)
+
+__all__ = [
+    "GPU_ENV_VAR",
+    "OrthoCamera",
+    "SampledEdge",
+    "SampledEdgeSet",
+    "TessellatedMesh",
+    "compute_ortho_camera",
+    "compute_ortho_camera_for_points",
+    "get_gpu_device",
+    "gpu_info",
+    "is_gpu_available",
+    "is_gpu_enabled",
+    "is_gpu_installed",
+    "reset_gpu_cache",
+    "sample_shape_edges",
+    "tessellate_shape",
+]

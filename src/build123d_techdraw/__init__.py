@@ -95,6 +95,7 @@ from build123d_techdraw.core.scale import (
 from build123d_techdraw.core.sheet import DrawingSheet, SheetSize
 from build123d_techdraw.core.title_block import BOMItem, RevisionEntry, TitleBlockInfo
 from build123d_techdraw.core.view import SheetView, ViewType, project_shape_to_svg_fragment
+from build123d_techdraw.gpu.runtime import gpu_info, is_gpu_available, is_gpu_enabled
 from build123d_techdraw.layout.linter import LintIssue, run_sheet_lint
 from build123d_techdraw.layout.multiview import (
     MultiviewLayout,
@@ -216,6 +217,9 @@ __all__ = [
     "get_part_info",
     "get_tap_drill",
     "get_thread_spec",
+    "gpu_info",
+    "is_gpu_available",
+    "is_gpu_enabled",
     "list_standard_threads",
     "project_shape_to_svg_fragment",
     "recognize_bolt_circles",

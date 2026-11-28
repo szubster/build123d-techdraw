@@ -48,6 +48,11 @@ Repository = "https://github.com/szubster/build123d-techdraw"
 Issues = "https://github.com/szubster/build123d-techdraw/issues"
 Changelog = "https://github.com/szubster/build123d-techdraw/releases"
 
+[project.optional-dependencies]
+gpu = [
+    "wgpu>=0.20.0",
+]
+
 [dependency-groups]
 dev = [
     "ruff>=0.8.0",
@@ -57,6 +62,8 @@ dev = [
     "pytest-cov>=5.0.0",
     "twine>=5.0.0",
     "cadquery-ocp-stubs>=8.0.1.1.0",
+    "wgpu>=0.20.0",
+    "scikit-image>=0.26.0",
 ]
 docs = [
     "mkdocs>=1.6.0",
@@ -123,10 +130,14 @@ warn_unused_ignores = true
 warn_no_return = true
 
 [[tool.mypy.overrides]]
-module = ["svgelements.*"]
+module = ["svgelements.*", "wgpu.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
+pythonpath = ["."]
 addopts = "-ra -q --cov=src/build123d_techdraw --cov-report=term-missing"
 testpaths = ["tests"]
+markers = [
+    "gpu: tests that require a wgpu adapter (hardware GPU or software Lavapipe)",
+]
