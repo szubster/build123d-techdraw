@@ -68,20 +68,30 @@ plugins:
             show_source: true
             heading_level: 2
             members_order: source
+            docstring_options:
+              warn_unknown_params: false
+              warn_missing_types: false
+
+extra_css:
+  - stylesheets/extra.css
 
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Examples Gallery: gallery.md
   - User Guide:
       - Sheets & Borders: user-guide/sheets-and-views.md
       - Dimensions & Text: user-guide/dimensions.md
       - GD&T & ISO Symbols: user-guide/gdt-and-symbols.md
       - Multi-View Auto-Layout: user-guide/multiview-layout.md
       - Assemblies & BOM: user-guide/assembly-bom.md
-      - Export Formats (SVG, PDF, DXF): user-guide/export-formats.md
+      - GPU & Shaders: user-guide/gpu-acceleration.md
+      - Interactive 3D HTML: user-guide/interactive-3d-html.md
+      - Export Formats (SVG, PDF, DXF, HTML): user-guide/export-formats.md
   - API Reference:
       - Overview: api-reference/index.md
       - Core: api-reference/core.md
       - Annotations: api-reference/annotations.md
       - Layout: api-reference/layout.md
       - Renderers: api-reference/renderers.md
+      - GPU Acceleration: api-reference/gpu.md

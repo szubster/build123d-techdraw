@@ -15,6 +15,13 @@
       members:
         - DXFRenderer
 
+::: build123d_techdraw.renderers.html
+    options:
+      members:
+        - HTMLRenderer
+        - render_interactive_html
+        - export_interactive_html
+
 ::: build123d_techdraw.renderers.theme
     options:
       members:

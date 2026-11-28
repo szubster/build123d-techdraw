@@ -20,13 +20,17 @@
 | **build123d Compatibility** | **>= 0.13.0** (Strictly stable public APIs) | < 0.12 (Crashes on OCP symbols) | Legacy |
 | **Annotation Architecture** | **True 2D Paper-Space (mm)** | 3D B-Rep sketch faces (bloats kernel) | Pure 2D overlay |
 | **Interactive Dual-Theme SVG** | **Yes** (Dark Blueprint ↔ Clean White ISO) | No (Raster/Basic SVG) | No |
+| **GPU Shaded + Vector Views** | **Yes** (Opt-in WebGPU: Gooch, Toon, Blueprint, BOM, X-Ray + SSAO) | No | No |
+| **GPU Visibility-Buffer HLR** | **Yes** (Fast WebGPU depth + Face-ID HLR with crisp vector output) | No | No |
+| **SDF / JFA Smart Layout** | **Yes** (2D Euclidean clearance field for dims, balloons & leaders) | No | No |
+| **Interactive 3D HTML5 Export** | **Yes** (Zero-CDN WebGL2 viewport, section cut, explode, BOM linking) | No | No |
 | **Standard ISO 5457 Borders** | **Yes** (A0–A4 portrait/landscape, grid marks) | Custom templates | Partial |
 | **ISO 7200 Title Blocks** | **Yes** (Configurable fields, projection cones) | Hardcoded | Minimal |
 | **GD&T Feature Control Frames** | **Yes** (ISO 1101 geometric tolerances & datums) | No | No |
 | **ISO 1302 Surface Roughness** | **Yes** (Machining required/prohibited symbols) | No | No |
-| **Automated Multi-View Layout** | **Yes** (Auto-scale solver & unscaled bounds) | Manual view placement | Manual |
+| **Automated Multi-View Layout** | **Yes** (ISO first-angle default, auto-scale solver, parallel projection) | Manual view placement | Manual |
 | **Automated Assembly BOM** | **Yes** (Recursive component discovery & balloons) | Manual BOM tables | No |
-| **Multi-Format Vector Export** | **SVG, PDF, DXF (1:1 CAD)** | SVG / PDF | SVG |
+| **Multi-Format Export** | **SVG, Native PDF 1.4 (16×–30× faster), 1:1 DXF, 3D HTML5** | SVG / PDF | SVG |
 
 ---
 
@@ -44,12 +48,30 @@ Traditional automated drafting tools often generate dimension arrows and text as
 ## 📦 Installation
 
 ```bash
-# With uv (recommended)
+# Core package (100% GPU-free, with uv)
 uv add build123d-techdraw
+
+# Optional WebGPU acceleration (shaded views, GPU HLR, WGSL SDF layout)
+uv add build123d-techdraw --extra gpu
 
 # With pip
 pip install build123d-techdraw
+pip install "build123d-techdraw[gpu]"
 ```
+
+---
+
+## 🚀 GPU Shading, Visibility-Buffer HLR, SDF Layout & Interactive 3D HTML5
+
+- **WebGPU Shaded + Vector-Edge Views:** Render Gooch + SSAO, Blueprint Shaded, Toon, BOM Part Colors, or X-Ray Fresnel views underneath exact vector edges in both SVG and native PDF 1.4 (`examples/shaded_technical_views.py`).
+- **GPU Visibility-Buffer HLR:** Accelerate hidden-line removal on large assemblies (`hlr="gpu" | "auto"`) while keeping crisp vector SVG/PDF/DXF output (`examples/gpu_hlr_assembly.py`).
+- **SDF / Jump-Flooding Smart Layout:** Compute a 2D sheet clearance field (`compute_sheet_sdf`, WebGPU JFA+1 with automatic CPU SciPy EDT fallback) for zero-overlap dimensions, balloons, and leaders (`examples/sdf_smart_layout.py`).
+- **Zero-CDN Interactive 3D-in-2D HTML5:** Export a single `.html` file (`sheet.export_html(...)`) with a live WebGL2 3D viewport, custom GLSL shaders, X/Y/Z section-plane cuts, assembly explode, and BOM hover/click linking (`examples/interactive_3d_blueprint.py`).
+- **Fast Core CPU & Native PDF 1.4:** 4D spatial-hash hidden-edge deduplication (~11× faster), parallel multi-view projection, and native PDF 1.4 output (16×–30× faster; run `uv run python examples/benchmark_performance.py`).
+
+<p align="center">
+  <img src="examples/output/shaded_technical_views.svg" alt="WebGPU Shaded Technical Views" width="100%">
+</p>
 
 ---
 

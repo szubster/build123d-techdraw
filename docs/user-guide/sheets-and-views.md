@@ -63,6 +63,26 @@ view_front = sheet.add_view(
 )
 ```
 
+### GPU Shading Styles & Visibility-Buffer HLR
+
+Every view factory (`sheet.add_view`, `FrontView`, `IsometricView`, etc.) also accepts optional WebGPU shading and HLR parameters when `build123d-techdraw[gpu]` is installed:
+
+```python
+from build123d_techdraw.gpu import ViewStyle
+
+iso_view = sheet.add_view(
+    shape=assembly,
+    view_type=ViewType.ISOMETRIC,
+    center=(320.0, 110.0),
+    scale=0.5,
+    style=ViewStyle.GOOCH,  # WIREFRAME | SHADED | SHADED_WITH_EDGES | GOOCH | TOON | BLUEPRINT_SHADED | XRAY
+    ssao=True,
+    hlr="auto",  # "exact" (OCCT default) | "gpu" (visibility buffer) | "auto"
+)
+```
+
+See [GPU & Shaders](gpu-acceleration.md) for all `ViewStyle` modes, `hlr_resolution`, and `hlr_gpu_face_threshold`.
+
 ### Adding Section Views with 45° Cross-Hatching
 
 ```python
