@@ -1465,3 +1465,30 @@ class DrawingSheet:
                 doc.saveas(path)
         else:
             DXFRenderer.export_sheet_to_dxf(self, path, dxfversion=dxfversion)
+
+    def export_html(
+        self,
+        filepath: str | os.PathLike[str],
+        theme: Theme | str = Theme.DARK_BLUEPRINT,
+        *,
+        shape: Any | None = None,
+        linear_deflection: float = 0.08,
+        angular_deflection: float = 0.25,
+        crease_angle_deg: float = 20.0,
+        title: str | None = None,
+        initial_layout: str = "split",
+    ) -> None:
+        """Export sheet to a self-contained interactive 3D-in-2D HTML5 blueprint."""
+        from build123d_techdraw.renderers.html import export_interactive_html
+
+        export_interactive_html(
+            self,
+            filepath,
+            theme=theme,
+            shape=shape,
+            linear_deflection=linear_deflection,
+            angular_deflection=angular_deflection,
+            crease_angle_deg=crease_angle_deg,
+            title=title,
+            initial_layout=initial_layout,
+        )

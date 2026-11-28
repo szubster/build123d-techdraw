@@ -8,6 +8,7 @@ from advanced_views import generate_advanced_views
 from algebraic_mode_bracket import generate_algebraic_mode_drawing
 from assembly_bom import generate_assembly_bom
 from builder_mode_bracket import generate_builder_mode_drawing
+from interactive_3d_blueprint import generate_interactive_3d_blueprint
 from precision_flange import generate_precision_flange
 from quickstart_enclosure import generate_quickstart
 from stepped_bracket import generate_stepped_bracket
@@ -30,6 +31,7 @@ def generate_all(output_dir: Path, sync_docs: bool = True) -> None:
         ("Advanced Views", generate_advanced_views),
         ("Precision Flange", generate_precision_flange),
         ("Welded Frame Booklet", generate_welded_frame_booklet),
+        ("Interactive 3D Blueprint", generate_interactive_3d_blueprint),
     ]
 
     for name, fn in generators:
@@ -38,9 +40,10 @@ def generate_all(output_dir: Path, sync_docs: bool = True) -> None:
 
     if sync_docs:
         docs_assets.mkdir(parents=True, exist_ok=True)
-        print("Copying SVG outputs to docs/assets/examples/...")
-        for svg_file in output_dir.glob("*.svg"):
-            shutil.copy2(svg_file, docs_assets / svg_file.name)
+        print("Copying SVG and HTML outputs to docs/assets/examples/...")
+        for pattern in ("*.svg", "*.html"):
+            for asset_file in output_dir.glob(pattern):
+                shutil.copy2(asset_file, docs_assets / asset_file.name)
 
     print("All example outputs generated successfully!")
 
